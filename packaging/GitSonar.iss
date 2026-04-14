@@ -9,7 +9,7 @@ AppVersion={#MyAppVersion}
 AppPublisher=OpenAI Codex
 DefaultDirName={autopf64}\{#MyAppName}
 DefaultGroupName={#MyAppName}
-OutputDir=dist\installer
+OutputDir=..\artifacts\dist\installer
 OutputBaseFilename=GitSonarSetup
 Compression=lzma
 SolidCompression=yes
@@ -17,14 +17,14 @@ WizardStyle=modern
 UninstallDisplayIcon={app}\{#MyAppExeName}
 
 [Tasks]
-Name: "desktopicon"; Description: "创建桌面快捷方式"; Flags: unchecked
+Name: "desktopicon"; Description: "Create a desktop shortcut"; Flags: unchecked
 
 [Files]
-Source: "dist\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\artifacts\dist\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
 
 [Run]
-Filename: "{app}\{#MyAppExeName}"; Description: "启动 {#MyAppName}"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\{#MyAppExeName}"; Description: "Launch {#MyAppName}"; Flags: nowait postinstall skipifsilent

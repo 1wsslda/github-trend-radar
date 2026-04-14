@@ -53,8 +53,8 @@ It is closer to a long-running GitHub intelligence workspace than a page you ope
 
 ### Download
 
-1. Run the installer: `dist/installer/GitSonarSetup.exe`
-2. Or launch the portable build: `dist/GitSonar.exe`
+1. Run the installer: `artifacts/dist/installer/GitSonarSetup.exe`
+2. Or launch the portable build: `artifacts/dist/GitSonar.exe`
 3. On first launch, configure what you need:
    - GitHub Token
    - Proxy
@@ -179,3 +179,12 @@ Detailed docs remain in the `docs` directory:
 - [docs/SECURITY.md](docs/SECURITY.md)
 
 These documents are currently Chinese-first.
+
+## Repository Layout
+
+- `src/`: desktop entry script and application source package
+- `scripts/`: PowerShell and CMD build entry points
+- `packaging/`: Inno Setup installer definition
+- `runtime-data/`: local development runtime files, cache, and shell profile
+- `artifacts/`: generated EXE, installer, and PyInstaller temporary output
+- `docs/`: build, architecture, FAQ, and security notes

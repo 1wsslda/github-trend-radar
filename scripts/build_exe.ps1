@@ -1,10 +1,15 @@
 $ErrorActionPreference = "Stop"
 
-$root = Split-Path -Parent $MyInvocation.MyCommand.Path
+$scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$root = Split-Path -Parent $scriptDir
 $appName = "GitSonar"
 $legacyAppName = "GitHubTrendRadar"
-$entryScript = "GitSonar.pyw"
-$generatedSpec = Join-Path $root "$appName.spec"
+$entryScript = Join-Path $root "src\GitSonar.pyw"
+$artifactsRoot = Join-Path $root "artifacts"
+$distPath = Join-Path $artifactsRoot "dist"
+$buildPath = Join-Path $artifactsRoot "build"
+$specPath = Join-Path $artifactsRoot "spec"
+$generatedSpec = Join-Path $specPath "$appName.spec"
 
 Set-Location $root
 
@@ -30,7 +35,7 @@ $missingModules = @($requiredModules | Where-Object { -not (Test-PythonModule $_
 
 if ($missingModules.Count -gt 0) {
   Write-Host "Missing Python packages detected, installing..."
-  python -m pip install -r requirements.txt pyinstaller
+  python -m pip install -r (Join-Path $root "requirements.txt") pyinstaller
   if ($LASTEXITCODE -ne 0) {
     throw "pip install failed."
   }
@@ -44,11 +49,23 @@ if ($running) {
   Start-Sleep -Seconds 1
 }
 
-foreach ($path in @("dist", "build", "__pycache__")) {
+foreach ($path in @($distPath, $buildPath, $specPath, (Join-Path $root "__pycache__"))) {
   if (Test-Path $path) {
     Remove-Item -Recurse -Force $path
   }
 }
+
+foreach ($path in @((Join-Path $root "dist"), (Join-Path $root "build"))) {
+  if (Test-Path $path) {
+    try {
+      Remove-Item -Recurse -Force $path
+    } catch {
+      Write-Warning "Skipping legacy path cleanup: $path"
+    }
+  }
+}
+
+New-Item -ItemType Directory -Force -Path $artifactsRoot, $distPath, $buildPath, $specPath | Out-Null
 
 python -m PyInstaller `
   --name $appName `
@@ -56,6 +73,9 @@ python -m PyInstaller `
   --clean `
   --noconfirm `
   --noconsole `
+  --distpath $distPath `
+  --workpath $buildPath `
+  --specpath $specPath `
   $entryScript
 
 if ($LASTEXITCODE -ne 0) {
@@ -67,4 +87,4 @@ if (Test-Path $generatedSpec) {
 }
 
 Write-Host ""
-Write-Host "Build complete: $root\\dist\\$appName.exe"
+Write-Host "Build complete: $distPath\$appName.exe"

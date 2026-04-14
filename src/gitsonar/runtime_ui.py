@@ -80,16 +80,15 @@ a{color:inherit;text-decoration:none}
 
 .toolbar{margin-bottom:16px;display:grid;gap:12px}
 .control-shell,.selection-bar{border:1px solid var(--border);border-radius:20px;background:linear-gradient(180deg, rgba(28,25,20,.9), rgba(20,18,14,.94));box-shadow:var(--shadow)}
-.control-shell{display:grid;grid-template-columns:minmax(0,1.08fr) minmax(0,1.5fr);gap:16px;padding:16px 20px}
-.toolbar-copy{display:grid;gap:6px;align-content:start}
+.control-shell{display:grid;grid-template-columns:minmax(280px,.92fr) minmax(0,1.35fr);gap:16px;padding:16px 20px;align-items:start}
+.toolbar-copy,.toolbar-controls{display:grid;gap:6px;align-content:start;min-width:0}
 .summary{font-size:.95rem;font-weight:650;line-height:1.35;color:var(--text)}
 .sub{color:var(--muted);font-size:.85rem;line-height:1.6}
-.toolbar-controls{display:grid;gap:10px}
 .filters,.actions,.states,.badges,.meta,.panel-actions,.settings-actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
-.filters{display:flex;flex-wrap:wrap;gap:14px}
-.filters > *{flex:1 1 140px}
-.filters > input{flex:2 1 240px}
-.actions{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.filters{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.filters > *{min-width:0}
+.filters > input[type="search"]{grid-column:1 / -1}
+.actions{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px}
 .selection-bar{display:none;padding:16px 18px}
 .selection-bar.show{display:block;animation:slide-in-down 0.4s var(--ease-smooth) forwards}
 @keyframes slide-in-down { 0% {opacity:0;transform:translateY(-12px)} 100% {opacity:1;transform:translateY(0)} }
@@ -98,7 +97,27 @@ a{color:inherit;text-decoration:none}
 .action,input,select{min-height:44px;width:100%;padding:0 14px;border-radius:14px;border:1px solid var(--border);background:rgba(17,15,12,.88);color:var(--text);transition:border-color .25s var(--ease-smooth),background .25s var(--ease-smooth),transform .25s var(--ease-smooth),box-shadow .25s var(--ease-smooth),opacity .25s var(--ease-smooth)}
 .action:active{transform:scale(0.97)}
 input::placeholder{color:var(--muted-soft)}
+input[type="search"]::-webkit-search-cancel-button {-webkit-appearance:none;appearance:none;height:16px;width:16px;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23a99a83' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cline x1='18' y1='6' x2='6' y2='18'%3E%3C/line%3E%3Cline x1='6' y1='6' x2='18' y2='18'%3E%3C/line%3E%3C/svg%3E") no-repeat center center;background-size:14px;cursor:pointer;opacity:0.6;transition:opacity .2s var(--ease-smooth);}
+input[type="search"]::-webkit-search-cancel-button:hover {opacity:1;}
+input[type="checkbox"] {min-height:initial;width:initial;padding:0;appearance:none;-webkit-appearance:none;width:18px;height:18px;border:1px solid var(--border-strong);border-radius:6px;background:rgba(10,9,7,.5);cursor:pointer;position:relative;transition:all .2s var(--ease-smooth);margin:0;display:inline-flex;vertical-align:middle;}
+input[type="checkbox"]:hover {border-color:rgba(233,201,143,.4);}
+input[type="checkbox"]:checked {background:var(--accent);border-color:var(--accent);animation:check-pop .3s var(--ease-bounce) forwards;}
+input[type="checkbox"]:checked::after {content:"";position:absolute;top:2px;left:6px;width:4px;height:8px;border:solid var(--accent-ink);border-width:0 2px 2px 0;transform:rotate(45deg);}
+@keyframes check-pop { 0% { transform: scale(0.85); } 100% { transform: scale(1); } }
 select{appearance:none;background-image:linear-gradient(45deg, transparent 50%, var(--muted) 50%),linear-gradient(135deg, var(--muted) 50%, transparent 50%);background-position:calc(100% - 18px) calc(50% - 1px),calc(100% - 12px) calc(50% - 1px);background-size:6px 6px,6px 6px;background-repeat:no-repeat}
+.custom-select-wrapper {position:relative;display:inline-block;width:100%;min-width:140px;}
+.filters > .custom-select-wrapper {min-width:0;}
+.custom-select-trigger {display:flex!important;justify-content:space-between;align-items:center;padding:0 14px;border-radius:14px;min-height:44px;border:1px solid var(--border);background:rgba(17,15,12,.88);color:var(--text);cursor:pointer;user-select:none;font-weight:normal;transition:border-color .25s var(--ease-smooth),background .25s var(--ease-smooth),box-shadow .25s var(--ease-smooth);}
+.custom-select-trigger:hover {border-color:rgba(233,201,143,.26);background:rgba(25,21,17,.98);}
+.custom-select-wrapper.open .custom-select-trigger {border-color:var(--accent);box-shadow:0 0 0 1px rgba(233,201,143,.12);background:rgba(25,21,17,.98);}
+.custom-select-icon {margin-left:10px;display:flex;color:var(--muted);transition:transform .25s var(--ease-smooth);}
+.custom-select-wrapper.open .custom-select-icon {transform:rotate(180deg);color:var(--accent);}
+.custom-select-text {overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.95rem;}
+.custom-select-options {position:absolute;top:calc(100% + 6px);left:0;right:0;z-index:50;background:linear-gradient(180deg, rgba(32,28,23,.98), rgba(20,18,14,1));border:1px solid rgba(233,214,184,.14);border-radius:14px;padding:6px;box-shadow:0 12px 32px rgba(0,0,0,.38);max-height:280px;overflow-y:auto;opacity:0;visibility:hidden;transform:translateY(-8px);transition:opacity .2s var(--ease-smooth),transform .2s var(--ease-smooth),visibility .2s;}
+.custom-select-wrapper.open .custom-select-options {opacity:1;visibility:visible;transform:translateY(0);}
+.custom-select-item {padding:10px 12px;border-radius:8px;cursor:pointer;color:var(--text-soft);font-size:.95rem;transition:background .2s,color .2s;display:flex;align-items:center;justify-content:space-between;line-height:1.4;}
+.custom-select-item:hover {background:rgba(233,201,143,.08);color:var(--text);}
+.custom-select-item.selected {background:rgba(233,201,143,.12);color:var(--accent-strong);font-weight:600;}
 .action{cursor:pointer;justify-content:center;display:inline-flex;align-items:center;border-color:rgba(233,201,143,.12);background:linear-gradient(180deg, rgba(39,34,27,.86), rgba(22,19,15,.96));color:var(--text-soft);font-weight:560}
 .action:hover{transform:translateY(-1px);border-color:rgba(233,201,143,.26);background:linear-gradient(180deg, rgba(48,42,33,.96), rgba(25,21,17,.98));color:var(--text)}
 .primary{border-color:rgba(246,222,174,.18);background:linear-gradient(180deg, var(--accent-strong), #dcb778);color:var(--accent-ink)}
@@ -111,14 +130,15 @@ select{appearance:none;background-image:linear-gradient(45deg, transparent 50%, 
 .tab{display:inline-flex;align-items:center;gap:8px;min-height:42px;padding:0 16px;border:none;border-radius:999px;background:transparent;color:var(--muted);cursor:pointer;font-size:.94rem;font-weight:560;transition:background .25s var(--ease-smooth),color .25s var(--ease-smooth),transform .25s var(--ease-smooth)}
 .tab:active{transform:scale(0.95)}
 .tab:hover{color:var(--text);background:rgba(255,255,255,.035)}
-.tab.active{background:linear-gradient(180deg, rgba(233,201,143,.18), rgba(233,201,143,.09));color:var(--text)}
+.tab.active{background:linear-gradient(180deg, rgba(233,201,143,.18), rgba(233,201,143,.09));color:var(--text);animation:tab-active .3s var(--ease-bounce) forwards}
+@keyframes tab-active { 0% { transform:scale(0.96); opacity:0.8; } 100% { transform:scale(1); opacity:1; } }
 .tab-count{color:var(--accent);font-size:.84rem}
 
 .cards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:20px;align-items:stretch}
 @media (max-width: 1300px) { .cards { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (max-width: 960px) { .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 640px) { .cards { grid-template-columns: 1fr; } }
-.card,.update-card,.compare-card{position:relative;display:flex;flex-direction:column;gap:16px;padding:24px;border-radius:20px;border:1px solid rgba(233,214,184,.1);background:radial-gradient(circle at top right, rgba(233,201,143,.07), transparent 0 28%),linear-gradient(180deg, rgba(34,30,24,.96), rgba(24,21,17,.98));box-shadow:var(--shadow);overflow:hidden;transform:translateZ(0);will-change:transform;transition:border-color .3s var(--ease-smooth),box-shadow .3s var(--ease-smooth),transform .3s var(--ease-smooth);animation:list-enter 0.5s var(--ease-smooth) backwards}
+.card,.update-card,.compare-card{position:relative;display:flex;flex-direction:column;gap:16px;padding:24px;border-radius:20px;border:1px solid rgba(233,214,184,.1);background:radial-gradient(circle at top right, rgba(233,201,143,.07), transparent 0 28%),linear-gradient(180deg, rgba(34,30,24,.96), rgba(24,21,17,.98));box-shadow:var(--shadow);overflow:visible;transform:translateZ(0);will-change:transform;transition:border-color .3s var(--ease-smooth),box-shadow .3s var(--ease-smooth),transform .3s var(--ease-smooth);animation:list-enter 0.5s var(--ease-smooth) backwards}
 @keyframes list-enter { 0% {opacity:0;transform:translateY(12px)} 100% {opacity:1;transform:none} }
 .card:nth-child(1),.update-card:nth-child(1){animation-delay:0s}
 .card:nth-child(2),.update-card:nth-child(2){animation-delay:0.03s}
@@ -141,7 +161,10 @@ select{appearance:none;background-image:linear-gradient(45deg, transparent 50%, 
 .card-body{display:flex;flex-direction:column;gap:14px;flex-grow:1}
 .title{display:block;margin:6px 0 0;color:var(--text);font-size:1.15rem;line-height:1.24;letter-spacing:-.02em;font-weight:700;transition:color .25s var(--ease-smooth);word-break:break-word}
 .title:hover{color:var(--accent-strong);text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:4px}
-.desc{color:var(--text-soft);font-size:.88rem;line-height:1.7;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden;flex-grow:1;margin:0}
+.desc-wrap{position:relative;min-width:0;flex-grow:1}
+.desc{color:var(--text-soft);font-size:.88rem;line-height:1.7;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden;margin:0}
+.desc-popover{position:absolute;left:-14px;right:-14px;top:calc(100% + 10px);padding:14px 16px;border:1px solid rgba(233,214,184,.14);border-radius:16px;background:rgba(18,16,13,.98);color:var(--text-soft);box-shadow:0 22px 42px rgba(0,0,0,.38);opacity:0;visibility:hidden;transform:translateY(8px);transition:opacity .22s var(--ease-smooth),transform .22s var(--ease-smooth),visibility .22s var(--ease-smooth);pointer-events:none;z-index:8;max-height:min(260px,42vh);overflow:auto}
+.desc-wrap:hover .desc-popover,.desc-wrap:focus-within .desc-popover{opacity:1;visibility:visible;transform:translateY(0);pointer-events:auto}
 .desc.muted{color:var(--muted)}
 .badges{gap:6px;display:flex;flex-wrap:wrap}
 .badge{display:inline-flex;align-items:center;gap:4px;min-height:24px;padding:0 8px;border-radius:999px;border:1px solid rgba(233,214,184,.12);background:rgba(15,13,10,.55);color:var(--muted);font-size:.72rem;letter-spacing:.02em}
@@ -159,7 +182,8 @@ select{appearance:none;background-image:linear-gradient(45deg, transparent 50%, 
 .state-btn:hover{border-color:rgba(233,214,184,.24);color:var(--text-soft)}
 .state-btn.active{color:var(--accent-ink);background:var(--accent);border-color:rgba(233,201,143,.3);box-shadow:0 8px 20px rgba(233,201,143,.12)}
 .states .action{min-height:30px;padding:0 10px;font-size:.75rem;border-radius:999px;width:auto;}
-.empty{padding:84px 20px;border:1px dashed rgba(233,214,184,.12);border-radius:22px;background:rgba(16,14,11,.62);color:var(--muted);text-align:center;font-size:.95rem}
+.empty{padding:84px 20px;border:1px dashed rgba(233,214,184,.12);border-radius:22px;background:rgba(16,14,11,.62);color:var(--muted);text-align:center;font-size:.95rem;display:flex;flex-direction:column;align-items:center;gap:16px;}
+.empty-icon{width:48px;height:48px;opacity:0.4;color:var(--muted)}
 .notice{padding:16px 18px;border-radius:16px;border:1px solid rgba(233,201,143,.12);background:rgba(18,16,13,.84);color:var(--text-soft);font-size:.9rem;line-height:1.75}
 .toast{position:fixed;right:22px;bottom:22px;max-width:min(420px,calc(100vw - 32px));padding:14px 16px;border-radius:16px;border:1px solid rgba(233,201,143,.18);background:rgba(20,17,13,.96);color:var(--text);box-shadow:var(--shadow);opacity:0;transform:translateY(16px) scale(0.96);transition:opacity .3s var(--ease-smooth),transform .4s var(--ease-bounce);pointer-events:none;z-index:60}
 .toast.show{opacity:1;transform:translateY(0) scale(1)}
@@ -190,14 +214,15 @@ select{appearance:none;background-image:linear-gradient(45deg, transparent 50%, 
 @media (max-width:1120px){
   .hero,.control-shell{grid-template-columns:1fr}
   .hero-rail{grid-template-columns:1fr 1fr}
-  .actions{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .filters,.actions{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
 @media (max-width:780px){
   .page{padding:20px 14px 72px}
   .hero-copy,.hero-status,.hero-actions,.control-shell,.selection-bar,.tabs{border-radius:20px}
   .hero-rail{grid-template-columns:1fr}
-  .actions{grid-template-columns:1fr}
+  .filters,.actions{grid-template-columns:1fr}
   .card,.update-card,.compare-card{padding:18px 16px}
+  .desc-popover{left:0;right:0}
   .detail-grid{grid-template-columns:1fr}
   .panel-head,.panel-body{padding-left:20px;padding-right:20px}
 }
@@ -242,7 +267,6 @@ select{appearance:none;background-image:linear-gradient(45deg, transparent 50%, 
     <div class="control-shell">
       <div class="toolbar-copy">
         <div class="summary">当前面板可见 <span id="visible-count">0</span><span id="visible-label"> 个仓库</span> · 已选 <span id="selected-count">0</span> 项</div>
-        <div class="sub">这是一个偏“读”和“筛”的视图。项目名称和描述是第一焦点，Stars / Fork / 来源等次级信息会被自然后移。仓库链接会使用系统默认浏览器打开，沿用你当前登录态。</div>
         <div class="sub">本程序不强制要求 VPN；如果当前网络无法访问 GitHub，请先准备好代理或 VPN，再到“设置”里填写代理地址。</div>
       </div>
       <div class="toolbar-controls">
@@ -408,16 +432,24 @@ function visibleUpdates(){if(panel!==UPDATE_PANEL_KEY) return [];const query=doc
 function visibleLinkList(){return panel===UPDATE_PANEL_KEY?visibleUpdates().map(update=>update.url):visibleRepos().map(repo=>repo.url);}
 function tabsData(){return [...(INITIAL.periods||[]).map(period=>({key:period.key,label:period.label,count:current(period.key).length})),...(INITIAL.states||[]).map(state=>({key:`saved:${state.key}`,label:state.label,count:(userState[state.key]||[]).length})),{key:UPDATE_PANEL_KEY,label:"收藏更新",count:(userState.favorite_updates||[]).length}];}
 function ensureValidPanel(){const keys=new Set(tabsData().map(tab=>tab.key));if(!keys.has(panel)){panel="daily";localStorage.setItem("gtr-tab",panel);}}
+const emptyIcon = '<svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M16 16s-1.5-2-4-2-4 2-4 2"></path><line x1="9" y1="9" x2="9.01" y2="9"></line><line x1="15" y1="9" x2="15.01" y2="9"></line></svg>';
+function selectedBadgeMarkup(index){return `<span class="badge-selection">#${index+1} 已选</span>`;}
+function descBlockMarkup(text, muted=false){const safe=h(text||"暂无描述");return `<div class="desc-wrap"><div class="desc${muted?" muted":""}" title="${safe}">${safe}</div><div class="desc-popover">${safe}</div></div>`;}
+function refreshSelectionSummary(){const isUpdatePanel=panel===UPDATE_PANEL_KEY;const repos=visibleRepos();const updates=visibleUpdates();const selected=selectedCount();document.getElementById("visible-count").textContent=isUpdatePanel?updates.length:repos.length;document.getElementById("visible-label").textContent=isUpdatePanel?" 条更新":" 个仓库";document.getElementById("selected-count").textContent=selected;document.getElementById("selection-title").textContent=selected?`已选 ${selected} 个条目，可批量分析、改状态或双仓库对比`:"已选条目";document.getElementById("batch-actions-row").classList.toggle("show",selected>0);}
+function syncCardSelectionState(){const urlArray=[...selectedUrls];document.querySelectorAll("[data-select-url]").forEach(card=>{const url=card.getAttribute("data-select-url");const selectedIdx=urlArray.indexOf(url);const selected=selectedIdx!==-1;card.classList.toggle("selected",selected);const badgeRow=card.querySelector(".badges");const existingBadge=badgeRow?.querySelector(".badge-selection");const markup=selectedBadgeMarkup(selectedIdx);if(selected){if(!existingBadge&&badgeRow){badgeRow.insertAdjacentHTML("afterbegin",markup);}else if(existingBadge&&existingBadge.outerHTML!==markup){existingBadge.outerHTML=markup;}}else if(!selected&&existingBadge){existingBadge.remove();}});}
+function refreshSelectionUI(){refreshSelectionSummary();syncCardSelectionState();}
 function renderRepoCards(repos){
-  if(!repos.length) return '<div class="empty">当前面板没有匹配结果。</div>';
+  if(!repos.length) return `<div class="empty">${emptyIcon}<span>当前面板没有匹配结果。</span></div>`;
+  const urlArray=[...selectedUrls];
   return repos.map(repo=>{
-    const selected=selectedUrls.has(repo.url);
-    const description=h(repo.description||repo.description_raw||"暂无描述");
+    const selectedIdx=urlArray.indexOf(repo.url);
+    const selected=selectedIdx!==-1;
+    const descriptionText=repo.description||repo.description_raw||"暂无描述";
     return `<article class="card selectable ${selected?"selected":""}" data-select-url="${h(repo.url)}">
       <div class="card-head">
         <div>
           <div class="badges">
-            ${selected?'<span class="badge-selection">已选中</span>':""}
+            ${selected?selectedBadgeMarkup(selectedIdx):""}
             <span class="badge ${gainBadgeClass(repo)}">${h(gainLabel(repo))}</span>
             <span class="badge source">${h(repo.source_label||"GitHub 来源")}</span>
           </div>
@@ -426,14 +458,14 @@ function renderRepoCards(repos){
         <div class="meta meta-rank">#${repo.rank||"-"}</div>
       </div>
       <div class="card-body">
-        <div class="desc">${description}</div>
+        ${descBlockMarkup(descriptionText)}
         <div class="meta-line">
           <span class="meta-pill"><strong>Stars</strong><span>${repo.stars||0}</span></span>
           <span class="meta-pill"><strong>Forks</strong><span>${repo.forks||0}</span></span>
           <span class="meta-pill"><strong>Language</strong><span>${h(repo.language||"未知语言")}</span></span>
         </div>
         <div class="states">
-          ${(INITIAL.states||[]).map(state=>`<button class="state-btn ${(userState[state.key]||[]).includes(repo.url)?"active":""}" onclick='toggleState(${JSON.stringify(state.key)}, ${JSON.stringify(repo.url)})'>${h(state.button)}</button>`).join("")}
+          ${(INITIAL.states||[]).map(state=>`<button class="state-btn ${(userState[state.key]||[]).includes(repo.url)?"active":""}" data-state-key="${h(state.key)}" onclick='toggleState(${JSON.stringify(state.key)}, ${JSON.stringify(repo.url)})'>${h(state.button)}</button>`).join("")}
           <button class="action" onclick='analyzeRepo(${JSON.stringify(repo.url)})'>ChatGPT</button>
           <button class="action" onclick='openDetail(${JSON.stringify(repo.owner)}, ${JSON.stringify(repo.name)}, ${JSON.stringify(repo.full_name)})'>详情</button>
         </div>
@@ -442,16 +474,18 @@ function renderRepoCards(repos){
   }).join("");
 }
 function renderUpdateCards(items){
-  if(!items.length) return '<div class="empty">收藏仓库最近还没有检测到新的变化。</div>';
+  if(!items.length) return `<div class="empty">${emptyIcon}<span>收藏仓库最近还没有检测到新的变化。</span></div>`;
+  const urlArray=[...selectedUrls];
   return items.map(update=>{
-    const selected=selectedUrls.has(update.url);
+    const selectedIdx=urlArray.indexOf(update.url);
+    const selected=selectedIdx!==-1;
     const changeBadges=(update.changes||[]).map(change=>`<span class="badge gain">${h(change)}</span>`).join("");
     const summary=(update.changes||[]).length?(update.changes||[]).join(" · "):"最近一次检测没有整理出可展示的变化摘要。";
     return `<article class="update-card selectable ${selected?"selected":""}" data-select-url="${h(update.url)}">
       <div class="card-head">
         <div>
           <div class="badges">
-            ${selected?'<span class="badge-selection">已选中</span>':""}
+            ${selected?selectedBadgeMarkup(selectedIdx):""}
             <span class="badge source">收藏更新</span>
             ${update.latest_release_tag?`<span class="badge source">${h(update.latest_release_tag)}</span>`:""}
           </div>
@@ -461,7 +495,7 @@ function renderUpdateCards(items){
       </div>
       <div class="card-body">
         ${changeBadges?`<div class="badges">${changeBadges}</div>`:""}
-        <div class="desc">${h(summary)}</div>
+        ${descBlockMarkup(summary)}
         <div class="meta-line">
           <span class="meta-pill"><strong>Stars</strong><span>${update.stars||0}</span></span>
           <span class="meta-pill"><strong>Forks</strong><span>${update.forks||0}</span></span>
@@ -490,18 +524,13 @@ function render(){
   document.getElementById("tabs").innerHTML=tabsData().map(tab=>`<button class="tab ${tab.key===panel?"active":""}" onclick='setPanel(${JSON.stringify(tab.key)})'>${h(tab.label)} <span class="tab-count">${tab.count}</span></button>`).join("");
   const repos=visibleRepos();
   const updates=visibleUpdates();
-  const selected=selectedCount();
-  document.getElementById("visible-count").textContent=isUpdatePanel?updates.length:repos.length;
-  document.getElementById("visible-label").textContent=isUpdatePanel?" 条更新":" 个仓库";
-  document.getElementById("selected-count").textContent=selected;
-  document.getElementById("selection-title").textContent=selected?`已选 ${selected} 个条目，可批量分析、改状态或双仓库对比`:"已选条目";
-  document.getElementById("batch-actions-row").classList.toggle("show",selected>0);
   document.getElementById("cards").innerHTML=isUpdatePanel?renderUpdateCards(updates):renderRepoCards(repos);
+  refreshSelectionSummary();
 }
 function setPanel(nextPanel){panel=String(nextPanel||"daily");localStorage.setItem("gtr-tab",panel);render();}
-function toggleSelected(url){if(selectedUrls.has(url)) selectedUrls.delete(url);else selectedUrls.add(url);saveSelectedUrls();render();}
-function clearSelected(){if(!selectedUrls.size){toast("当前没有已选条目");return;}selectedUrls.clear();saveSelectedUrls();render();toast("已清空选择");}
-function selectVisible(){const urls=visibleLinkList();if(!urls.length){toast(panel===UPDATE_PANEL_KEY?"当前面板没有可选中的更新":"当前面板没有可选中的仓库");return;}urls.forEach(url=>selectedUrls.add(url));saveSelectedUrls();render();toast(`已选中 ${urls.length} 项`);}
+function toggleSelected(url){if(selectedUrls.has(url)) selectedUrls.delete(url);else selectedUrls.add(url);saveSelectedUrls();refreshSelectionUI();}
+function clearSelected(){if(!selectedUrls.size){toast("当前没有已选条目");return;}selectedUrls.clear();saveSelectedUrls();refreshSelectionUI();toast("已清空选择");}
+function selectVisible(){const urls=visibleLinkList();if(!urls.length){toast(panel===UPDATE_PANEL_KEY?"当前面板没有可选中的更新":"当前面板没有可选中的仓库");return;}urls.forEach(url=>selectedUrls.add(url));saveSelectedUrls();refreshSelectionUI();toast(`已选中 ${urls.length} 项`);}
 async function analyzeRepo(url){const repo=repoByUrl(url);if(!repo){toast("未找到仓库信息");return;}await openChatGPTPrompts([buildRepoPrompt(repo)]);}
 async function analyzeVisible(){if(panel===UPDATE_PANEL_KEY){toast("收藏更新面板不支持整页分析");return;}const repos=visibleRepos().slice(0,20);if(!repos.length){toast("当前列表没有可分析的仓库");return;}await openChatGPTPrompts(splitRepoPrompts(repos,"当前 GitHub 趋势列表"));}
 async function analyzeSelected(){const repos=selectedRepos();if(!repos.length){toast("请先选中仓库");return;}await openChatGPTPrompts(splitRepoPrompts(repos,"已选仓库"));}
@@ -535,7 +564,7 @@ README 摘要: ${detailB.readme_summary||detailB.readme_summary_raw||"暂无"}`;
 async function openCompareSelected(){
   const repos=selectedRepos();
   if(repos.length!==2){toast("请先选中 2 个仓库再对比");return;}
-  document.getElementById("compare-body").innerHTML='<div class="empty">正在拉取对比数据...</div>';
+  document.getElementById("compare-body").innerHTML=`<div class="empty">${emptyIcon}<span>正在拉取对比数据...</span></div>`;
   document.getElementById("compare-modal").classList.add("show");
   try{
     const [repoA,repoB]=repos;
@@ -544,8 +573,20 @@ async function openCompareSelected(){
     document.getElementById("compare-body").innerHTML=`<div class="notice">对比抽屉会把两个仓库按同一组维度并排展开，方便从语言、活跃度、README 摘要与项目定位几个层面做快速判断。</div><div class="panel-actions"><button class="action primary" onclick="analyzeCompare()">ChatGPT 对比</button></div><div class="compare-grid">${renderCompareCard(repoA,detailA)}${renderCompareCard(repoB,detailB)}</div>`;
   }catch(error){
     comparePrompt="";
-    document.getElementById("compare-body").innerHTML=`<div class="empty">${h(error.message||"对比数据加载失败")}</div>`;
+    document.getElementById("compare-body").innerHTML=`<div class="empty">${emptyIcon}<span>${h(error.message||"对比数据加载失败")}</span></div>`;
   }
+}
+function syncStateUI(){
+  document.querySelectorAll("[data-select-url]").forEach(card=>{
+    const url=card.getAttribute("data-select-url");
+    card.querySelectorAll("[data-state-key]").forEach(btn=>{
+      const stateKey=btn.getAttribute("data-state-key");
+      btn.classList.toggle("active",(userState[stateKey]||[]).includes(url));
+    });
+  });
+  const currentTabsHtml=tabsData().map(tab=>`<button class="tab ${tab.key===panel?"active":""}" onclick='setPanel(${JSON.stringify(tab.key)})'>${h(tab.label)} <span class="tab-count">${tab.count}</span></button>`).join("");
+  const tabsContainer=document.getElementById("tabs");
+  if(tabsContainer.innerHTML!==currentTabsHtml) tabsContainer.innerHTML=currentTabsHtml;
 }
 function renderCompareCard(repo,detail){
   return `<article class="compare-card">
@@ -570,8 +611,8 @@ function renderCompareCard(repo,detail){
   </article>`;
 }
 async function analyzeCompare(){if(!comparePrompt){toast("当前没有可分析的对比内容");return;}await openChatGPTPrompts([comparePrompt]);}
-async function toggleState(key,url){const repo=repoByUrl(url);if(!repo) return;const {resp,data}=await requestJson("/api/state",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({state:key,enabled:!((userState[key]||[]).includes(url)),repo})},"保存状态失败");if(!resp.ok||!data.ok){toast(data.error||"保存失败");return;}userState=data.user_state;render();}
-async function batchSetState(stateKey){const repos=selectedRepos();if(!repos.length){toast("请先选中仓库再批量操作");return;}let lastState=null;for(const repo of repos){const {resp,data}=await requestJson("/api/state",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({state:stateKey,enabled:true,repo})},"批量操作失败");if(!resp.ok||!data.ok){toast(data.error||"批量操作失败");return;}if(data.user_state) lastState=data.user_state;}if(lastState) userState=lastState;render();const label=(INITIAL.states||[]).find(state=>state.key===stateKey)?.label||stateKey;toast(`已将 ${repos.length} 个仓库加入“${label}”`);}
+async function toggleState(key,url){const repo=repoByUrl(url);if(!repo) return;const {resp,data}=await requestJson("/api/state",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({state:key,enabled:!((userState[key]||[]).includes(url)),repo})},"保存状态失败");if(!resp.ok||!data.ok){toast(data.error||"保存失败");return;}userState=data.user_state;syncStateUI();}
+async function batchSetState(stateKey){const repos=selectedRepos();if(!repos.length){toast("请先选中仓库再批量操作");return;}let lastState=null;for(const repo of repos){const {resp,data}=await requestJson("/api/state",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({state:stateKey,enabled:true,repo})},"批量操作失败");if(!resp.ok||!data.ok){toast(data.error||"批量操作失败");return;}if(data.user_state) lastState=data.user_state;}if(lastState) userState=lastState;syncStateUI();const label=(INITIAL.states||[]).find(state=>state.key===stateKey)?.label||stateKey;toast(`已将 ${repos.length} 个仓库加入“${label}”`);}
 async function clearFavoriteUpdates(){if(!(userState.favorite_updates||[]).length){toast("当前没有收藏更新记录");return;}if(!window.confirm("确认清空收藏更新记录吗？")) return;const {resp,data}=await requestJson("/api/favorite-updates/clear",{method:"POST"},"清空收藏更新记录失败");if(!resp.ok||!data.ok){toast(data.error||"清空失败");return;}userState=data.user_state;render();toast(data.message||"已清空收藏更新记录");}
 async function refreshNow(){try{const {resp,data}=await requestJson("/api/refresh",{method:"POST"},"刷新请求失败");if(!resp.ok||!data.ok){toast(data.error||"刷新失败");return;}currentNote=data.message||"已开始后台刷新。";render();poll();}catch(error){toast(error.message||"刷新失败");}}
 function poll(){clearInterval(window.__pollTimer);window.__pollTimer=setInterval(async()=>{try{const {resp,data}=await requestJson("/api/status?ts="+Date.now(),{cache:"no-store"},"状态轮询失败");if(!resp.ok){currentNote=data.error||"状态获取失败";document.getElementById("note").textContent=currentNote;return;}currentNote=data.refreshing?"后台刷新中...":(data.error||"已显示最新数据");document.getElementById("note").textContent=currentNote;if(!data.refreshing){clearInterval(window.__pollTimer);location.reload();}}catch(error){currentNote=error.message||"状态轮询失败";document.getElementById("note").textContent=currentNote;}},1500);}
@@ -581,7 +622,7 @@ async function openSettings(){try{const {resp,data}=await requestJson("/api/sett
 function closeSettings(){document.getElementById("settings-modal").classList.remove("show");}
 async function saveSettings(){const payload={github_token:document.getElementById("setting-token").value,proxy:document.getElementById("setting-proxy").value,refresh_hours:Number(document.getElementById("setting-refresh-hours").value||1),result_limit:Number(document.getElementById("setting-result-limit").value||25),port:Number(document.getElementById("setting-port").value||8080),close_behavior:document.getElementById("setting-close-behavior").value,auto_start:document.getElementById("setting-auto-start").checked,default_sort:sortPrimary};try{const {resp,data}=await requestJson("/api/settings",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)},"保存设置失败");if(!resp.ok||!data.ok){toast(data.error||"保存失败");return;}settings=data.settings;toast(data.message||"设置已保存");closeSettings();}catch(error){toast(error.message||"保存设置失败");}}
 """
-HTML_TEMPLATE_PART_3 = """async function openDetail(owner,name,label){document.getElementById("detail-modal").classList.add("show");document.getElementById("detail-title").textContent=label;document.getElementById("detail-body").innerHTML='<div class="empty">正在拉取仓库详情...</div>';try{const detail=await fetchRepoDetails({owner,name});const topics=Array.isArray(detail.topics)?detail.topics.filter(Boolean):[];document.getElementById("detail-body").innerHTML=`<div class="badges"><span class="badge source">${h(detail.license||"未标注 License")}</span><span class="badge source">${h(detail.default_branch||"未知分支")}</span>${detail.homepage?`<a class="badge source" href="${h(detail.homepage)}" target="_blank" rel="noopener" data-external-url="${h(detail.homepage)}">Homepage</a>`:""}</div><div class="desc">${h(detail.description||detail.description_raw||"暂无简介")}</div><div class="meta-line"><span class="meta-pill"><strong>Stars</strong><span>${detail.stars||0}</span></span><span class="meta-pill"><strong>Forks</strong><span>${detail.forks||0}</span></span><span class="meta-pill"><strong>Watchers</strong><span>${detail.watchers||0}</span></span><span class="meta-pill"><strong>Issues</strong><span>${detail.open_issues||0}</span></span></div><div class="detail-grid"><div class="detail-item"><strong>仓库</strong><span>${h(detail.full_name||label)}</span></div><div class="detail-item"><strong>最近推送</strong><span>${h(detail.pushed_at||"未知")}</span></div><div class="detail-item"><strong>最后更新</strong><span>${h(detail.updated_at||"未知")}</span></div><div class="detail-item"><strong>默认分支</strong><span>${h(detail.default_branch||"未知")}</span></div><div class="detail-item"><strong>License</strong><span>${h(detail.license||"未标注")}</span></div><div class="detail-item"><strong>主页</strong><span>${detail.homepage?`<a class="link-inline" href="${h(detail.homepage)}" target="_blank" rel="noopener" data-external-url="${h(detail.homepage)}">${h(detail.homepage)}</a>`:"未填写"}</span></div></div><div class="desc muted">${h(detail.readme_summary||detail.readme_summary_raw||"暂无 README 摘要")}</div>${topics.length?`<div class="topic-list">${topics.map(topic=>`<span class="topic">${h(topic)}</span>`).join("")}</div>`:""}<div class="panel-actions"><a class="action primary" href="${h(detail.html_url||"#")}" target="_blank" rel="noopener" data-external-url="${h(detail.html_url||"#")}">打开 GitHub</a></div>`;}catch(error){document.getElementById("detail-body").innerHTML=`<div class="empty">${h(error.message||"详情获取失败")}</div>`;}}
+HTML_TEMPLATE_PART_3 = """async function openDetail(owner,name,label){document.getElementById("detail-modal").classList.add("show");document.getElementById("detail-title").textContent=label;document.getElementById("detail-body").innerHTML=`<div class="empty">${emptyIcon}<span>正在拉取仓库详情...</span></div>`;try{const detail=await fetchRepoDetails({owner,name});const topics=Array.isArray(detail.topics)?detail.topics.filter(Boolean):[];document.getElementById("detail-body").innerHTML=`<div class="badges"><span class="badge source">${h(detail.license||"未标注 License")}</span><span class="badge source">${h(detail.default_branch||"未知分支")}</span>${detail.homepage?`<a class="badge source" href="${h(detail.homepage)}" target="_blank" rel="noopener" data-external-url="${h(detail.homepage)}">Homepage</a>`:""}</div><div class="desc">${h(detail.description||detail.description_raw||"暂无简介")}</div><div class="meta-line"><span class="meta-pill"><strong>Stars</strong><span>${detail.stars||0}</span></span><span class="meta-pill"><strong>Forks</strong><span>${detail.forks||0}</span></span><span class="meta-pill"><strong>Watchers</strong><span>${detail.watchers||0}</span></span><span class="meta-pill"><strong>Issues</strong><span>${detail.open_issues||0}</span></span></div><div class="detail-grid"><div class="detail-item"><strong>仓库</strong><span>${h(detail.full_name||label)}</span></div><div class="detail-item"><strong>最近推送</strong><span>${h(detail.pushed_at||"未知")}</span></div><div class="detail-item"><strong>最后更新</strong><span>${h(detail.updated_at||"未知")}</span></div><div class="detail-item"><strong>默认分支</strong><span>${h(detail.default_branch||"未知")}</span></div><div class="detail-item"><strong>License</strong><span>${h(detail.license||"未标注")}</span></div><div class="detail-item"><strong>主页</strong><span>${detail.homepage?`<a class="link-inline" href="${h(detail.homepage)}" target="_blank" rel="noopener" data-external-url="${h(detail.homepage)}">${h(detail.homepage)}</a>`:"未填写"}</span></div></div><div class="desc muted">${h(detail.readme_summary||detail.readme_summary_raw||"暂无 README 摘要")}</div>${topics.length?`<div class="topic-list">${topics.map(topic=>`<span class="topic">${h(topic)}</span>`).join("")}</div>`:""}<div class="panel-actions"><a class="action primary" href="${h(detail.html_url||"#")}" target="_blank" rel="noopener" data-external-url="${h(detail.html_url||"#")}">打开 GitHub</a></div>`;}catch(error){document.getElementById("detail-body").innerHTML=`<div class="empty">${emptyIcon}<span>${h(error.message||"详情获取失败")}</span></div>`;}}
 function openDetailFromRecord(fullName,url){const repo=repoByUrl(url)||(()=>{const parts=String(fullName||"").split("/");return {full_name:fullName,owner:parts[0]||"",name:parts[1]||""};})();if(!repo.owner||!repo.name){toast("缺少仓库标识");return;}openDetail(repo.owner,repo.name,repo.full_name||fullName);}
 function closeDetail(){document.getElementById("detail-modal").classList.remove("show");}
 function closeCompare(){document.getElementById("compare-modal").classList.remove("show");}
@@ -599,7 +640,83 @@ document.getElementById("settings-modal").addEventListener("click",event=>{if(ev
 document.getElementById("detail-modal").addEventListener("click",event=>{if(event.target.id==="detail-modal") closeDetail();});
 document.getElementById("compare-modal").addEventListener("click",event=>{if(event.target.id==="compare-modal") closeCompare();});
 window.addEventListener("keydown",event=>{if(event.key!=="Escape") return;closeSettings();closeDetail();closeCompare();});
+function initCustomSelects(){
+  document.querySelectorAll("select").forEach(select=>{
+    if(select.dataset.customized) return;
+    select.dataset.customized="true";
+    select.style.display="none";
+    const wrapper=document.createElement("div");
+    wrapper.className="custom-select-wrapper";
+    select.parentNode.insertBefore(wrapper,select);
+    wrapper.appendChild(select);
+    const trigger=document.createElement("div");
+    trigger.className="custom-select-trigger";
+    const textSpan=document.createElement("span");
+    textSpan.className="custom-select-text";
+    const iconSpan=document.createElement("span");
+    iconSpan.className="custom-select-icon";
+    iconSpan.innerHTML='<svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>';
+    trigger.appendChild(textSpan);
+    trigger.appendChild(iconSpan);
+    wrapper.appendChild(trigger);
+    const optionsList=document.createElement("div");
+    optionsList.className="custom-select-options";
+    wrapper.appendChild(optionsList);
+    const syncUI=()=>{
+      const opt=select.options[select.selectedIndex];
+      if(opt) textSpan.textContent=opt.textContent;
+      if(select.disabled){
+        wrapper.style.opacity="0.4";
+        wrapper.style.pointerEvents="none";
+      }else{
+        wrapper.style.opacity="1";
+        wrapper.style.pointerEvents="auto";
+      }
+    };
+    const renderOptions=()=>{
+      optionsList.innerHTML="";
+      Array.from(select.options).forEach((opt,idx)=>{
+        if(opt.style.display==="none") return;
+        const item=document.createElement("div");
+        item.className="custom-select-item"+(idx===select.selectedIndex?" selected":"");
+        item.textContent=opt.textContent;
+        if(idx===select.selectedIndex){
+          item.insertAdjacentHTML("beforeend",'<svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>');
+        }
+        item.addEventListener("click",(e)=>{
+          e.stopPropagation();
+          select.selectedIndex=idx;
+          select.dispatchEvent(new Event("change",{bubbles:true}));
+          wrapper.classList.remove("open");
+          syncUI();
+          renderOptions();
+        });
+        optionsList.appendChild(item);
+      });
+    };
+    syncUI();
+    const observer=new MutationObserver(()=>{syncUI();renderOptions();});
+    observer.observe(select,{childList:true,subtree:true,attributes:true,attributeFilter:['value','disabled']});
+    trigger.addEventListener("click",(e)=>{
+      e.stopPropagation();
+      const isOpen=wrapper.classList.contains("open");
+      document.querySelectorAll(".custom-select-wrapper").forEach(w=>w.classList.remove("open"));
+      if(!isOpen){renderOptions();wrapper.classList.add("open");}
+    });
+    const desc=Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,"value");
+    if(desc&&desc.set){
+      Object.defineProperty(select,"value",{
+        set:function(val){desc.set.call(this,val);syncUI();renderOptions();},
+        get:function(){return desc.get.call(this);}
+      });
+    }
+    renderOptions();
+  });
+}
+document.addEventListener("click",()=>{document.querySelectorAll(".custom-select-wrapper").forEach(w=>w.classList.remove("open"));});
+
 render();
+initCustomSelects();
 if(INITIAL.pending) poll();
 </script>
 </body>

@@ -23,7 +23,7 @@ GitHub Trending 页面 + GitHub API
 
 ## 核心模块
 
-### `app_runtime.py`
+### `src/gitsonar/app_runtime.py`
 
 运行时编排层，负责：
 
@@ -33,7 +33,7 @@ GitHub Trending 页面 + GitHub API
 - 单实例控制
 - HTML 生成与本地服务启动
 
-### `runtime_github.py`
+### `src/gitsonar/runtime_github.py`
 
 GitHub 数据层，负责：
 
@@ -42,7 +42,7 @@ GitHub 数据层，负责：
 - 仓库详情获取
 - 收藏更新追踪
 
-### `runtime_http.py`
+### `src/gitsonar/runtime_http.py`
 
 本地 HTTP API 层，负责：
 
@@ -50,7 +50,7 @@ GitHub 数据层，负责：
 - 状态变更接口
 - 刷新、窗口、设置相关接口
 
-### `runtime_shell.py`
+### `src/gitsonar/runtime_shell.py`
 
 桌面壳与托盘层，负责：
 
@@ -59,7 +59,7 @@ GitHub 数据层，负责：
 - 关闭行为控制
 - 桌面壳窗口生命周期管理
 
-### `runtime_ui.py`
+### `src/gitsonar/runtime_ui.py`
 
 前端模板层，负责：
 
@@ -68,7 +68,7 @@ GitHub 数据层，负责：
 - 详情抽屉、对比抽屉
 - 前端交互与本地 API 协作
 
-### `runtime_utils.py`
+### `src/gitsonar/runtime_utils.py`
 
 通用工具层，负责：
 

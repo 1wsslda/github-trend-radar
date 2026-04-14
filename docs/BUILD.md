@@ -5,42 +5,42 @@
 如果你只是想重新打包可执行文件或安装包，最简单的入口是：
 
 ```cmd
-build_all_click.cmd
+scripts/build_all_click.cmd
 ```
 
 它会自动完成两件事：
 
-1. 生成单文件程序 `dist/GitSonar.exe`
-2. 生成安装包 `dist/installer/GitSonarSetup.exe`
+1. 生成单文件程序 `artifacts/dist/GitSonar.exe`
+2. 生成安装包 `artifacts/dist/installer/GitSonarSetup.exe`
 
 ## 构建入口
 
 ### 一键打包
 
-- 文件：`build_all_click.cmd`
+- 文件：`scripts/build_all_click.cmd`
 - 适合：日常更新代码后快速重新产出 EXE 和安装包
 
 ### 仅打包 EXE
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\build_exe.ps1
+powershell -ExecutionPolicy Bypass -File .\scripts\build_exe.ps1
 ```
 
 输出：
 
-- `dist/GitSonar.exe`
+- `artifacts/dist/GitSonar.exe`
 
 ### 打包安装包
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\build_setup.ps1
+powershell -ExecutionPolicy Bypass -File .\scripts\build_setup.ps1
 ```
 
 输出：
 
-- `dist/installer/GitSonarSetup.exe`
+- `artifacts/dist/installer/GitSonarSetup.exe`
 
-`build_setup.ps1` 会先调用 `build_exe.ps1`，再调用 Inno Setup 生成安装包。
+`scripts/build_setup.ps1` 会先调用 `scripts/build_exe.ps1`，再调用 `packaging/GitSonar.iss` 生成安装包。
 
 ## 环境要求
 
@@ -72,8 +72,8 @@ Python 依赖较少，核心包括：
 
 本项目源码和构建产物已经统一到 `GitSonar`：
 
-- 入口脚本：`GitSonar.pyw`
-- 安装脚本：`GitSonar.iss`
+- 入口脚本：`src/GitSonar.pyw`
+- 安装脚本：`packaging/GitSonar.iss`
 - 可执行文件：`GitSonar.exe`
 - 安装包：`GitSonarSetup.exe`
 

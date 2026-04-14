@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-from app_runtime import main
+from gitsonar.app_runtime import main
 
 
 if __name__ == "__main__":

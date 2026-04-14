@@ -1,6 +1,9 @@
 $ErrorActionPreference = "Stop"
 
-$root = Split-Path -Parent $MyInvocation.MyCommand.Path
+$scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$root = Split-Path -Parent $scriptDir
+$installerScript = Join-Path $root "packaging\GitSonar.iss"
+$installerOutput = Join-Path $root "artifacts\dist\installer\GitSonarSetup.exe"
 Set-Location $root
 
 function Resolve-Iscc {
@@ -19,14 +22,14 @@ function Resolve-Iscc {
   return $null
 }
 
-& "$root\build_exe.ps1"
+& (Join-Path $scriptDir "build_exe.ps1")
 if ($LASTEXITCODE -ne 0) {
   throw "EXE build failed."
 }
 
 $iscc = Resolve-Iscc
 if (-not $iscc) {
-  Write-Host "Inno Setup 未安装，开始用 winget 安装..."
+  Write-Host "Inno Setup not found, installing with winget..."
   winget install -e --id JRSoftware.InnoSetup --silent --accept-package-agreements --accept-source-agreements
   if ($LASTEXITCODE -ne 0) {
     throw "Inno Setup installation failed."
@@ -35,13 +38,13 @@ if (-not $iscc) {
 }
 
 if (-not $iscc) {
-  throw "未找到 Inno Setup 编译器 ISCC.exe"
+  throw "Unable to locate Inno Setup compiler: ISCC.exe"
 }
 
-& $iscc ".\GitSonar.iss"
+& $iscc $installerScript
 if ($LASTEXITCODE -ne 0) {
   throw "Installer build failed."
 }
 
 Write-Host ""
-Write-Host "Setup complete: $root\dist\installer\GitSonarSetup.exe"
+Write-Host "Setup complete: $installerOutput"

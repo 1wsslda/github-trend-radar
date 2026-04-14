@@ -20,11 +20,11 @@ from urllib.parse import quote, urlparse
 
 import requests
 from bs4 import BeautifulSoup
-from runtime_github import make_github_runtime
-from runtime_http import make_app_handler
-from runtime_shell import make_shell_runtime
-from runtime_ui import build_html as build_runtime_html
-from runtime_utils import (
+from .runtime_github import make_github_runtime
+from .runtime_http import make_app_handler
+from .runtime_shell import make_shell_runtime
+from .runtime_ui import build_html as build_runtime_html
+from .runtime_utils import (
     as_bool,
     atomic_write_json,
     atomic_write_text,
@@ -56,12 +56,54 @@ APP_SLUG = 'GitSonar'
 LEGACY_APP_NAME = 'GitHub Trend Radar'
 LEGACY_APP_SLUG = 'GitHubTrendRadar'
 IS_FROZEN = getattr(sys, 'frozen', False)
-EXEC_DIR = os.path.dirname(os.path.abspath(sys.executable)) if IS_FROZEN else os.path.dirname(os.path.abspath(__file__))
+PACKAGE_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_ROOT = os.path.dirname(os.path.dirname(PACKAGE_DIR))
+DEV_RUNTIME_ROOT = os.path.join(PROJECT_ROOT, 'runtime-data')
+DEV_ENTRY_SCRIPT = os.path.join(PROJECT_ROOT, 'src', 'GitSonar.pyw')
+EXEC_DIR = os.path.dirname(os.path.abspath(sys.executable)) if IS_FROZEN else PROJECT_ROOT
 LOCAL_APPDATA_ROOT = os.environ.get('LOCALAPPDATA', EXEC_DIR)
+DEV_RUNTIME_ITEMS = (
+    'data',
+    '.desktop_shell',
+    '.translation_cache.json',
+    'settings.json',
+    'status.json',
+    'trending.html',
+    'user_state.json',
+    'repo_details_cache.json',
+    'runtime_state.json',
+)
 
 
 def runtime_root_for_slug(slug: str) -> str:
-    return os.path.join(LOCAL_APPDATA_ROOT, slug) if IS_FROZEN else EXEC_DIR
+    return os.path.join(LOCAL_APPDATA_ROOT, slug) if IS_FROZEN else DEV_RUNTIME_ROOT
+
+
+def merge_dev_runtime_root() -> str:
+    preferred = DEV_RUNTIME_ROOT
+    legacy = PROJECT_ROOT
+    try:
+        os.makedirs(preferred, exist_ok=True)
+        migrated_items: list[str] = []
+        for name in DEV_RUNTIME_ITEMS:
+            source = os.path.join(legacy, name)
+            target = os.path.join(preferred, name)
+            if not os.path.exists(source) or os.path.exists(target):
+                continue
+            try:
+                if os.path.isdir(source):
+                    shutil.copytree(source, target, dirs_exist_ok=True)
+                else:
+                    shutil.copy2(source, target)
+                migrated_items.append(name)
+            except Exception as exc:
+                logger.warning('迁移开发态运行数据失败: %s (%s)', source, exc)
+        if migrated_items:
+            logger.info('已将 %s 项开发态运行数据迁移到 %s', len(migrated_items), preferred)
+    except Exception as exc:
+        logger.warning('初始化开发态运行目录失败，回退到仓库根目录: %s', exc)
+        return legacy
+    return preferred
 
 
 def merge_legacy_runtime_root() -> str:
@@ -94,8 +136,8 @@ def merge_legacy_runtime_root() -> str:
     return preferred
 
 
-RUNTIME_ROOT = merge_legacy_runtime_root()
-LEGACY_RUNTIME_ROOT = runtime_root_for_slug(LEGACY_APP_SLUG)
+RUNTIME_ROOT = merge_legacy_runtime_root() if IS_FROZEN else merge_dev_runtime_root()
+LEGACY_RUNTIME_ROOT = runtime_root_for_slug(LEGACY_APP_SLUG) if IS_FROZEN else PROJECT_ROOT
 DATA_DIR = os.path.join(RUNTIME_ROOT, 'data')
 HTML_PATH = os.path.join(RUNTIME_ROOT, 'trending.html')
 STATUS_PATH = os.path.join(RUNTIME_ROOT, 'status.json')
@@ -657,7 +699,7 @@ def startup_launch_command() -> list[str]:
         pythonw = os.path.join(os.path.dirname(executable), 'pythonw.exe')
         if os.path.exists(pythonw):
             executable = pythonw
-    return [executable, os.path.abspath(__file__)]
+    return [executable, DEV_ENTRY_SCRIPT]
 
 
 def vbs_string(value: str) -> str:
