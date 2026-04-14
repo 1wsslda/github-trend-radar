@@ -1,0 +1,38 @@
+name: Feature request
+description: Suggest an improvement for GitSonar
+title: "[Feature] "
+labels:
+  - enhancement
+body:
+  - type: input
+    id: summary
+    attributes:
+      label: Feature summary
+      description: Short title for the request
+      placeholder: Add release filters in the updates panel
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or workflow gap
+      description: What are you trying to do today that is hard or slow?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: Describe the behavior you want
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Optional
+  - type: textarea
+    id: impact
+    attributes:
+      label: Who benefits
+      description: Developers, product users, researchers, heavy GitHub users, etc.

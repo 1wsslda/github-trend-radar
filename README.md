@@ -177,6 +177,8 @@ Detailed docs remain in the `docs` directory:
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 - [docs/FAQ.md](docs/FAQ.md)
 - [docs/SECURITY.md](docs/SECURITY.md)
+- [docs/RELEASE_CHECKLIST.md](docs/RELEASE_CHECKLIST.md)
+- [CONTRIBUTING.md](CONTRIBUTING.md)
 
 These documents are currently Chinese-first.
 

@@ -1,0 +1,58 @@
+name: Bug report
+description: Report a reproducible problem in GitSonar
+title: "[Bug] "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug. Please keep secrets out of this form.
+  - type: input
+    id: summary
+    attributes:
+      label: Summary
+      description: One clear sentence describing the problem
+      placeholder: The app closes when I save settings with a proxy configured
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Write exact steps so the issue can be reproduced
+      placeholder: |
+        1. Open Settings
+        2. Fill in proxy URL
+        3. Click Save
+        4. Observe crash
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Release tag or commit SHA
+      placeholder: v1.0.0 or 6dbf01f
+  - type: input
+    id: os
+    attributes:
+      label: Windows version
+      placeholder: Windows 11 24H2
+  - type: textarea
+    id: notes
+    attributes:
+      label: Logs, screenshots, and notes
+      description: Redact tokens, proxy credentials, and private repository names
