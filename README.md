@@ -3,9 +3,9 @@
 [English](README.md) | [简体中文](README.zh-CN.md)
 
 > GitHub Intelligence Desk  
-> Turn GitHub trending into a trackable intelligence flow.
+> Windows desktop app for trending repos, saved projects, and update tracking.
 
-GitSonar is a desktop GitHub intelligence desk for discovery, tracking, comparison, and AI-assisted understanding. Instead of acting like a simple wrapper around GitHub Trending, it brings hot project discovery, state management, favorite update tracking, repository comparison, and AI workflows into one lightweight, tray-friendly desktop workspace.
+GitSonar is a Windows desktop app for following GitHub projects over time. It combines trending lists, saved states, update tracking, repository details, side-by-side comparison, and ChatGPT prompts in one place.
 
 ## What It Solves
 
@@ -26,7 +26,7 @@ GitSonar turns those scattered actions into a repeatable desktop workflow.
 - **Favorite update tracking**: push, star/fork, and release changes
 - **Repository understanding**: detail drawer and README summaries
 - **Repository comparison**: compare two repositories side by side
-- **AI workflows**: single repo, batch, and comparison analysis
+- **ChatGPT prompts**: single repo, batch, and comparison prompts
 - **Desktop presence**: tray, wake-up, configurable close behavior, auto start
 
 ## Who It Is For
@@ -99,11 +99,11 @@ It is closer to a long-running GitHub intelligence workspace than a page you ope
 - README summary
 - Two-repository comparison
 
-### 5. AI Assistance
+### 5. ChatGPT Prompts
 
-- Single repository analysis
-- Batch analysis
-- Comparison analysis
+- Single repository prompts
+- Batch prompts
+- Comparison prompts
 - Open ChatGPT web / desktop, or copy prompts
 
 ### 6. Desktop Experience
@@ -151,25 +151,11 @@ These are product directions, not features already shipped.
 - Auto update
 - Custom subscriptions and reminder strategies
 
-## Promo Copy
-
-### One-liner
-
-**Turn GitHub trending into your project intelligence system.**
-
-### Short Repository Description
-
-**A Chinese-friendly GitHub intelligence desk for trend discovery, repository tracking, comparison, and AI-assisted analysis.**
-
-### Release / Social Copy
-
-GitSonar is a desktop GitHub intelligence desk that helps you discover, track, compare, and understand repositories in one long-running workflow.
-
 ## Naming
 
 - Brand: `GitSonar`
 - Chinese name: `GitHub 情报台`
-- Tagline: `Turn GitHub trending into a trackable intelligence flow.`
+- Tagline: `Track GitHub projects with a desktop workflow.`
 
 Default runtime data now lives in:
 
