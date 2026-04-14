@@ -173,11 +173,13 @@ This project is released under the [MIT License](LICENSE).
 
 Detailed docs remain in the `docs` directory:
 
+- [CHANGELOG.md](CHANGELOG.md)
 - [docs/BUILD.md](docs/BUILD.md)
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 - [docs/FAQ.md](docs/FAQ.md)
 - [docs/SECURITY.md](docs/SECURITY.md)
 - [docs/RELEASE_CHECKLIST.md](docs/RELEASE_CHECKLIST.md)
+- [docs/RELEASE_NOTES_TEMPLATE.md](docs/RELEASE_NOTES_TEMPLATE.md)
 - [CONTRIBUTING.md](CONTRIBUTING.md)
 
 These documents are currently Chinese-first.

@@ -35,7 +35,9 @@ Use this checklist before cutting a public GitHub release.
 - `main` is clean and pushed.
 - No runtime data, settings, caches, or secrets are tracked.
 - Docs changed together with behavior changes.
+- `CHANGELOG.md` is updated if the release includes meaningful changes.
 - Release notes summarize what changed and any migration notes.
+- `docs/RELEASE_NOTES_TEMPLATE.md` is used as the starting point for the GitHub Release body.
 
 ## Publish
 
