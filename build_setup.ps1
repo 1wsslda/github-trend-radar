@@ -38,10 +38,10 @@ if (-not $iscc) {
   throw "未找到 Inno Setup 编译器 ISCC.exe"
 }
 
-& $iscc ".\GitHubTrendRadar.iss"
+& $iscc ".\GitSonar.iss"
 if ($LASTEXITCODE -ne 0) {
   throw "Installer build failed."
 }
 
 Write-Host ""
-Write-Host "Setup complete: $root\dist\installer\GitHubTrendRadarSetup.exe"
+Write-Host "Setup complete: $root\dist\installer\GitSonarSetup.exe"

@@ -7,6 +7,7 @@ import json
 import logging
 import os
 import re
+import shutil
 import socket
 import subprocess
 import sys
@@ -50,10 +51,51 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-APP_NAME = 'GitHub Trend Radar'
-APP_SLUG = 'GitHubTrendRadar'
-EXEC_DIR = os.path.dirname(os.path.abspath(sys.executable)) if getattr(sys, 'frozen', False) else os.path.dirname(os.path.abspath(__file__))
-RUNTIME_ROOT = os.path.join(os.environ.get('LOCALAPPDATA', EXEC_DIR), APP_SLUG) if getattr(sys, 'frozen', False) else EXEC_DIR
+APP_NAME = 'GitSonar'
+APP_SLUG = 'GitSonar'
+LEGACY_APP_NAME = 'GitHub Trend Radar'
+LEGACY_APP_SLUG = 'GitHubTrendRadar'
+IS_FROZEN = getattr(sys, 'frozen', False)
+EXEC_DIR = os.path.dirname(os.path.abspath(sys.executable)) if IS_FROZEN else os.path.dirname(os.path.abspath(__file__))
+LOCAL_APPDATA_ROOT = os.environ.get('LOCALAPPDATA', EXEC_DIR)
+
+
+def runtime_root_for_slug(slug: str) -> str:
+    return os.path.join(LOCAL_APPDATA_ROOT, slug) if IS_FROZEN else EXEC_DIR
+
+
+def merge_legacy_runtime_root() -> str:
+    preferred = runtime_root_for_slug(APP_SLUG)
+    legacy = runtime_root_for_slug(LEGACY_APP_SLUG)
+    if not IS_FROZEN or preferred == legacy or not os.path.isdir(legacy):
+        return preferred
+    try:
+        os.makedirs(preferred, exist_ok=True)
+        migrated_items: list[str] = []
+        for name in os.listdir(legacy):
+            source = os.path.join(legacy, name)
+            target = os.path.join(preferred, name)
+            if os.path.exists(target):
+                continue
+            try:
+                if os.path.isdir(source):
+                    shutil.copytree(source, target, dirs_exist_ok=True)
+                else:
+                    shutil.copy2(source, target)
+                migrated_items.append(name)
+            except Exception as exc:
+                logger.warning('迁移旧数据项失败: %s (%s)', source, exc)
+        if migrated_items:
+            logger.info('已从旧数据目录合并 %s 项到 %s', len(migrated_items), preferred)
+    except Exception as exc:
+        logger.warning('初始化新数据目录失败，回退到旧目录: %s', exc)
+        if os.path.isdir(legacy) and not os.path.isdir(preferred):
+            return legacy
+    return preferred
+
+
+RUNTIME_ROOT = merge_legacy_runtime_root()
+LEGACY_RUNTIME_ROOT = runtime_root_for_slug(LEGACY_APP_SLUG)
 DATA_DIR = os.path.join(RUNTIME_ROOT, 'data')
 HTML_PATH = os.path.join(RUNTIME_ROOT, 'trending.html')
 STATUS_PATH = os.path.join(RUNTIME_ROOT, 'status.json')
@@ -64,6 +106,7 @@ DETAIL_CACHE_PATH = os.path.join(RUNTIME_ROOT, 'repo_details_cache.json')
 RUNTIME_STATE_PATH = os.path.join(RUNTIME_ROOT, 'runtime_state.json')
 DESKTOP_SHELL_DIR = os.path.join(RUNTIME_ROOT, '.desktop_shell')
 CACHE_PATH = os.path.join(RUNTIME_ROOT, '.translation_cache.json')
+LEGACY_RUNTIME_STATE_PATH = os.path.join(LEGACY_RUNTIME_ROOT, 'runtime_state.json')
 LOCAL_HOST = '127.0.0.1'
 SERVER_HOST = LOCAL_HOST
 SEARCH_API_URL = 'https://api.github.com/search/repositories'
@@ -132,7 +175,7 @@ RUNTIME_PORT: int | None = None
 BROWSER_PROCESS: subprocess.Popen | None = None
 BROWSER_HIDDEN = False
 MAIN_URL = ''
-SINGLE_INSTANCE_MUTEX = None
+SINGLE_INSTANCE_MUTEXES: list[object] = []
 APP_EXIT_EVENT = threading.Event()
 BROWSER_LOCK = threading.RLock()
 DETAIL_FETCH_SEMAPHORE = threading.Semaphore(3)
@@ -204,8 +247,9 @@ def parent_process_name() -> str:
 def hide_console_window_if_needed() -> None:
     if os.name != 'nt':
         return
-    if normalize(os.environ.get(f'{APP_SLUG.upper()}_SHOW_CONSOLE')).lower() in {'1', 'true', 'yes'}:
-        return
+    for slug in {APP_SLUG, LEGACY_APP_SLUG}:
+        if normalize(os.environ.get(f'{slug.upper()}_SHOW_CONSOLE')).lower() in {'1', 'true', 'yes'}:
+            return
     try:
         kernel32 = ctypes.windll.kernel32
         hwnd = kernel32.GetConsoleWindow()
@@ -593,12 +637,16 @@ def sync_repo_records(snapshot: dict[str, object]) -> None:
             save_user_state()
 
 
-def startup_launcher_path() -> str:
-    return os.path.join(os.environ.get('APPDATA', ''), 'Microsoft', 'Windows', 'Start Menu', 'Programs', 'Startup', f'{APP_NAME}.vbs')
+def startup_dir() -> str:
+    return os.path.join(os.environ.get('APPDATA', ''), 'Microsoft', 'Windows', 'Start Menu', 'Programs', 'Startup')
 
 
-def legacy_startup_cmd_path() -> str:
-    return os.path.join(os.environ.get('APPDATA', ''), 'Microsoft', 'Windows', 'Start Menu', 'Programs', 'Startup', f'{APP_NAME}.cmd')
+def startup_launcher_path(app_name: str = APP_NAME) -> str:
+    return os.path.join(startup_dir(), f'{app_name}.vbs')
+
+
+def startup_cmd_path(app_name: str = APP_NAME) -> str:
+    return os.path.join(startup_dir(), f'{app_name}.cmd')
 
 
 def startup_launch_command() -> list[str]:
@@ -626,18 +674,23 @@ def startup_launcher_script() -> str:
 
 
 def update_auto_start(enabled: bool) -> None:
-    path = startup_launcher_path()
-    legacy_path = legacy_startup_cmd_path()
+    path = startup_launcher_path(APP_NAME)
+    cleanup_paths = {
+        startup_cmd_path(APP_NAME),
+        startup_launcher_path(LEGACY_APP_NAME),
+        startup_cmd_path(LEGACY_APP_NAME),
+    }
     if enabled:
         os.makedirs(os.path.dirname(path), exist_ok=True)
         with open(path, 'w', encoding='utf-8') as f:
             f.write(startup_launcher_script())
-        try:
-            os.remove(legacy_path)
-        except FileNotFoundError:
-            pass
+        for candidate in cleanup_paths:
+            try:
+                os.remove(candidate)
+            except FileNotFoundError:
+                pass
     else:
-        for candidate in (path, legacy_path):
+        for candidate in {path, *cleanup_paths}:
             try:
                 os.remove(candidate)
             except FileNotFoundError:
@@ -721,46 +774,55 @@ def clear_runtime_state() -> None:
 
 
 def acquire_single_instance() -> bool:
-    global SINGLE_INSTANCE_MUTEX
+    global SINGLE_INSTANCE_MUTEXES
     if os.name != 'nt':
         return True
-    mutex = ctypes.windll.kernel32.CreateMutexW(None, False, f'Local\\{APP_SLUG}Singleton')
-    if not mutex:
-        return True
-    if ctypes.windll.kernel32.GetLastError() == 183:
-        ctypes.windll.kernel32.CloseHandle(mutex)
-        return False
-    SINGLE_INSTANCE_MUTEX = mutex
+    handles: list[object] = []
+    for slug in dict.fromkeys((APP_SLUG, LEGACY_APP_SLUG)):
+        mutex = ctypes.windll.kernel32.CreateMutexW(None, False, f'Local\\{slug}Singleton')
+        if not mutex:
+            continue
+        if ctypes.windll.kernel32.GetLastError() == 183:
+            ctypes.windll.kernel32.CloseHandle(mutex)
+            for handle in handles:
+                ctypes.windll.kernel32.CloseHandle(handle)
+            return False
+        handles.append(mutex)
+    SINGLE_INSTANCE_MUTEXES = handles
     return True
 
 def release_single_instance() -> None:
-    global SINGLE_INSTANCE_MUTEX
-    if SINGLE_INSTANCE_MUTEX:
-        ctypes.windll.kernel32.CloseHandle(SINGLE_INSTANCE_MUTEX)
-        SINGLE_INSTANCE_MUTEX = None
+    global SINGLE_INSTANCE_MUTEXES
+    for handle in SINGLE_INSTANCE_MUTEXES:
+        try:
+            ctypes.windll.kernel32.CloseHandle(handle)
+        except Exception:
+            pass
+    SINGLE_INSTANCE_MUTEXES = []
 
 
 def request_existing_instance_open() -> bool:
-    runtime = load_json_file(RUNTIME_STATE_PATH, {})
-    if not isinstance(runtime, dict):
-        return False
-    port = clamp_int(runtime.get('port'), 0, 1, 65535)
-    url = normalize(runtime.get('url'))
-    for _ in range(8):
-        if port:
+    for runtime_path in dict.fromkeys((RUNTIME_STATE_PATH, LEGACY_RUNTIME_STATE_PATH)):
+        runtime = load_json_file(runtime_path, {})
+        if not isinstance(runtime, dict):
+            continue
+        port = clamp_int(runtime.get('port'), 0, 1, 65535)
+        url = normalize(runtime.get('url'))
+        for _ in range(8):
+            if port:
+                try:
+                    if LOCAL_CONTROL.post(f'http://{LOCAL_HOST}:{port}/api/window/open', timeout=2).ok:
+                        return True
+                except Exception:
+                    pass
+            time.sleep(0.35)
+        if url:
             try:
-                if LOCAL_CONTROL.post(f'http://{LOCAL_HOST}:{port}/api/window/open', timeout=2).ok:
+                if os.name == 'nt' and hasattr(os, 'startfile'):
+                    os.startfile(url)
                     return True
             except Exception:
                 pass
-        time.sleep(0.35)
-    if url:
-        try:
-            if os.name == 'nt' and hasattr(os, 'startfile'):
-                os.startfile(url)
-                return True
-        except Exception:
-            pass
     return False
 
 
@@ -942,7 +1004,7 @@ def main() -> None:
     ensure_runtime_layout()
     if not acquire_single_instance():
         if not request_existing_instance_open():
-            show_message_box('GitHub Trend Radar 已经在运行。请从系统托盘打开主窗口。')
+            show_message_box('GitSonar 已经在运行。请从系统托盘打开主窗口。')
         return
     server = None
     logger.info('=' * 40)

@@ -1,8 +1,9 @@
 $ErrorActionPreference = "Stop"
 
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
-$appName = "GitHubTrendRadar"
-$entryScript = "GitHubTrendRadar.pyw"
+$appName = "GitSonar"
+$legacyAppName = "GitHubTrendRadar"
+$entryScript = "GitSonar.pyw"
 $generatedSpec = Join-Path $root "$appName.spec"
 
 Set-Location $root
@@ -37,7 +38,7 @@ if ($missingModules.Count -gt 0) {
   Write-Host "Python packages already installed, skipping pip install."
 }
 
-$running = Get-Process $appName -ErrorAction SilentlyContinue
+$running = Get-Process -Name $appName, $legacyAppName -ErrorAction SilentlyContinue
 if ($running) {
   $running | Stop-Process -Force
   Start-Sleep -Seconds 1

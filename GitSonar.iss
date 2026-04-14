@@ -1,5 +1,5 @@
-#define MyAppName "GitHub Trend Radar"
-#define MyAppExeName "GitHubTrendRadar.exe"
+#define MyAppName "GitSonar"
+#define MyAppExeName "GitSonar.exe"
 #define MyAppVersion "1.0.0"
 
 [Setup]
@@ -10,7 +10,7 @@ AppPublisher=OpenAI Codex
 DefaultDirName={autopf64}\{#MyAppName}
 DefaultGroupName={#MyAppName}
 OutputDir=dist\installer
-OutputBaseFilename=GitHubTrendRadarSetup
+OutputBaseFilename=GitSonarSetup
 Compression=lzma
 SolidCompression=yes
 WizardStyle=modern

@@ -10,79 +10,303 @@ HTML_TEMPLATE_PART_1 = """<!DOCTYPE html>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>__APP_NAME__</title>
 <style>
-:root { --bg: #0a0a0a; --bg-soft: #121212; --surface: #121212; --surface-2: #1a1a1a; --border: #2a2a2a; --border-strong: #404040; --text: #ededed; --muted: #888888; --accent: #ffffff; --accent-strong: #ffffff; --green: #10b981; --amber: #d9a441; --danger: #f87171; }
-* { box-sizing: border-box; } html, body { height: 100%; } body { margin: 0; color: var(--text); background: var(--bg); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif; font-size: 15px; line-height: 1.7; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; letter-spacing: 0.01em; } button, input, select { font: inherit; } a { color: inherit; text-decoration: none; }
-.page { max-width: 1200px; margin: 0 auto; padding: 48px 24px 80px; }
-.hero { display: flex; justify-content: space-between; align-items: flex-start; padding: 0 0 40px 0; border-bottom: 1px solid var(--border); margin-bottom: 32px; background: transparent; border-radius: 0; box-shadow: none; } .hero h1 { margin: 0 0 12px 0; font-size: 36px; font-weight: 600; letter-spacing: -0.02em; color: #fff; } .hero p { margin: 0; color: var(--muted); max-width: 640px; font-size: 15px; } .hero-note { text-align: right; color: var(--muted); font-size: 13px; font-family: monospace; } .sub { font-size: 13px; color: var(--muted); }
-.toolbar { margin-bottom: 32px; padding: 0; border: none; border-radius: 0; background: transparent; box-shadow: none; display: flex; flex-direction: column; gap: 0; } .row { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; } .stack, .actions, .filters, .states, .badges, .meta { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; } .stack { flex-direction: column; align-items: flex-start; gap: 4px; } .summary { font-size: 15px; font-weight: 500; color: #fff; }
-.action, input, select { min-height: 36px; padding: 0 16px; border-radius: 4px; border: 1px solid var(--border); background: var(--bg); color: var(--text); transition: all 0.2s ease; } :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; } .desc { max-width: 72ch; } input[type="checkbox"] { min-height: auto; } input[type="search"] { width: 280px; } .action { cursor: pointer; background: var(--surface-2); font-weight: 500; font-size: 13px; } .action:hover { border-color: var(--border-strong); background: var(--border); color: #fff; transform: none; } .primary { background: #fff; color: #000; border-color: transparent; } .primary:hover { background: #ddd; color: #000; }
-.ghost { background: transparent; border-color: transparent; color: var(--muted); padding: 0 8px; } .ghost:hover { background: var(--surface-2); color: var(--text); border-color: transparent; } .danger-hover:hover { color: var(--danger) !important; border-color: var(--danger) !important; background: transparent !important; }
-.tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 32px; border-bottom: 1px solid var(--border); padding-bottom: 16px; margin-top: 0; } .tab { padding: 6px 12px; border: none; background: transparent; color: var(--muted); cursor: pointer; font-size: 14px; font-weight: 500; border-radius: 4px; transition: color 0.2s; } .tab:hover { color: var(--text); } .tab.active { color: #fff; background: var(--surface-2); border-color: transparent; }
-.cards { display: flex; flex-direction: column; gap: 16px; } .card, .update-card, .compare-card { padding: 24px 32px; display: grid; gap: 12px; border: 1px solid transparent; background: var(--surface-2); border-radius: 12px; position: relative; transition: all 0.2s ease; } .card.selectable, .update-card.selectable { cursor: pointer; } .card.selectable:hover, .update-card.selectable:hover { border-color: var(--border-strong); } .card.selected, .update-card.selected { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent) inset; }
-.card .states, .update-card .states { opacity: 0; pointer-events: none; transform: translateY(4px); transition: all 0.3s ease; } .card:hover .states, .update-card:hover .states { opacity: 1; pointer-events: auto; transform: translateY(0); }
-.title { color: #fff; text-decoration: none; font-size: 22px; font-weight: 600; letter-spacing: -0.01em; margin-bottom: 4px; display: inline-block; } .title:hover { color: #fff; text-decoration: underline; text-underline-offset: 4px; } .badge { display: inline-flex; align-items: center; gap: 6px; padding: 2px 8px; border-radius: 4px; background: var(--surface-2); color: var(--muted); font-size: 12px; font-family: monospace; border: 1px solid var(--border); } .badge.gain { background: rgba(16, 185, 129, 0.1); border-color: var(--green); color: var(--green); } .badge.source { background: var(--surface); border-style: dashed; } .badge.selected { background: #fff; color: #000; border-color: #fff; }
-.state-btn { padding: 4px 12px; border-radius: 4px; border: 1px solid var(--border); background: transparent; color: var(--muted); cursor: pointer; font-size: 12px; } .state-btn:hover { border-color: var(--border-strong); color: var(--text); } .state-btn.active { color: #000; background: #fff; border-color: #fff; font-weight: 500; } .meta { font-size: 13px; color: #666; font-family: monospace; font-weight: 400; } .empty { padding: 64px 0; border: none; border-radius: 0; background: transparent; text-align: center; color: var(--muted); font-size: 14px; } .notice { padding: 16px; border: 1px solid var(--border-strong); background: var(--surface-2); color: var(--text); font-size: 13px; line-height: 1.6; border-radius: 6px; border-left: 3px solid #fff; }
-.toast { position: fixed; right: 24px; bottom: 24px; padding: 16px 20px; border: 1px solid var(--border-strong); background: var(--bg); color: #fff; font-size: 13px; font-weight: 500; opacity: 0; transform: translateY(12px); transition: all 0.2s ease; z-index: 50; box-shadow: 0 24px 48px rgba(0,0,0,0.5); } .toast.show { opacity: 1; transform: translateY(0); }
-.overlay { position: fixed; inset: 0; opacity: 0; visibility: hidden; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); z-index: 40; transition: all 0.3s ease; display: block; } .overlay.show { opacity: 1; visibility: visible; } .panel { position: absolute; top: 0; right: 0; bottom: 0; width: 600px; max-width: 100vw; background: var(--bg); border: none; border-left: 1px solid var(--border-strong); box-shadow: -8px 0 32px rgba(0,0,0,0.5); border-radius: 0; display: flex; flex-direction: column; transform: translateX(100%); transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1); margin: 0; } .overlay.compare .panel { width: 900px; } .overlay.show .panel { transform: translateX(0); }
-.panel-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; padding: 32px 40px 24px; border-bottom: 1px solid var(--border); flex-shrink: 0; } .panel-title { font-size: 24px; font-weight: 600; color: #fff; letter-spacing: -0.02em; margin-bottom: 8px; } .panel-body { padding: 32px 40px 40px; overflow-y: auto; flex: 1; } .detail-grid, .compare-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; } .compare-grid { gap: 32px; } .detail-item { padding: 0; background: transparent; border: none; border-radius: 0; } .detail-item strong { display: block; margin-bottom: 4px; color: var(--muted); font-size: 12px; font-family: monospace; text-transform: uppercase; letter-spacing: 0.05em; } .detail-item span { color: var(--text); font-size: 14px; }
-.topic-list { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 16px; } .topic { padding: 4px 10px; border-radius: 4px; background: var(--surface-2); color: var(--muted); font-size: 12px; font-family: monospace; } .link-inline { color: #fff; text-decoration: underline; text-underline-offset: 4px; } .link-inline:hover { color: var(--muted); } .danger { color: #fff; }
-@media (max-width: 900px) { .hero { flex-direction: column; gap: 16px; } .hero-note { text-align: left; } .detail-grid, .compare-grid { grid-template-columns: 1fr; } .panel-head, .panel-body { padding: 24px; } }
-@media (max-width: 640px) { .page { padding: 24px 16px 40px; } .card::before, .update-card::before { display: none; } .row { flex-direction: column; align-items: stretch; } .actions, .filters { width: 100%; flex-wrap: wrap; } input[type="search"] { width: 100%; } }
+:root{
+  --font-sans:"Inter",-apple-system,BlinkMacSystemFont,"HarmonyOS Sans SC","MiSans","PingFang SC","Microsoft YaHei",sans-serif;
+  --font-mono:"JetBrains Mono","Maple Mono","Fira Code",monospace;
+  --bg:#0f0e0b;
+  --bg-soft:#171511;
+  --surface:#1a1814;
+  --surface-2:#211d17;
+  --surface-3:#2a241d;
+  --border:rgba(232,214,184,.12);
+  --border-strong:rgba(245,228,198,.28);
+  --text:#f3ede2;
+  --text-soft:#ddd2c1;
+  --muted:#a99a83;
+  --muted-soft:#867763;
+  --accent:#e9c98f;
+  --accent-strong:#f6deae;
+  --accent-ink:#1a1308;
+  --green:#7fd0a0;
+  --amber:#d8af67;
+  --danger:#f49a8d;
+  --shadow:0 32px 80px rgba(0,0,0,.34);
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0;
+  color:var(--text);
+  background:
+    radial-gradient(circle at top, rgba(234,204,145,.08), transparent 0 34%),
+    radial-gradient(circle at 20% 15%, rgba(120,102,72,.16), transparent 0 28%),
+    linear-gradient(180deg,#0c0b09 0%,#100f0c 38%,#12100d 100%);
+  font-family:var(--font-sans);
+  font-size:15px;
+  line-height:1.7;
+  text-rendering:optimizeLegibility;
+  font-kerning:normal;
+  -webkit-font-smoothing:antialiased;
+  -moz-osx-font-smoothing:grayscale;
+}
+button,input,select{font:inherit}
+a{color:inherit;text-decoration:none}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+::selection{background:rgba(233,201,143,.22);color:var(--text)}
+
+.page{max-width:1360px;margin:0 auto;padding:clamp(28px,5vw,56px) clamp(18px,3vw,32px) 96px}
+.hero{display:grid;grid-template-columns:minmax(0,1fr) minmax(280px,340px);gap:32px;align-items:start;margin-bottom:26px}
+.hero-copy{position:relative;padding:clamp(28px,4vw,40px);border:1px solid var(--border);border-radius:28px;background:linear-gradient(180deg, rgba(38,33,26,.92), rgba(20,18,14,.94)),radial-gradient(circle at top left, rgba(233,201,143,.12), transparent 0 45%);box-shadow:var(--shadow)}
+.hero-copy::after{content:"";position:absolute;inset:1px;border-radius:27px;pointer-events:none;background:linear-gradient(135deg, rgba(255,255,255,.04), transparent 35%, rgba(255,255,255,.01))}
+.hero-kicker,.hero-note,.badge,.meta,.meta-pill,.topic,.detail-item strong,.detail-item span,.state-btn,.tab-count{font-family:var(--font-mono);font-variant-numeric:tabular-nums;font-variant-ligatures:contextual}
+.hero-kicker{display:inline-flex;align-items:center;gap:10px;margin-bottom:18px;color:var(--accent);font-size:11px;letter-spacing:.18em;text-transform:uppercase}
+.hero-kicker::before{content:"";width:28px;height:1px;background:linear-gradient(90deg, rgba(233,201,143,.1), rgba(233,201,143,.8))}
+.hero h1{margin:0 0 14px;font-size:clamp(2.4rem,5vw,4.6rem);line-height:1.02;letter-spacing:-.05em;font-weight:680;color:var(--text)}
+.hero p{margin:0;max-width:72ch;color:var(--text-soft);font-size:1.04rem}
+.hero-support{margin-top:16px;color:var(--muted)}
+.hero-rail{display:grid;gap:16px}
+.hero-status,.hero-actions{padding:20px 22px;border:1px solid var(--border);border-radius:22px;background:linear-gradient(180deg, rgba(29,26,21,.84), rgba(18,16,13,.92));box-shadow:var(--shadow)}
+.hero-status-label{margin-bottom:10px;color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.14em}
+.hero-note{color:var(--text-soft);font-size:13px;line-height:1.65}
+.hero-actions .actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+
+.toolbar{margin-bottom:20px;display:grid;gap:14px}
+.control-shell,.selection-bar{border:1px solid var(--border);border-radius:24px;background:linear-gradient(180deg, rgba(28,25,20,.9), rgba(20,18,14,.94));box-shadow:var(--shadow)}
+.control-shell{display:grid;grid-template-columns:minmax(0,1.08fr) minmax(0,1.5fr);gap:16px 18px;padding:22px 24px}
+.toolbar-copy{display:grid;gap:8px;align-content:start}
+.summary{font-size:1rem;font-weight:650;line-height:1.35;color:var(--text)}
+.sub{color:var(--muted);font-size:.88rem;line-height:1.7}
+.toolbar-controls{display:grid;gap:12px}
+.filters,.actions,.states,.badges,.meta,.panel-actions,.settings-actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.filters{display:grid;grid-template-columns:minmax(220px,1.45fr) repeat(4,minmax(120px,.8fr));gap:10px}
+.actions{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.selection-bar{display:none;padding:16px 18px}
+.selection-bar.show{display:block}
+.selection-title{margin-bottom:10px;color:var(--muted);font-size:12px;letter-spacing:.12em;text-transform:uppercase}
+
+.action,input,select{min-height:44px;width:100%;padding:0 14px;border-radius:14px;border:1px solid var(--border);background:rgba(17,15,12,.88);color:var(--text);transition:border-color .22s ease,background .22s ease,transform .22s ease,box-shadow .22s ease,opacity .22s ease}
+input::placeholder{color:var(--muted-soft)}
+select{appearance:none;background-image:linear-gradient(45deg, transparent 50%, var(--muted) 50%),linear-gradient(135deg, var(--muted) 50%, transparent 50%);background-position:calc(100% - 18px) calc(50% - 1px),calc(100% - 12px) calc(50% - 1px);background-size:6px 6px,6px 6px;background-repeat:no-repeat}
+.action{cursor:pointer;justify-content:center;display:inline-flex;align-items:center;border-color:rgba(233,201,143,.12);background:linear-gradient(180deg, rgba(39,34,27,.86), rgba(22,19,15,.96));color:var(--text-soft);font-weight:560}
+.action:hover{transform:translateY(-1px);border-color:rgba(233,201,143,.26);background:linear-gradient(180deg, rgba(48,42,33,.96), rgba(25,21,17,.98));color:var(--text)}
+.primary{border-color:rgba(246,222,174,.18);background:linear-gradient(180deg, var(--accent-strong), #dcb778);color:var(--accent-ink)}
+.primary:hover{color:var(--accent-ink);background:linear-gradient(180deg, #fae7c2, #e3c286)}
+.ghost{background:rgba(17,15,12,.45);color:var(--muted)}
+.ghost:hover{color:var(--text-soft)}
+.danger-hover:hover{color:var(--danger)!important;border-color:rgba(244,154,141,.34)!important}
+
+.tabs{position:sticky;top:16px;z-index:15;display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:22px;padding:12px;border:1px solid var(--border);border-radius:22px;background:rgba(16,14,11,.84);backdrop-filter:blur(14px);box-shadow:var(--shadow)}
+.tab{display:inline-flex;align-items:center;gap:8px;min-height:42px;padding:0 16px;border:none;border-radius:999px;background:transparent;color:var(--muted);cursor:pointer;font-size:.94rem;font-weight:560;transition:background .22s ease,color .22s ease,transform .22s ease}
+.tab:hover{color:var(--text);background:rgba(255,255,255,.035)}
+.tab.active{background:linear-gradient(180deg, rgba(233,201,143,.18), rgba(233,201,143,.09));color:var(--text)}
+.tab-count{color:var(--accent);font-size:.84rem}
+
+.cards{display:grid;gap:16px}
+.card,.update-card,.compare-card{position:relative;display:grid;gap:16px;padding:24px 32px;border-radius:18px;border:1px solid rgba(233,214,184,.1);background:radial-gradient(circle at top right, rgba(233,201,143,.07), transparent 0 28%),linear-gradient(180deg, rgba(34,30,24,.96), rgba(24,21,17,.98));box-shadow:var(--shadow);overflow:hidden;transition:border-color .24s ease,box-shadow .24s ease,transform .24s ease}
+.card::before,.update-card::before,.compare-card::before{content:"";position:absolute;inset:0;background:linear-gradient(120deg, rgba(255,255,255,.045), transparent 26%, transparent 70%, rgba(255,255,255,.015));pointer-events:none}
+.card.selectable,.update-card.selectable{cursor:pointer}
+.card.selectable:hover,.update-card.selectable:hover{transform:translateY(-1px);border-color:rgba(245,228,198,.18)}
+.card.selected,.update-card.selected{border-color:rgba(233,201,143,.42);box-shadow:0 0 0 1px rgba(233,201,143,.24) inset,0 0 0 10px rgba(233,201,143,.02),var(--shadow)}
+.selection-mark{position:absolute;top:18px;right:18px;display:inline-flex;align-items:center;gap:8px;padding:6px 10px;border-radius:999px;border:1px solid rgba(233,201,143,.26);background:rgba(233,201,143,.12);color:var(--accent-strong);font-size:11px;letter-spacing:.12em;text-transform:uppercase}
+.selection-mark::before{content:"";width:8px;height:8px;border-radius:999px;background:var(--accent);box-shadow:0 0 0 6px rgba(233,201,143,.08)}
+.card-head{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:18px;align-items:start}
+.card-body{display:grid;gap:14px}
+.title{display:block;margin:8px 0 0;color:var(--text);font-size:20px;line-height:1.18;letter-spacing:-.03em;font-weight:700}
+.title:hover{color:var(--accent-strong);text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:4px}
+.desc{max-width:72ch;color:var(--text-soft);font-size:1rem;line-height:1.7}
+.desc.muted{color:var(--muted)}
+.badges{gap:8px}
+.badge{display:inline-flex;align-items:center;gap:6px;min-height:28px;padding:0 10px;border-radius:999px;border:1px solid rgba(233,214,184,.12);background:rgba(15,13,10,.55);color:var(--muted);font-size:.77rem;letter-spacing:.02em}
+.badge.gain{color:var(--green);border-color:rgba(127,208,160,.26);background:rgba(127,208,160,.08)}
+.badge.source{color:var(--amber);border-color:rgba(216,175,103,.16);background:rgba(216,175,103,.06)}
+.badge.selected{color:var(--accent-ink);border-color:rgba(246,222,174,.22);background:var(--accent-strong)}
+.meta{gap:8px;color:var(--muted-soft);font-size:.83rem}
+.meta-rank{justify-self:end;align-self:start;padding-top:2px;color:rgba(233,201,143,.58)}
+.meta-line{display:flex;gap:8px;flex-wrap:wrap;color:var(--muted-soft)}
+.meta-pill{display:inline-flex;align-items:center;gap:8px;min-height:32px;padding:0 12px;border-radius:999px;border:1px solid rgba(233,214,184,.08);background:rgba(10,9,7,.36)}
+.meta-pill strong{color:var(--muted);font-weight:500}
+.states{opacity:.03;pointer-events:none;transform:translateY(6px);transition:opacity .26s ease,transform .26s ease}
+.card:hover .states,.update-card:hover .states,.card:focus-within .states,.update-card:focus-within .states,.card.selected .states,.update-card.selected .states{opacity:1;pointer-events:auto;transform:translateY(0)}
+.state-btn{min-height:34px;padding:0 12px;border-radius:999px;border:1px solid rgba(233,214,184,.12);background:rgba(11,10,8,.48);color:var(--muted);cursor:pointer;font-size:.8rem;transition:border-color .22s ease,background .22s ease,color .22s ease}
+.state-btn:hover{border-color:rgba(233,214,184,.24);color:var(--text-soft)}
+.state-btn.active{color:var(--accent-ink);background:var(--accent);border-color:rgba(233,201,143,.3);box-shadow:0 8px 20px rgba(233,201,143,.12)}
+.empty{padding:84px 20px;border:1px dashed rgba(233,214,184,.12);border-radius:22px;background:rgba(16,14,11,.62);color:var(--muted);text-align:center;font-size:.95rem}
+.notice{padding:16px 18px;border-radius:16px;border:1px solid rgba(233,201,143,.12);background:rgba(18,16,13,.84);color:var(--text-soft);font-size:.9rem;line-height:1.75}
+.toast{position:fixed;right:22px;bottom:22px;max-width:min(420px,calc(100vw - 32px));padding:14px 16px;border-radius:16px;border:1px solid rgba(233,201,143,.18);background:rgba(20,17,13,.96);color:var(--text);box-shadow:var(--shadow);opacity:0;transform:translateY(10px);transition:opacity .22s ease,transform .22s ease;pointer-events:none;z-index:60}
+.toast.show{opacity:1;transform:translateY(0)}
+
+.overlay{position:fixed;inset:0;opacity:0;visibility:hidden;background:rgba(6,5,4,.58);backdrop-filter:blur(8px);z-index:50;transition:opacity .28s ease,visibility .28s ease}
+.overlay.show{opacity:1;visibility:visible}
+.panel{position:absolute;top:0;right:0;bottom:0;width:min(620px,100vw);background:radial-gradient(circle at top, rgba(233,201,143,.08), transparent 0 26%),linear-gradient(180deg, rgba(20,17,13,.98), rgba(14,12,10,1));border-left:1px solid rgba(233,214,184,.12);box-shadow:-30px 0 72px rgba(0,0,0,.44);display:flex;flex-direction:column;transform:translateX(100%);transition:transform .34s cubic-bezier(.22,1,.36,1)}
+.overlay.show .panel{transform:translateX(0)}
+.overlay.compare .panel{width:min(760px,100vw)}
+.overlay.settings .panel{width:min(560px,100vw)}
+.panel-head{padding:28px 28px 20px;border-bottom:1px solid rgba(233,214,184,.1);display:grid;grid-template-columns:minmax(0,1fr) auto;gap:16px;align-items:start}
+.panel-title{margin:0 0 8px;font-size:1.56rem;line-height:1.1;letter-spacing:-.03em;font-weight:700;color:var(--text)}
+.panel-body{padding:24px 28px 34px;overflow-y:auto;display:grid;gap:18px}
+.settings-grid{display:grid;gap:12px}
+.settings-grid .filters{grid-template-columns:1fr}
+.settings-grid label.action{justify-content:flex-start}
+.detail-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.compare-grid{display:grid;grid-template-columns:1fr;gap:16px}
+.detail-item{padding:14px 15px;border-radius:16px;border:1px solid rgba(233,214,184,.08);background:rgba(24,21,17,.78)}
+.detail-item strong{display:block;margin-bottom:8px;color:var(--muted);font-size:.75rem;letter-spacing:.12em;text-transform:uppercase}
+.detail-item span{color:var(--text-soft);font-size:.9rem;line-height:1.6}
+.topic-list{display:flex;gap:8px;flex-wrap:wrap}
+.topic{display:inline-flex;align-items:center;min-height:28px;padding:0 10px;border-radius:999px;background:rgba(233,201,143,.09);border:1px solid rgba(233,201,143,.12);color:var(--accent);font-size:.78rem}
+.link-inline{color:var(--accent-strong);text-decoration:underline;text-underline-offset:3px}
+.link-inline:hover{color:var(--text)}
+.danger{color:var(--danger)}
+
+@media (max-width:1120px){
+  .hero,.control-shell{grid-template-columns:1fr}
+  .hero-rail{grid-template-columns:1fr 1fr}
+  .filters{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .actions{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media (max-width:780px){
+  .page{padding:20px 14px 72px}
+  .hero-copy,.hero-status,.hero-actions,.control-shell,.selection-bar,.tabs{border-radius:20px}
+  .hero-rail{grid-template-columns:1fr}
+  .actions,.filters{grid-template-columns:1fr}
+  .card,.update-card,.compare-card{padding:22px 20px}
+  .card-head{grid-template-columns:1fr}
+  .meta-rank{justify-self:start}
+  .detail-grid{grid-template-columns:1fr}
+  .panel-head,.panel-body{padding-left:20px;padding-right:20px}
+}
+@media (prefers-reduced-motion:reduce){
+  *,
+  *::before,
+  *::after{
+    animation:none!important;
+    transition:none!important;
+    scroll-behavior:auto!important;
+  }
+}
 </style>
 </head>
 <body>
 <div class="page">
   <section class="hero">
-    <div>
+    <div class="hero-copy">
+      <div class="hero-kicker">Curated GitHub Intelligence</div>
       <h1>__APP_NAME__</h1>
-      <p>桌面托盘常驻版。趋势榜、收藏、稍后看、已读、更新追踪、仓库详情、仓库对比和 ChatGPT 分析都集中在这里。点击卡片空白处即可直接选中仓库。</p>
-      <div class="sub" style="margin-top:10px">本程序不强制要求 VPN；但如果当前网络无法访问 GitHub，请先准备好代理或 VPN，再到“设置”里填写代理地址。</div>
+      <p>把 GitHub 趋势、收藏追踪、仓库详情、对比判断和 ChatGPT 分析收进一个更适合长时间阅读与筛选的桌面阅读台。</p>
+      <p class="hero-support">像读一份被持续更新的技术选题笔记，而不是在密集工具栏和碎片化卡片之间来回跳转。点击卡片空白处即可直接选中仓库。</p>
     </div>
-    <div style="display:flex; flex-direction:column; align-items:flex-end; gap:12px;">
-      <div class="hero-note" id="note"></div>
-      <div class="actions" style="gap:4px;">
-        <button class="action ghost" onclick="hideToTray()">隐藏托盘</button>
-        <button class="action ghost" onclick="exportUserState()">导出数据</button>
-        <button class="action ghost" onclick="openSettings()">设置</button>
-        <button class="action ghost danger-hover" onclick="exitApp()">退出程序</button>
+    <aside class="hero-rail">
+      <div class="hero-status">
+        <div class="hero-status-label">Runtime</div>
+        <div class="hero-note" id="note"></div>
       </div>
-    </div>
+      <div class="hero-actions">
+        <div class="hero-status-label">Workspace</div>
+        <div class="actions">
+          <button class="action ghost" onclick="hideToTray()">隐藏到托盘</button>
+          <button class="action ghost" onclick="exportUserState()">导出数据</button>
+          <button class="action ghost" onclick="openSettings()">设置</button>
+          <button class="action ghost danger-hover" onclick="exitApp()">退出程序</button>
+        </div>
+      </div>
+    </aside>
   </section>
+
   <section class="toolbar">
-    <div class="row" style="align-items:center;">
-      <div class="stack">
-        <div class="summary">当前可见 <span id="visible-count">0</span><span id="visible-label"> 仓库</span> · 已选 <span id="selected-count">0</span> 项</div>
+    <div class="control-shell">
+      <div class="toolbar-copy">
+        <div class="summary">当前面板可见 <span id="visible-count">0</span><span id="visible-label"> 个仓库</span> · 已选 <span id="selected-count">0</span> 项</div>
+        <div class="sub">这是一个偏“读”和“筛”的视图。项目名称和描述是第一焦点，Stars / Fork / 来源等次级信息会被自然后移。仓库链接会使用系统默认浏览器打开，沿用你当前登录态。</div>
+        <div class="sub">本程序不强制要求 VPN；如果当前网络无法访问 GitHub，请先准备好代理或 VPN，再到“设置”里填写代理地址。</div>
       </div>
-      <div class="filters">
-        <input id="search" type="search" placeholder="搜索仓库 / 描述 / 语言 / 更新...">
-        <select id="language"></select>
-        <select id="state-filter"><option value="">全部状态</option><option value="unmarked">只看未标记</option><option value="favorites">只看收藏</option><option value="watch_later">只看稍后看</option><option value="read">只看已读</option><option value="ignored">只看忽略</option></select>
-        <select id="sort-primary"><option value="stars">总星标</option><option value="trending">GitHub 趋势</option><option value="gained">增长量</option><option value="forks">Fork</option><option value="name">仓库名</option><option value="language">语言</option></select>
-        <select id="ai-target"><option value="web">ChatGPT Web</option><option value="desktop">ChatGPT App</option><option value="copy">只复制</option></select>
-        <button class="action" onclick="analyzeVisible()">分析列表</button>
-        <button class="action" onclick="refreshNow()">刷新</button>
+      <div class="toolbar-controls">
+        <div class="filters">
+          <input id="search" type="search" placeholder="搜索仓库 / 描述 / 语言 / 更新内容">
+          <select id="language"></select>
+          <select id="state-filter"><option value="">全部状态</option><option value="unmarked">只看未标记</option><option value="favorites">只看收藏</option><option value="watch_later">只看稍后看</option><option value="read">只看已读</option><option value="ignored">只看忽略</option></select>
+          <select id="sort-primary"><option value="stars">按总星标排序</option><option value="trending">按 GitHub 趋势排序</option><option value="gained">按增长排序</option><option value="forks">按 Fork 排序</option><option value="name">按仓库名排序</option><option value="language">按语言排序</option></select>
+          <select id="ai-target"><option value="web">ChatGPT 网页版</option><option value="desktop">ChatGPT 桌面版</option><option value="copy">仅复制提示词</option></select>
+        </div>
+        <div class="actions">
+          <button class="action" onclick="analyzeVisible()">分析当前列表</button>
+          <button class="action" onclick="refreshNow()">立即刷新</button>
+          <button class="action" onclick="selectVisible()">全选当前面板</button>
+          <button class="action" onclick="clearFavoriteUpdates()">清空更新记录</button>
+        </div>
       </div>
     </div>
-    <div class="row" id="batch-actions-row" style="display:none; margin-top:16px; padding-top:16px; border-top:1px solid var(--border);">
+
+    <div class="selection-bar" id="batch-actions-row">
+      <div class="selection-title" id="selection-title">Selected Repositories</div>
       <div class="actions">
-        <button class="action" onclick="selectVisible()">全选面板</button>
-        <button class="action danger-hover" onclick="clearSelected()">清空选择</button>
-        <button class="action primary" onclick="analyzeSelected()">批量分析</button>
-        <button class="action" onclick="openCompareSelected()">对比已选 (2)</button>
+        <button class="action danger-hover" onclick="clearSelected()">清空已选</button>
+        <button class="action primary" onclick="analyzeSelected()">批量分析已选</button>
+        <button class="action" onclick="openCompareSelected()">对比已选 2 个仓库</button>
         <button class="action" onclick="batchSetState('favorites')">批量收藏</button>
         <button class="action" onclick="batchSetState('read')">批量已读</button>
         <button class="action" onclick="batchSetState('ignored')">批量忽略</button>
-        <button class="action danger-hover" onclick="clearFavoriteUpdates()">清空更新记录</button>
+        <button class="action" onclick="batchSetState('watch_later')">批量稍后看</button>
+        <button class="action" onclick="selectVisible()">重新全选本页</button>
       </div>
     </div>
   </section>
+
   <div class="tabs" id="tabs"></div>
   <div class="cards" id="cards"></div>
 </div>
 <div class="toast" id="toast"></div>
-<section class="overlay settings" id="settings-modal"><div class="panel"><div class="panel-head"><div><div class="panel-title">设置</div><div class="sub">GitHub Token、代理、刷新间隔、榜单条数、端口和关闭行为都在这里调整。</div></div><button class="action" onclick="closeSettings()">关闭</button></div><div class="panel-body"><div class="filters"><input id="setting-token" type="password" placeholder="GitHub Token"><input id="setting-proxy" type="text" placeholder="代理地址，留空则自动探测"><input id="setting-refresh-hours" type="number" min="1" max="24" placeholder="刷新间隔（小时）"><input id="setting-result-limit" type="number" min="10" max="100" placeholder="榜单条数"><input id="setting-port" type="number" min="1" max="65535" placeholder="端口"><select id="setting-close-behavior"><option value="tray">关闭主窗口时保留托盘运行</option><option value="exit">关闭主窗口时直接退出程序</option></select><label class="action" style="display:flex;align-items:center;gap:8px"><input id="setting-auto-start" type="checkbox">开机启动</label></div><div class="notice" style="margin-top:12px">网络提醒：程序本身不提供 VPN 或翻墙能力。能正常访问 GitHub 时可直接使用；如果趋势列表刷不出来、仓库详情加载失败，通常需要先开启代理或 VPN，然后把代理地址填到上面的“代理地址”里。</div><div class="notice" style="margin-top:12px">关闭提醒：如果选择“保留托盘运行”，主窗口关闭后程序仍会继续运行，图标可能收在任务栏右下角的隐藏图标里。</div><div class="sub" id="settings-runtime-hint" style="margin-top:12px"></div><div class="actions" style="margin-top:16px"><button class="action primary" onclick="saveSettings()">保存设置</button></div></div></div></section>
-<section class="overlay detail" id="detail-modal"><div class="panel"><div class="panel-head"><div><div class="panel-title">仓库详情</div><div class="sub" id="detail-title">加载中...</div></div><button class="action" onclick="closeDetail()">关闭</button></div><div class="panel-body" id="detail-body"></div></div></section>
-<section class="overlay compare" id="compare-modal"><div class="panel"><div class="panel-head"><div><div class="panel-title">仓库对比</div><div class="sub">对比功能定位、社区热度、近期活跃度和适用场景。</div></div><button class="action" onclick="closeCompare()">关闭</button></div><div class="panel-body" id="compare-body"></div></div></section>
+<section class="overlay settings" id="settings-modal">
+  <div class="panel">
+    <div class="panel-head">
+      <div>
+        <div class="panel-title">设置</div>
+        <div class="sub">配置 GitHub Token、代理、刷新间隔、榜单条数、端口和关闭行为。</div>
+      </div>
+      <button class="action" onclick="closeSettings()">关闭</button>
+    </div>
+    <div class="panel-body settings-grid">
+      <div class="filters">
+        <input id="setting-token" type="password" placeholder="GitHub Token">
+        <input id="setting-proxy" type="text" placeholder="代理地址，留空则自动探测">
+        <input id="setting-refresh-hours" type="number" min="1" max="24" placeholder="刷新间隔（小时）">
+        <input id="setting-result-limit" type="number" min="10" max="100" placeholder="榜单条数">
+        <input id="setting-port" type="number" min="1" max="65535" placeholder="端口">
+        <select id="setting-close-behavior"><option value="tray">关闭主窗口时保留托盘运行</option><option value="exit">关闭主窗口时直接退出程序</option></select>
+        <label class="action"><input id="setting-auto-start" type="checkbox"> 开机启动</label>
+      </div>
+      <div class="notice">网络提醒：程序本身不提供 VPN 或翻墙能力。能正常访问 GitHub 时可直接使用；如果趋势列表刷不出来、仓库详情加载失败，通常需要先开启代理或 VPN，然后把代理地址填到上面的“代理地址”里。</div>
+      <div class="notice">关闭提醒：如果选择“保留托盘运行”，主窗口关闭后程序仍会继续运行，图标可能收在任务栏右下角的隐藏图标里。</div>
+      <div class="sub" id="settings-runtime-hint"></div>
+      <div class="settings-actions">
+        <button class="action primary" onclick="saveSettings()">保存设置</button>
+      </div>
+    </div>
+  </div>
+</section>
+<section class="overlay detail" id="detail-modal">
+  <div class="panel">
+    <div class="panel-head">
+      <div>
+        <div class="panel-title">仓库详情</div>
+        <div class="sub" id="detail-title">加载中...</div>
+      </div>
+      <button class="action" onclick="closeDetail()">关闭</button>
+    </div>
+    <div class="panel-body" id="detail-body"></div>
+  </div>
+</section>
+<section class="overlay compare" id="compare-modal">
+  <div class="panel">
+    <div class="panel-head">
+      <div>
+        <div class="panel-title">仓库对比</div>
+        <div class="sub">更像在右侧展开一页比对札记，而不是打断阅读流的居中弹窗。</div>
+      </div>
+      <button class="action" onclick="closeCompare()">关闭</button>
+    </div>
+    <div class="panel-body" id="compare-body"></div>
+  </div>
+</section>
 <script>
 const INITIAL=__PAYLOAD__;
 const UPDATE_PANEL_KEY="favorite-updates";
@@ -156,9 +380,96 @@ function visibleUpdates(){if(panel!==UPDATE_PANEL_KEY) return [];const query=doc
 function visibleLinkList(){return panel===UPDATE_PANEL_KEY?visibleUpdates().map(update=>update.url):visibleRepos().map(repo=>repo.url);}
 function tabsData(){return [...(INITIAL.periods||[]).map(period=>({key:period.key,label:period.label,count:current(period.key).length})),...(INITIAL.states||[]).map(state=>({key:`saved:${state.key}`,label:state.label,count:(userState[state.key]||[]).length})),{key:UPDATE_PANEL_KEY,label:"收藏更新",count:(userState.favorite_updates||[]).length}];}
 function ensureValidPanel(){const keys=new Set(tabsData().map(tab=>tab.key));if(!keys.has(panel)){panel="daily";localStorage.setItem("gtr-tab",panel);}}
-function renderRepoCards(repos){if(!repos.length) return '<div class="empty">当前面板没有匹配结果。</div>';return repos.map(repo=>`<article class="card selectable ${selectedUrls.has(repo.url)?"selected":""}" data-select-url="${h(repo.url)}"><div class="row"><div><a class="title" href="${h(repo.url)}" target="_blank" rel="noopener" data-external-url="${h(repo.url)}">${h(repo.full_name)}</a><div class="badges"><span class="badge ${gainBadgeClass(repo)}">${h(gainLabel(repo))}</span><span class="badge source">${h(repo.source_label||"")}</span>${selectedUrls.has(repo.url)?'<span class="badge selected">已选</span>':""}</div></div><div class="meta">#${repo.rank||"-"}</div></div><div class="desc">${h(repo.description||repo.description_raw||"暂无描述")}</div><div class="meta">Stars ${repo.stars||0} · Fork ${repo.forks||0} · ${h(repo.language||"未知语言")}</div><div class="states">${(INITIAL.states||[]).map(state=>`<button class="state-btn ${(userState[state.key]||[]).includes(repo.url)?"active":""}" onclick='toggleState(${JSON.stringify(state.key)}, ${JSON.stringify(repo.url)})'>${h(state.button)}</button>`).join("")}<button class="action" onclick='analyzeRepo(${JSON.stringify(repo.url)})'>ChatGPT</button><button class="action" onclick='openDetail(${JSON.stringify(repo.owner)}, ${JSON.stringify(repo.name)}, ${JSON.stringify(repo.full_name)})'>详情</button></div></article>`).join("");}
-function renderUpdateCards(items){if(!items.length) return '<div class="empty">收藏仓库最近还没有检测到新的变化。</div>';return items.map(update=>`<article class="update-card selectable ${selectedUrls.has(update.url)?"selected":""}" data-select-url="${h(update.url)}"><div class="row"><div><a class="title" href="${h(update.url)}" target="_blank" rel="noopener" data-external-url="${h(update.url)}">${h(update.full_name)}</a><div class="meta">${h(update.checked_at||"未知")}</div></div><div class="badges">${update.latest_release_tag?`<span class="badge source">${h(update.latest_release_tag)}</span>`:""}${selectedUrls.has(update.url)?'<span class="badge selected">已选</span>':""}</div></div><div class="badges">${(update.changes||[]).map(change=>`<span class="badge gain">${h(change)}</span>`).join("")}</div><div class="meta">Stars ${update.stars||0} · Fork ${update.forks||0} · 最近推送 ${h(update.pushed_at||"未知")}</div><div class="states"><button class="action" onclick='analyzeRepo(${JSON.stringify(update.url)})'>ChatGPT</button><button class="action" onclick='openDetailFromRecord(${JSON.stringify(update.full_name)}, ${JSON.stringify(update.url)})'>详情</button></div></article>`).join("");}
-function render(){cleanupSelected();ensureValidPanel();const isUpdatePanel=panel===UPDATE_PANEL_KEY;document.getElementById("note").textContent=currentNote;const languages=[...new Set((INITIAL.periods||[]).flatMap(period=>current(period.key).map(repo=>repo.language).filter(Boolean)))].sort((a,b)=>String(a).localeCompare(String(b),"zh-Hans-CN"));const languageNode=document.getElementById("language");languageNode.innerHTML='<option value="">全部语言</option>'+languages.map(language=>`<option value="${h(language)}">${h(language)}</option>`).join("");languageNode.value=languages.includes(languageFilter)?languageFilter:"";languageFilter=languageNode.value;languageNode.disabled=isUpdatePanel;document.getElementById("state-filter").disabled=isUpdatePanel;document.getElementById("tabs").innerHTML=tabsData().map(tab=>`<button class="tab ${tab.key===panel?"active":""}" onclick='setPanel(${JSON.stringify(tab.key)})'>${h(tab.label)} <span style="color:var(--accent)">${tab.count}</span></button>`).join("");const repos=visibleRepos();const updates=visibleUpdates();document.getElementById("visible-count").textContent=isUpdatePanel?updates.length:repos.length;document.getElementById("visible-label").textContent=isUpdatePanel?" 条更新":" 个仓库";document.getElementById("selected-count").textContent=selectedCount();document.getElementById("cards").innerHTML=isUpdatePanel?renderUpdateCards(updates):renderRepoCards(repos);}
+function renderRepoCards(repos){
+  if(!repos.length) return '<div class="empty">当前面板没有匹配结果。</div>';
+  return repos.map(repo=>{
+    const selected=selectedUrls.has(repo.url);
+    const description=h(repo.description||repo.description_raw||"暂无描述");
+    return `<article class="card selectable ${selected?"selected":""}" data-select-url="${h(repo.url)}">
+      ${selected?'<div class="selection-mark">已选中</div>':""}
+      <div class="card-head">
+        <div>
+          <div class="badges">
+            <span class="badge ${gainBadgeClass(repo)}">${h(gainLabel(repo))}</span>
+            <span class="badge source">${h(repo.source_label||"GitHub 来源")}</span>
+          </div>
+          <a class="title" href="${h(repo.url)}" target="_blank" rel="noopener" data-external-url="${h(repo.url)}">${h(repo.full_name)}</a>
+        </div>
+        <div class="meta meta-rank">#${repo.rank||"-"}</div>
+      </div>
+      <div class="card-body">
+        <div class="desc">${description}</div>
+        <div class="meta-line">
+          <span class="meta-pill"><strong>Stars</strong><span>${repo.stars||0}</span></span>
+          <span class="meta-pill"><strong>Forks</strong><span>${repo.forks||0}</span></span>
+          <span class="meta-pill"><strong>Language</strong><span>${h(repo.language||"未知语言")}</span></span>
+        </div>
+        <div class="states">
+          ${(INITIAL.states||[]).map(state=>`<button class="state-btn ${(userState[state.key]||[]).includes(repo.url)?"active":""}" onclick='toggleState(${JSON.stringify(state.key)}, ${JSON.stringify(repo.url)})'>${h(state.button)}</button>`).join("")}
+          <button class="action" onclick='analyzeRepo(${JSON.stringify(repo.url)})'>ChatGPT</button>
+          <button class="action" onclick='openDetail(${JSON.stringify(repo.owner)}, ${JSON.stringify(repo.name)}, ${JSON.stringify(repo.full_name)})'>详情</button>
+        </div>
+      </div>
+    </article>`;
+  }).join("");
+}
+function renderUpdateCards(items){
+  if(!items.length) return '<div class="empty">收藏仓库最近还没有检测到新的变化。</div>';
+  return items.map(update=>{
+    const selected=selectedUrls.has(update.url);
+    const changeBadges=(update.changes||[]).map(change=>`<span class="badge gain">${h(change)}</span>`).join("");
+    const summary=(update.changes||[]).length?(update.changes||[]).join(" · "):"最近一次检测没有整理出可展示的变化摘要。";
+    return `<article class="update-card selectable ${selected?"selected":""}" data-select-url="${h(update.url)}">
+      ${selected?'<div class="selection-mark">已选中</div>':""}
+      <div class="card-head">
+        <div>
+          <div class="badges">
+            <span class="badge source">收藏更新</span>
+            ${update.latest_release_tag?`<span class="badge source">${h(update.latest_release_tag)}</span>`:""}
+          </div>
+          <a class="title" href="${h(update.url)}" target="_blank" rel="noopener" data-external-url="${h(update.url)}">${h(update.full_name)}</a>
+        </div>
+        <div class="meta meta-rank">${h(update.checked_at||"最近检查时间未知")}</div>
+      </div>
+      <div class="card-body">
+        ${changeBadges?`<div class="badges">${changeBadges}</div>`:""}
+        <div class="desc">${h(summary)}</div>
+        <div class="meta-line">
+          <span class="meta-pill"><strong>Stars</strong><span>${update.stars||0}</span></span>
+          <span class="meta-pill"><strong>Forks</strong><span>${update.forks||0}</span></span>
+          <span class="meta-pill"><strong>Pushed</strong><span>${h(update.pushed_at||"未知")}</span></span>
+        </div>
+        <div class="states">
+          <button class="action" onclick='analyzeRepo(${JSON.stringify(update.url)})'>ChatGPT</button>
+          <button class="action" onclick='openDetailFromRecord(${JSON.stringify(update.full_name)}, ${JSON.stringify(update.url)})'>详情</button>
+        </div>
+      </div>
+    </article>`;
+  }).join("");
+}
+function render(){
+  cleanupSelected();
+  ensureValidPanel();
+  const isUpdatePanel=panel===UPDATE_PANEL_KEY;
+  document.getElementById("note").textContent=currentNote;
+  const languages=[...new Set((INITIAL.periods||[]).flatMap(period=>current(period.key).map(repo=>repo.language).filter(Boolean)))].sort((a,b)=>String(a).localeCompare(String(b),"zh-Hans-CN"));
+  const languageNode=document.getElementById("language");
+  languageNode.innerHTML='<option value="">全部语言</option>'+languages.map(language=>`<option value="${h(language)}">${h(language)}</option>`).join("");
+  languageNode.value=languages.includes(languageFilter)?languageFilter:"";
+  languageFilter=languageNode.value;
+  languageNode.disabled=isUpdatePanel;
+  document.getElementById("state-filter").disabled=isUpdatePanel;
+  document.getElementById("tabs").innerHTML=tabsData().map(tab=>`<button class="tab ${tab.key===panel?"active":""}" onclick='setPanel(${JSON.stringify(tab.key)})'>${h(tab.label)} <span class="tab-count">${tab.count}</span></button>`).join("");
+  const repos=visibleRepos();
+  const updates=visibleUpdates();
+  const selected=selectedCount();
+  document.getElementById("visible-count").textContent=isUpdatePanel?updates.length:repos.length;
+  document.getElementById("visible-label").textContent=isUpdatePanel?" 条更新":" 个仓库";
+  document.getElementById("selected-count").textContent=selected;
+  document.getElementById("selection-title").textContent=selected?`已选 ${selected} 个条目，可批量分析、改状态或双仓库对比`:"Selected Repositories";
+  document.getElementById("batch-actions-row").classList.toggle("show",selected>0);
+  document.getElementById("cards").innerHTML=isUpdatePanel?renderUpdateCards(updates):renderRepoCards(repos);
+}
 function setPanel(nextPanel){panel=String(nextPanel||"daily");localStorage.setItem("gtr-tab",panel);render();}
 function toggleSelected(url){if(selectedUrls.has(url)) selectedUrls.delete(url);else selectedUrls.add(url);saveSelectedUrls();render();}
 function clearSelected(){if(!selectedUrls.size){toast("当前没有已选条目");return;}selectedUrls.clear();saveSelectedUrls();render();toast("已清空选择");}
@@ -193,8 +504,43 @@ Forks: ${detailB.forks||b.forks||0}
 最近推送: ${detailB.pushed_at||"未知"}
 简介: ${detailB.description||detailB.description_raw||b.description||b.description_raw||"暂无描述"}
 README 摘要: ${detailB.readme_summary||detailB.readme_summary_raw||"暂无"}`;}
-async function openCompareSelected(){const repos=selectedRepos();if(repos.length!==2){toast("请先选中 2 个仓库再对比");return;}document.getElementById("compare-body").innerHTML='<div class="empty">正在拉取对比数据...</div>';document.getElementById("compare-modal").classList.add("show");try{const [repoA,repoB]=repos;const [detailA,detailB]=await Promise.all([fetchRepoDetails(repoA),fetchRepoDetails(repoB)]);comparePrompt=buildComparePrompt(repoA,repoB,detailA,detailB);document.getElementById("compare-body").innerHTML=`<div class="actions" style="margin-bottom:14px"><button class="action primary" onclick="analyzeCompare()">ChatGPT 对比</button></div><div class="compare-grid">${renderCompareCard(repoA,detailA)}${renderCompareCard(repoB,detailB)}</div>`;}catch(error){comparePrompt="";document.getElementById("compare-body").innerHTML=`<div class="empty">${h(error.message||"对比数据加载失败")}</div>`;}}
-function renderCompareCard(repo,detail){return `<article class="compare-card"><div class="title">${h(repo.full_name)}</div><div class="detail-grid"><div class="detail-item"><strong>语言</strong><span>${h(repo.language||"未知语言")}</span></div><div class="detail-item"><strong>License</strong><span>${h(detail.license||"未标注")}</span></div><div class="detail-item"><strong>Stars</strong><span>${detail.stars||repo.stars||0}</span></div><div class="detail-item"><strong>Forks</strong><span>${detail.forks||repo.forks||0}</span></div><div class="detail-item"><strong>最近推送</strong><span>${h(detail.pushed_at||"未知")}</span></div><div class="detail-item"><strong>Open Issues</strong><span>${detail.open_issues||0}</span></div></div><div class="desc">${h(detail.description||detail.description_raw||repo.description||repo.description_raw||"暂无描述")}</div><div class="desc">${h(detail.readme_summary||detail.readme_summary_raw||"暂无 README 摘要")}</div><div class="actions"><a class="action" href="${h(repo.url)}" target="_blank" rel="noopener" data-external-url="${h(repo.url)}">打开 GitHub</a></div></article>`;}
+async function openCompareSelected(){
+  const repos=selectedRepos();
+  if(repos.length!==2){toast("请先选中 2 个仓库再对比");return;}
+  document.getElementById("compare-body").innerHTML='<div class="empty">正在拉取对比数据...</div>';
+  document.getElementById("compare-modal").classList.add("show");
+  try{
+    const [repoA,repoB]=repos;
+    const [detailA,detailB]=await Promise.all([fetchRepoDetails(repoA),fetchRepoDetails(repoB)]);
+    comparePrompt=buildComparePrompt(repoA,repoB,detailA,detailB);
+    document.getElementById("compare-body").innerHTML=`<div class="notice">对比抽屉会把两个仓库按同一组维度并排展开，方便从语言、活跃度、README 摘要与项目定位几个层面做快速判断。</div><div class="panel-actions"><button class="action primary" onclick="analyzeCompare()">ChatGPT 对比</button></div><div class="compare-grid">${renderCompareCard(repoA,detailA)}${renderCompareCard(repoB,detailB)}</div>`;
+  }catch(error){
+    comparePrompt="";
+    document.getElementById("compare-body").innerHTML=`<div class="empty">${h(error.message||"对比数据加载失败")}</div>`;
+  }
+}
+function renderCompareCard(repo,detail){
+  return `<article class="compare-card">
+    <div class="badges">
+      <span class="badge ${gainBadgeClass(repo)}">${h(gainLabel(repo))}</span>
+      <span class="badge source">${h(repo.source_label||"GitHub 来源")}</span>
+    </div>
+    <div class="title">${h(repo.full_name)}</div>
+    <div class="desc">${h(detail.description||detail.description_raw||repo.description||repo.description_raw||"暂无描述")}</div>
+    <div class="detail-grid">
+      <div class="detail-item"><strong>语言</strong><span>${h(repo.language||"未知语言")}</span></div>
+      <div class="detail-item"><strong>License</strong><span>${h(detail.license||"未标注")}</span></div>
+      <div class="detail-item"><strong>Stars</strong><span>${detail.stars||repo.stars||0}</span></div>
+      <div class="detail-item"><strong>Forks</strong><span>${detail.forks||repo.forks||0}</span></div>
+      <div class="detail-item"><strong>最近推送</strong><span>${h(detail.pushed_at||"未知")}</span></div>
+      <div class="detail-item"><strong>Open Issues</strong><span>${detail.open_issues||0}</span></div>
+    </div>
+    <div class="desc muted">${h(detail.readme_summary||detail.readme_summary_raw||"暂无 README 摘要")}</div>
+    <div class="panel-actions">
+      <a class="action" href="${h(repo.url)}" target="_blank" rel="noopener" data-external-url="${h(repo.url)}">打开 GitHub</a>
+    </div>
+  </article>`;
+}
 async function analyzeCompare(){if(!comparePrompt){toast("当前没有可分析的对比内容");return;}await openChatGPTPrompts([comparePrompt]);}
 async function toggleState(key,url){const repo=repoByUrl(url);if(!repo) return;const resp=await fetch("/api/state",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({state:key,enabled:!((userState[key]||[]).includes(url)),repo})});const data=await resp.json();if(!resp.ok||!data.ok){toast(data.error||"保存失败");return;}userState=data.user_state;render();}
 async function batchSetState(stateKey){const repos=selectedRepos();if(!repos.length){toast("请先选中仓库再批量操作");return;}let lastState=null;for(const repo of repos){const resp=await fetch("/api/state",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({state:stateKey,enabled:true,repo})});const data=await resp.json();if(!resp.ok||!data.ok){toast(data.error||"批量操作失败");return;}if(data.user_state) lastState=data.user_state;}if(lastState) userState=lastState;render();const label=(INITIAL.states||[]).find(state=>state.key===stateKey)?.label||stateKey;toast(`已将 ${repos.length} 个仓库加入“${label}”`);}
@@ -202,12 +548,12 @@ async function clearFavoriteUpdates(){if(!(userState.favorite_updates||[]).lengt
 async function refreshNow(){const resp=await fetch("/api/refresh",{method:"POST"});const data=await resp.json();if(!resp.ok||!data.ok){toast(data.error||"刷新失败");return;}currentNote=data.message||"已开始后台刷新。";render();poll();}
 function poll(){clearInterval(window.__pollTimer);window.__pollTimer=setInterval(async()=>{const resp=await fetch("/api/status?ts="+Date.now(),{cache:"no-store"});const data=await resp.json();currentNote=data.refreshing?"后台刷新中...":(data.error||"已显示最新数据");document.getElementById("note").textContent=currentNote;if(!data.refreshing){clearInterval(window.__pollTimer);location.reload();}},1500);}
 async function hideToTray(){const resp=await fetch("/api/window/hide",{method:"POST"});const data=await resp.json();if(!resp.ok||!data.ok){toast(data.error||data.message||"隐藏到托盘失败");return;}toast(data.message||"已隐藏到系统托盘");setTimeout(()=>window.close(),150);}
-async function exitApp(){if(!window.confirm("确认直接退出 GitHub Trend Radar 吗？")) return;const resp=await fetch("/api/window/exit",{method:"POST"});const data=await resp.json();if(!resp.ok||!data.ok){toast(data.error||data.message||"退出程序失败");return;}toast(data.message||"正在退出程序");setTimeout(()=>window.close(),150);}
+async function exitApp(){if(!window.confirm("确认直接退出 GitSonar 吗？")) return;const resp=await fetch("/api/window/exit",{method:"POST"});const data=await resp.json();if(!resp.ok||!data.ok){toast(data.error||data.message||"退出程序失败");return;}toast(data.message||"正在退出程序");setTimeout(()=>window.close(),150);}
 async function openSettings(){try{const resp=await fetch("/api/settings",{cache:"no-store"});const data=await resp.json();if(resp.ok) settings=data;}catch(_err){}document.getElementById("setting-token").value=settings.github_token||"";document.getElementById("setting-proxy").value=settings.proxy||"";document.getElementById("setting-refresh-hours").value=settings.refresh_hours||1;document.getElementById("setting-result-limit").value=settings.result_limit||25;document.getElementById("setting-port").value=settings.port||8080;document.getElementById("setting-close-behavior").value=settings.close_behavior||"tray";document.getElementById("setting-auto-start").checked=!!settings.auto_start;document.getElementById("settings-runtime-hint").textContent=`当前生效端口 ${settings.effective_port||settings.port||8080} · 当前代理 ${settings.effective_proxy||"未启用"} · 当前关闭行为 ${closeBehaviorLabel(settings.close_behavior)} · 程序不提供 VPN${settings.restart_required?" · 修改端口后需重启生效":""}`;document.getElementById("settings-modal").classList.add("show");}
 function closeSettings(){document.getElementById("settings-modal").classList.remove("show");}
 async function saveSettings(){const payload={github_token:document.getElementById("setting-token").value,proxy:document.getElementById("setting-proxy").value,refresh_hours:Number(document.getElementById("setting-refresh-hours").value||1),result_limit:Number(document.getElementById("setting-result-limit").value||25),port:Number(document.getElementById("setting-port").value||8080),close_behavior:document.getElementById("setting-close-behavior").value,auto_start:document.getElementById("setting-auto-start").checked,default_sort:sortPrimary};const resp=await fetch("/api/settings",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});const data=await resp.json();if(!resp.ok||!data.ok){toast(data.error||"保存失败");return;}settings=data.settings;toast(data.message||"设置已保存");closeSettings();}
 """
-HTML_TEMPLATE_PART_3 = """async function openDetail(owner,name,label){document.getElementById("detail-modal").classList.add("show");document.getElementById("detail-title").textContent=label;document.getElementById("detail-body").innerHTML='<div class="empty">正在拉取仓库详情...</div>';try{const detail=await fetchRepoDetails({owner,name});const topics=Array.isArray(detail.topics)?detail.topics.filter(Boolean):[];document.getElementById("detail-body").innerHTML=`<div class="detail-grid"><div class="detail-item"><strong>仓库</strong><span>${h(detail.full_name||label)}</span></div><div class="detail-item"><strong>License</strong><span>${h(detail.license||"未标注")}</span></div><div class="detail-item"><strong>最近推送</strong><span>${h(detail.pushed_at||"未知")}</span></div><div class="detail-item"><strong>最后更新</strong><span>${h(detail.updated_at||"未知")}</span></div><div class="detail-item"><strong>默认分支</strong><span>${h(detail.default_branch||"未知")}</span></div><div class="detail-item"><strong>主页</strong><span>${detail.homepage?`<a class="link-inline" href="${h(detail.homepage)}" target="_blank" rel="noopener" data-external-url="${h(detail.homepage)}">${h(detail.homepage)}</a>`:"未填写"}</span></div></div><div class="desc" style="margin-top:14px">${h(detail.description||detail.description_raw||"暂无简介")}</div><div class="desc" style="margin-top:12px">${h(detail.readme_summary||detail.readme_summary_raw||"暂无 README 摘要")}</div><div class="meta" style="margin-top:12px">Stars ${detail.stars||0} · Fork ${detail.forks||0} · Watchers ${detail.watchers||0} · Issues ${detail.open_issues||0}</div>${topics.length?`<div class="topic-list">${topics.map(topic=>`<span class="topic">${h(topic)}</span>`).join("")}</div>`:""}<div class="actions" style="margin-top:16px"><a class="action primary" href="${h(detail.html_url||"#")}" target="_blank" rel="noopener" data-external-url="${h(detail.html_url||"#")}">打开 GitHub</a></div>`;}catch(error){document.getElementById("detail-body").innerHTML=`<div class="empty">${h(error.message||"详情获取失败")}</div>`;}}
+HTML_TEMPLATE_PART_3 = """async function openDetail(owner,name,label){document.getElementById("detail-modal").classList.add("show");document.getElementById("detail-title").textContent=label;document.getElementById("detail-body").innerHTML='<div class="empty">正在拉取仓库详情...</div>';try{const detail=await fetchRepoDetails({owner,name});const topics=Array.isArray(detail.topics)?detail.topics.filter(Boolean):[];document.getElementById("detail-body").innerHTML=`<div class="badges"><span class="badge source">${h(detail.license||"未标注 License")}</span><span class="badge source">${h(detail.default_branch||"未知分支")}</span>${detail.homepage?`<a class="badge source" href="${h(detail.homepage)}" target="_blank" rel="noopener" data-external-url="${h(detail.homepage)}">Homepage</a>`:""}</div><div class="desc">${h(detail.description||detail.description_raw||"暂无简介")}</div><div class="meta-line"><span class="meta-pill"><strong>Stars</strong><span>${detail.stars||0}</span></span><span class="meta-pill"><strong>Forks</strong><span>${detail.forks||0}</span></span><span class="meta-pill"><strong>Watchers</strong><span>${detail.watchers||0}</span></span><span class="meta-pill"><strong>Issues</strong><span>${detail.open_issues||0}</span></span></div><div class="detail-grid"><div class="detail-item"><strong>仓库</strong><span>${h(detail.full_name||label)}</span></div><div class="detail-item"><strong>最近推送</strong><span>${h(detail.pushed_at||"未知")}</span></div><div class="detail-item"><strong>最后更新</strong><span>${h(detail.updated_at||"未知")}</span></div><div class="detail-item"><strong>默认分支</strong><span>${h(detail.default_branch||"未知")}</span></div><div class="detail-item"><strong>License</strong><span>${h(detail.license||"未标注")}</span></div><div class="detail-item"><strong>主页</strong><span>${detail.homepage?`<a class="link-inline" href="${h(detail.homepage)}" target="_blank" rel="noopener" data-external-url="${h(detail.homepage)}">${h(detail.homepage)}</a>`:"未填写"}</span></div></div><div class="desc muted">${h(detail.readme_summary||detail.readme_summary_raw||"暂无 README 摘要")}</div>${topics.length?`<div class="topic-list">${topics.map(topic=>`<span class="topic">${h(topic)}</span>`).join("")}</div>`:""}<div class="panel-actions"><a class="action primary" href="${h(detail.html_url||"#")}" target="_blank" rel="noopener" data-external-url="${h(detail.html_url||"#")}">打开 GitHub</a></div>`;}catch(error){document.getElementById("detail-body").innerHTML=`<div class="empty">${h(error.message||"详情获取失败")}</div>`;}}
 function openDetailFromRecord(fullName,url){const repo=repoByUrl(url)||(()=>{const parts=String(fullName||"").split("/");return {full_name:fullName,owner:parts[0]||"",name:parts[1]||""};})();if(!repo.owner||!repo.name){toast("缺少仓库标识");return;}openDetail(repo.owner,repo.name,repo.full_name||fullName);}
 function closeDetail(){document.getElementById("detail-modal").classList.remove("show");}
 function closeCompare(){document.getElementById("compare-modal").classList.remove("show");}
