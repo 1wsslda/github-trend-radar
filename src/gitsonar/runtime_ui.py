@@ -422,13 +422,13 @@ input.field-input[type="number"]::-webkit-inner-spin-button{
   border-color:rgba(241,164,152,.26);
   background:rgba(47,22,18,.48);
 }
-.action-quiet:active,
-.action-primary:active,
-.tab:active,
-.seg-btn:active,
-.state-btn:active,
-.menu-item:active{
-  transform:translateY(1px);
+.action-quiet:active:not(:disabled),
+.action-primary:active:not(:disabled),
+.tab:active:not(:disabled),
+.seg-btn:active:not(:disabled),
+.state-btn:active:not(:disabled),
+.menu-item:active:not(:disabled){
+  transform:translateY(1px) scale(0.98);
 }
 .action-quiet:disabled,
 .action-primary:disabled,
@@ -673,22 +673,33 @@ input.field-input[type="number"]::-webkit-inner-spin-button{
   border:1px solid rgba(232,214,184,.1);
   background:linear-gradient(180deg, rgba(29,26,21,.95), rgba(21,19,15,.98));
   box-shadow:var(--shadow-soft);
-  transition:border-color .25s var(--ease-smooth),transform .25s var(--ease-smooth),box-shadow .25s var(--ease-smooth);
+  transition:border-color .25s var(--ease-smooth),transform .25s var(--ease-smooth),box-shadow .25s var(--ease-smooth),background .25s var(--ease-smooth);
 }
 .card.selectable,
 .update-card.selectable{cursor:pointer}
+.card.selectable:focus-visible,
+.update-card.selectable:focus-visible{
+  outline:none;
+  box-shadow:0 0 0 3px rgba(227,198,145,.16);
+}
 .card.selectable:hover,
 .update-card.selectable:hover{
   transform:translateY(-2px);
   border-color:rgba(246,222,174,.18);
   box-shadow:0 18px 36px rgba(0,0,0,.22);
 }
+.card.selectable:active,
+.update-card.selectable:active{
+  transform:translateY(0) scale(0.99);
+  transition-duration:.1s;
+}
 .card.selected,
 .update-card.selected{
-  border-color:rgba(233,201,143,.36);
+  background:linear-gradient(180deg, rgba(37,30,20,.95), rgba(21,19,15,.98));
+  border-color:rgba(233,201,143,.45);
   box-shadow:
-    0 0 0 1px rgba(233,201,143,.18) inset,
-    0 20px 38px rgba(0,0,0,.24);
+    0 0 0 1px rgba(233,201,143,.2) inset,
+    0 24px 44px rgba(0,0,0,.32);
 }
 .card-head{
   display:flex;
@@ -729,10 +740,15 @@ input.field-input[type="number"]::-webkit-inner-spin-button{
   border-color:rgba(216,175,103,.18);
   background:rgba(216,175,103,.06);
 }
+@keyframes pop-badge {
+  0% { transform: scale(0.85); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
 .badge-selection{
   color:var(--accent);
   border-color:rgba(233,201,143,.22);
   background:rgba(233,201,143,.08);
+  animation: pop-badge .25s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
 }
 .title{
   display:block;
@@ -742,7 +758,8 @@ input.field-input[type="number"]::-webkit-inner-spin-button{
   line-height:1.28;
   letter-spacing:-.02em;
   font-weight:650;
-  word-break:break-word;
+  overflow-wrap:anywhere;
+  word-break:normal;
   transition:color .25s var(--ease-smooth);
 }
 .title:hover{color:var(--accent-strong)}
@@ -766,17 +783,17 @@ input.field-input[type="number"]::-webkit-inner-spin-button{
   position:absolute;
   left:-10px;
   right:-10px;
-  top:calc(100% + 10px);
+  bottom:calc(100% + 6px);
   padding:14px 16px;
   border:1px solid rgba(232,214,184,.14);
   border-radius:16px;
   background:rgba(16,14,11,.98);
   color:var(--text-soft);
-  box-shadow:0 22px 42px rgba(0,0,0,.32);
+  box-shadow:0 12px 32px rgba(0,0,0,.42);
   opacity:0;
   visibility:hidden;
   transform:translateY(6px);
-  transition:opacity .2s var(--ease-smooth),transform .2s var(--ease-smooth),visibility .2s var(--ease-smooth);
+  transition:opacity .2s var(--ease-smooth),transform .2s cubic-bezier(0.34, 1.56, 0.64, 1),visibility .2s var(--ease-smooth);
   pointer-events:none;
   z-index:8;
   max-height:min(260px,42vh);
@@ -789,17 +806,12 @@ input.field-input[type="number"]::-webkit-inner-spin-button{
   transform:translateY(0);
   pointer-events:auto;
 }
-.meta-line{gap:8px}
+.meta-line{gap:14px}
 .meta-pill{
   display:inline-flex;
   align-items:center;
   gap:6px;
-  min-height:28px;
-  padding:0 10px;
-  border-radius:999px;
-  border:1px solid rgba(232,214,184,.08);
-  background:rgba(12,10,8,.34);
-  font-size:.78rem;
+  font-size:.82rem;
   color:var(--text-soft);
 }
 .meta-pill strong{
@@ -1066,18 +1078,17 @@ input.field-input[type="number"]::-webkit-inner-spin-button{
 .detail-grid{
   display:grid;
   grid-template-columns:repeat(2,minmax(0,1fr));
-  gap:12px;
+  gap:18px 12px;
 }
 .compare-grid{display:grid;gap:16px}
 .detail-item{
-  padding:14px 15px;
-  border-radius:16px;
-  border:1px solid rgba(232,214,184,.08);
-  background:rgba(24,21,17,.74);
+  display:flex;
+  flex-direction:column;
+  gap:4px;
 }
 .detail-item strong{
   display:block;
-  margin-bottom:8px;
+  margin-bottom:0;
   color:var(--muted);
   font-size:.75rem;
   letter-spacing:.12em;
@@ -1924,7 +1935,7 @@ function selectedBadgeMarkup(index){
 
 function descBlockMarkup(text, muted = false){
   const safe = h(text || "暂无描述");
-  return `<div class="desc-wrap"><div class="desc${muted ? " muted" : ""}" title="${safe}">${safe}</div><div class="desc-popover">${safe}</div></div>`;
+  return `<div class="desc-wrap"><div class="desc${muted ? " muted" : ""}">${safe}</div><div class="desc-popover">${safe}</div></div>`;
 }
 
 function refreshSelectionSummary(){
@@ -1975,7 +1986,7 @@ function renderRepoCards(repos){
     const selectedIdx = urlArray.indexOf(repo.url);
     const selected = selectedIdx !== -1;
     const descriptionText = repo.description || repo.description_raw || "暂无描述";
-    return `<article class="card selectable ${selected ? "selected" : ""}" data-select-url="${h(repo.url)}">
+    return `<article class="card selectable ${selected ? "selected" : ""}" data-select-url="${h(repo.url)}" tabindex="0">
       <div class="card-head">
         <div>
           <div class="badges">
@@ -2014,7 +2025,7 @@ function renderUpdateCards(items){
     const selected = selectedIdx !== -1;
     const changeBadges = (update.changes || []).map(change => `<span class="badge gain">${h(change)}</span>`).join("");
     const summary = (update.changes || []).length ? (update.changes || []).join(" · ") : "最近一次检测没有整理出可展示的变化摘要。";
-    return `<article class="update-card selectable ${selected ? "selected" : ""}" data-select-url="${h(update.url)}">
+    return `<article class="update-card selectable ${selected ? "selected" : ""}" data-select-url="${h(update.url)}" tabindex="0">
       <div class="card-head">
         <div>
           <div class="badges">
@@ -2485,6 +2496,16 @@ document.getElementById("cards").addEventListener("click", event => {
   const card = event.target.closest("[data-select-url]");
   if(!card) return;
   toggleSelected(card.getAttribute("data-select-url"));
+});
+
+document.getElementById("cards").addEventListener("keydown", event => {
+  if((event.key === "Enter" || event.key === " ") && !event.target.closest(INTERACTIVE_SELECTOR) && !event.target.closest("[data-external-url]")){
+    const card = event.target.closest("[data-select-url]");
+    if(card){
+      event.preventDefault();
+      toggleSelected(card.getAttribute("data-select-url"));
+    }
+  }
 });
 
 document.getElementById("search").value = localStorage.getItem("gtr-search") || "";
