@@ -2,65 +2,66 @@
 
 [English](README.md) | [简体中文](README.zh-CN.md)
 
-> GitHub Intelligence Desk  
-> Windows desktop app for trending repos, saved projects, and update tracking.
+**Not just a Trending rank viewer, but a GitHub Intelligence Desk.**
 
-GitSonar is a Windows desktop app for following GitHub projects over time. It combines trending lists, saved states, update tracking, repository details, side-by-side comparison, and ChatGPT prompts in one place.
+![GitSonar Screen](assets/screenshots/trending.png)
 
-## What It Solves
+GitSonar is a Windows desktop application built for developers, product managers, and researchers. It turns endless GitHub browsing into a structured pipeline: **Discover + Organise + Track + Judge**.
 
-Many people browse GitHub Trending, but the real cost starts after discovery:
+## 3 Core Workflows
 
-- Which repositories are worth checking today, this week, or this month?
-- Which ones should be favorited, queued for later, marked as read, or ignored?
-- What changed in the repositories you already care about?
-- What does a repository actually do, and is it worth following long term?
-- Which of two similar repositories is the better long-term bet?
+1. **Noise Reduction & Accumulation**: Categorize the repositories you encounter into **Follow**, **Watch Later**, **Read**, or **Ignore**. Only pay attention to updates that matter.
+2. **Actionable Tracking**: Instead of just telling you a repository gained stars, it tracks hard metrics like new Releases and active Pushes across your followed lists.
+3. **AI-Driven Judgement**: Stop copying and pasting into browser tabs. With one click, send complex repository details or side-by-side comparisons to AI, getting structured technical or business judgements instantly from your desktop.
 
-GitSonar turns those scattered actions into a repeatable desktop workflow.
+## The Pipeline
 
-## Highlights
+`Discover` ➔ `Organise` ➔ `Track` ➔ `Judge`
 
-- **Trend discovery**: daily, weekly, and monthly hot repositories
-- **State management**: favorite, later, read, ignore
-- **Favorite update tracking**: push, star/fork, and release changes
-- **Repository understanding**: detail drawer and README summaries
-- **Repository comparison**: compare two repositories side by side
-- **ChatGPT prompts**: single repo, batch, and comparison prompts
-- **Desktop presence**: tray, wake-up, configurable close behavior, auto start
+## Capability Matrix
 
-## Who It Is For
+| Module | Feature | Status | Note |
+| --- | --- | --- | --- |
+| **Discovery** | Dual-source trend aggregation (Day/Week/Month) | ✅ Ready | Blends native trending with API data |
+| | Multi-dimensional Sorting (Stars/Trend/Gained/Forks) | ✅ Ready | Deep filtering capabilities |
+| | Saved Filters & Custom Discovery Views | 🚧 Planned | Subscribe to specific languages or topics |
+| **Organisation** | 4-State Pipeline (Follow/Watch Later/Read/Ignore) | ✅ Ready | Move beyond "read and forget" |
+| | Import Initial Follow List | 🚧 Planned | Sync with existing GitHub account stars |
+| **Tracking** | Basic Update Monitoring (Push/Stars/Releases) | ✅ Ready | Dedicated updates panel for followed items |
+| | **Advanced Intelligence Center** | 🚧 High P0 | Change severity summaries, diffs, and noise reduction |
+| **AI Judgement** | Fast context prompt generation | ✅ Ready | Supports batching and comparison |
+| | Embedded AI Judgement Engine | 🚧 High P0 | Output direct "Keep Following" / "Ignore" conclusions |
+| **Desktop Core** | System tray / Hot wake-up / Proxy routing| ✅ Ready | Self-contained loop |
+| | First-run onboarding & Network Diagnostics | 🚧 Planned | Lower configuration barriers for Token/Proxy |
 
-- Developers who want to follow GitHub projects over time
-- Product, strategy, and research users doing technical scanning
-- Indie hackers and heavy open-source users
-- People who want a workflow, not just a ranking page
-- Users who want faster judgment, not just faster browsing
+> **💡 What is the Advanced Intelligence Center? (The Next Core Focus)**
+> This is what pushes GitSonar beyond a simple crawler. Instead of just noting "gained 50 stars", it will analyze "Was there a major version bump? Has the main language shifted?" and output a conclusion.
 
-## Why It Is Not Just a Trending Viewer
+## Interfaces
 
-GitSonar does more than show projects. It helps you move through the expensive part after discovery:
+**State Management** — Follow, watch later, read, ignore, with batch operations.
 
-- discover, then decide
-- mark, then process
-- favorite, then track
-- compare, then understand
-- analyze, then judge
+![Favorites](assets/screenshots/favorites.png)
 
-It is closer to a long-running GitHub intelligence workspace than a page you open once and close.
+**Repository Detail** — Drawer view with README summary and quick actions.
 
-## Quick Start
+![Detail](assets/screenshots/detail.png)
 
-### Download
+**Update Tracking** — Monitor push, star/fork, and release changes for followed repos.
 
-1. Run the installer: `artifacts/dist/installer/GitSonarSetup.exe`
-2. Or launch the portable build: `artifacts/dist/GitSonar.exe`
-3. On first launch, configure what you need:
-   - GitHub Token
-   - Proxy
-   - Refresh interval
-   - Result limit
-   - Close behavior
+*Screenshot coming soon.*
+
+## Installation
+
+**System Requirements**: Windows 10 and above.
+**Note**: The app is currently not signed. If Windows SmartScreen blocks execution, please select "Run anyway".
+
+You can download the latest version from the [GitHub Releases](https://github.com/1wsslda/github-trend-radar/releases) page:
+
+1. **Installer (Recommended)**: Download `GitSonarSetup.exe` to install.
+2. **Portable (Standalone)**: Download `GitSonar.exe` and run directly.
+
+On first launch, configure what you need:
 
 ### Recommended Defaults
 
@@ -70,100 +71,39 @@ It is closer to a long-running GitHub intelligence workspace than a page you ope
 - `Result limit`: `25`
 - `Close behavior`: keep running in tray
 
-## Current Capabilities
+## Roadmap Priorities
 
-### 1. Trend Discovery
+These are the immediate evolutionary directions:
 
-- Today / This Week / This Month hot repositories
-- Dual-source aggregation from GitHub Trending and GitHub API
-- Multiple sorting modes: stars, trending, gained, forks, name, language
+### Priority 1: Advanced Update Intelligence (The Deep End)
 
-### 2. State Management
+- **Embedded AI Engine**: Support for OpenAI, DeepSeek, Ollama APIs. Not just templating prompts, but directly outputting structured conclusions inside the app.
+- **Full-Spectrum Awareness**: Aggregate event streams per repo, highlight major version changes, auto-assign update severities, and provide "since last read" diffs.
 
-- Favorite
-- Later
-- Read
-- Ignore
-- Batch state changes for selected repositories
+### Priority 2: Building a Personal Intelligence Pool
 
-### 3. Favorite Update Tracking
+- **Private Streams**: Save custom filters and perspectives.
+- **Account Sync**: Support an initial import from a user's GitHub Account Stars.
+- **Local Reliability**: Polish network diagnostics, provide recommended proxy values, and offer safe, lossless data migration and auto-backups.
 
-- Recent push time changes
-- Star / Fork changes
-- Release changes
-- Dedicated updates panel for favorited repositories
+### Experience Upgrades
 
-### 4. Repository Understanding and Comparison
+- Global launch shortcuts.
+- Better release portals and portable updates.
 
-- Repository detail drawer
-- README summary
-- Two-repository comparison
+## Privacy & Data Security
 
-### 5. ChatGPT Prompts
+We take security boundaries seriously for an app handling your GitHub token:
 
-- Single repository prompts
-- Batch prompts
-- Comparison prompts
-- Open ChatGPT web / desktop, or copy prompts
+- **Strictly Local**: All data is stored purely locally at `%LOCALAPPDATA%\GitSonar`.
+- **Encrypted Tokens**: Your optionally provided GitHub Token is encrypted using native Windows encryption mechanisms before being persisted.
+- **Zero Telemetry**: Outside of strictly communicating with the genuine GitHub API and your configured AI endpoints, the application performs absolutely zero remote sniffing or telemetry on your reading habits and credentials.
 
-### 6. Desktop Experience
+## License
 
-- System tray resident mode
-- Tray wake-up
-- Configurable close behavior
-- Auto start
-- Proxy support
-- Local encrypted GitHub Token storage
+This project is released under the [MIT License](LICENSE).
 
-## Typical Workflow
-
-1. Discover hot repositories across daily, weekly, and monthly views.
-2. Organize them with favorite, later, read, and ignore.
-3. Open details, read summaries, and compare similar repositories.
-4. Send one repository, a list, or a comparison to AI for faster understanding.
-5. Keep tracking the repositories that matter through the updates panel.
-
-## Screenshots
-
-**Trend Discovery** — browse today, this week, and this month's hot repositories.
-
-![Trending](assets/screenshots/trending.png)
-
-**State Management** — favorite, later, read, ignore with batch operations.
-
-![Favorites](assets/screenshots/favorites.png)
-
-**Repository Detail** — drawer view with README summary and quick actions.
-
-![Detail](assets/screenshots/detail.png)
-
-**Update Tracking** — monitor push, star/fork, and release changes for favorited repos.
-
-*Screenshot coming soon.*
-
-## Roadmap
-
-These are product directions, not features already shipped.
-
-### P0
-
-- Embedded AI with OpenAI, DeepSeek, Ollama, and OpenAI-compatible APIs
-- Smarter update center with change levels, one-line summaries, filters, mute, and “since last viewed”
-- First-run onboarding with connectivity checks, proxy detection, optional token, and recommended defaults
-- System notifications for important repository events
-- Cleaner navigation split across discovery, lists, and updates
-
-### P1
-
-- Global shortcuts
-- Better network diagnostics
-- A more polished storefront and release presentation
-
-### P2
-
-- Data migration and backup
-- Auto update
-- Custom subscriptions and reminder strategies
+## Docs
 
 ## Naming
 
@@ -171,19 +111,7 @@ These are product directions, not features already shipped.
 - Chinese name: `GitHub 情报台`
 - Tagline: `Track GitHub projects with a desktop workflow.`
 
-Default runtime data now lives in:
 
-- `%LOCALAPPDATA%\GitSonar`
-
-If an older installation exists, GitSonar will try to merge data from:
-
-- `%LOCALAPPDATA%\GitHubTrendRadar`
-
-## License
-
-This project is released under the [MIT License](LICENSE).
-
-## Documentation
 
 Detailed docs remain in the `docs` directory:
 
