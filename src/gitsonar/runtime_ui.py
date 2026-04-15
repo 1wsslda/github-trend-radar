@@ -422,11 +422,8 @@ input.field-input[type="number"]::-webkit-inner-spin-button{
   border-color:rgba(241,164,152,.26);
   background:rgba(47,22,18,.48);
 }
-.action-quiet:active:not(:disabled),
-.action-primary:active:not(:disabled),
+button:active:not(:disabled),
 .tab:active:not(:disabled),
-.seg-btn:active:not(:disabled),
-.state-btn:active:not(:disabled),
 .menu-item:active:not(:disabled){
   transform:translateY(1px) scale(0.98);
 }
@@ -695,7 +692,9 @@ input.field-input[type="number"]::-webkit-inner-spin-button{
 }
 .card.selected,
 .update-card.selected{
-  background:linear-gradient(180deg, rgba(37,30,20,.95), rgba(21,19,15,.98));
+  background:
+    radial-gradient(ellipse at top right, rgba(233,201,143,.12), transparent 60%),
+    linear-gradient(180deg, rgba(37,30,20,.96), rgba(21,19,15,.98));
   border-color:rgba(233,201,143,.45);
   box-shadow:
     0 0 0 1px rgba(233,201,143,.2) inset,
