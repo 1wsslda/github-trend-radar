@@ -139,7 +139,7 @@ It is closer to a long-running GitHub intelligence workspace than a page you ope
 
 **Update Tracking** — monitor push, star/fork, and release changes for favorited repos.
 
-![Updates](assets/screenshots/updates.png)
+*Screenshot coming soon.*
 
 ## Roadmap
 
