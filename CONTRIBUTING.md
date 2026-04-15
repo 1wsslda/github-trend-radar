@@ -2,6 +2,8 @@
 
 Thanks for contributing to GitSonar.
 
+For a step-by-step maintainer guide in Chinese, see [docs/MAINTENANCE.md](docs/MAINTENANCE.md).
+
 ## Before You Open An Issue
 
 - Confirm you are using the latest release or the latest `main`.

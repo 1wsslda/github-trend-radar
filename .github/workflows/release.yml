@@ -1,0 +1,43 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt pyinstaller
+        shell: pwsh
+
+      - name: Build EXE
+        run: powershell -ExecutionPolicy Bypass -File scripts\build_exe.ps1
+
+      - name: Install Inno Setup
+        run: choco install innosetup --yes --no-progress
+        shell: pwsh
+
+      - name: Build installer
+        run: |
+          $iscc = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+          & $iscc packaging\GitSonar.iss
+        shell: pwsh
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            artifacts/dist/GitSonar.exe
+            artifacts/dist/installer/GitSonarSetup.exe
+          generate_release_notes: true
+          draft: false

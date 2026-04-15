@@ -568,6 +568,75 @@ def make_github_runtime(
             user_state["favorite_updates"] = []
             save_user_state()
 
+    def fetch_user_starred() -> list[dict[str, object]]:
+        if not normalize(settings.get("github_token", "")):
+            raise ValueError("请先在设置中配置 GitHub Token")
+        repos: list[dict[str, object]] = []
+        page = 1
+        while True:
+            response = session.get(
+                "https://api.github.com/user/starred",
+                params={"per_page": 100, "page": page},
+                timeout=api_timeout,
+                headers={"Accept": "application/vnd.github+json"},
+            )
+            response.raise_for_status()
+            items = response.json()
+            if not items:
+                break
+            for item in items:
+                full_name = normalize(item.get("full_name", ""))
+                html_url = normalize(item.get("html_url", ""))
+                if not full_name or "/" not in full_name:
+                    continue
+                repos.append({
+                    "full_name": full_name,
+                    "url": html_url,
+                    "description": normalize(item.get("description") or ""),
+                    "description_raw": normalize(item.get("description") or ""),
+                    "language": normalize(item.get("language") or ""),
+                    "stars": int(item.get("stargazers_count") or 0),
+                    "forks": int(item.get("forks_count") or 0),
+                    "gained": 0,
+                    "gained_text": "",
+                    "growth_source": "unavailable",
+                    "rank": 0,
+                    "source_label": "GitHub 星标",
+                })
+            if len(items) < 100:
+                break
+            page += 1
+        return repos
+
+    def check_repo_starred(owner: str, name: str) -> bool:
+        if not normalize(settings.get("github_token", "")):
+            return False
+        try:
+            response = session.get(
+                f"https://api.github.com/user/starred/{owner}/{name}",
+                timeout=api_timeout,
+                headers={"Accept": "application/vnd.github+json"},
+            )
+            return response.status_code == 204
+        except Exception:
+            return False
+
+    def star_repo(owner: str, name: str) -> dict[str, object]:
+        if not normalize(settings.get("github_token", "")):
+            return {"ok": False, "error": "请先在设置中配置 GitHub Token"}
+        try:
+            if check_repo_starred(owner, name):
+                return {"ok": False, "already_starred": True, "message": "该仓库已在你的 GitHub 星标中"}
+            response = session.put(
+                f"https://api.github.com/user/starred/{owner}/{name}",
+                timeout=api_timeout,
+                headers={"Accept": "application/vnd.github+json", "Content-Length": "0"},
+            )
+            response.raise_for_status()
+            return {"ok": True, "message": "已同步到 GitHub 星标 ⭐"}
+        except Exception as exc:
+            return {"ok": False, "error": str(exc)}
+
     return SimpleNamespace(
         github_get=github_get,
         fetch_trending_map=fetch_trending_map,
@@ -583,4 +652,7 @@ def make_github_runtime(
         build_favorite_update=build_favorite_update,
         track_favorite_updates=track_favorite_updates,
         clear_favorite_updates=clear_favorite_updates,
+        fetch_user_starred=fetch_user_starred,
+        check_repo_starred=check_repo_starred,
+        star_repo=star_repo,
     )

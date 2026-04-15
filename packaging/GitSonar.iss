@@ -6,7 +6,7 @@
 AppId={{B6C14561-0A25-4A2A-9C89-C2D6E9B3F6D0}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
-AppPublisher=OpenAI Codex
+AppPublisher=1wsslda
 DefaultDirName={autopf64}\{#MyAppName}
 DefaultGroupName={#MyAppName}
 OutputDir=..\artifacts\dist\installer

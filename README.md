@@ -125,7 +125,21 @@ It is closer to a long-running GitHub intelligence workspace than a page you ope
 
 ## Screenshots
 
-Coming soon. This section is reserved for real application screenshots.
+**Trend Discovery** — browse today, this week, and this month's hot repositories.
+
+![Trending](assets/screenshots/trending.png)
+
+**State Management** — favorite, later, read, ignore with batch operations.
+
+![Favorites](assets/screenshots/favorites.png)
+
+**Repository Detail** — drawer view with README summary and quick actions.
+
+![Detail](assets/screenshots/detail.png)
+
+**Update Tracking** — monitor push, star/fork, and release changes for favorited repos.
+
+![Updates](assets/screenshots/updates.png)
 
 ## Roadmap
 
@@ -177,6 +191,7 @@ Detailed docs remain in the `docs` directory:
 - [docs/BUILD.md](docs/BUILD.md)
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 - [docs/FAQ.md](docs/FAQ.md)
+- [docs/MAINTENANCE.md](docs/MAINTENANCE.md)
 - [docs/SECURITY.md](docs/SECURITY.md)
 - [docs/RELEASE_CHECKLIST.md](docs/RELEASE_CHECKLIST.md)
 - [docs/RELEASE_NOTES_TEMPLATE.md](docs/RELEASE_NOTES_TEMPLATE.md)

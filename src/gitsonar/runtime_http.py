@@ -35,6 +35,9 @@ def make_app_handler(
     open_main_window,
     hide_main_window,
     exit_app,
+    star_repo,
+    fetch_user_starred,
+    batch_add_favorites,
 ):
     class AppHandler(SimpleHTTPRequestHandler):
         def __init__(self, *args, **kwargs):
@@ -221,6 +224,37 @@ def make_app_handler(
                     "ok": True,
                     "message": "正在退出程序。",
                 })
+
+            if parsed.path == "/api/sync-stars":
+                try:
+                    starred = fetch_user_starred()
+                    total, added = batch_add_favorites(starred)
+                except Exception as exc:
+                    return self.send_json({"ok": False, "error": str(exc)}, 400)
+                skipped = total - added
+                msg = f"同步完成：共 {total} 个星标仓库，新增 {added} 个"
+                if skipped:
+                    msg += f"（{skipped} 个已在收藏中）"
+                return self.send_json({
+                    "ok": True,
+                    "total": total,
+                    "added": added,
+                    "message": msg,
+                    "user_state": export_user_state(),
+                })
+
+            if parsed.path == "/api/star":
+                try:
+                    payload = self.read_json()
+                    owner = normalize(payload.get("owner", ""))
+                    name = normalize(payload.get("name", ""))
+                    if not owner or not name:
+                        raise ValueError("缺少仓库信息")
+                    result = star_repo(owner, name)
+                except Exception as exc:
+                    return self.send_json({"ok": False, "error": str(exc)}, 400)
+                status = 200 if (result.get("ok") or result.get("already_starred")) else 400
+                return self.send_json(result, status)
 
             return self.send_json({"ok": False, "error": "未知接口。"}, 404)
 

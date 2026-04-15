@@ -1,0 +1,29 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  syntax-check:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Check Python syntax
+        run: |
+          python -m py_compile src/gitsonar/__init__.py
+          python -m py_compile src/gitsonar/__main__.py
+          python -m py_compile src/gitsonar/app_runtime.py
+          python -m py_compile src/gitsonar/runtime_github.py
+          python -m py_compile src/gitsonar/runtime_http.py
+          python -m py_compile src/gitsonar/runtime_shell.py
+          python -m py_compile src/gitsonar/runtime_ui.py
+          python -m py_compile src/gitsonar/runtime_utils.py
+        shell: pwsh

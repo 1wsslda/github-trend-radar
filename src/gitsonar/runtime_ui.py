@@ -1195,6 +1195,7 @@ input.field-input[type="number"]::-webkit-inner-spin-button{
           <button class="action-quiet menu-toggle" type="button" onclick="toggleMenu(event,'app-more-menu')">更多<span class="menu-caret"></span></button>
           <div class="menu-panel" id="app-more-menu-panel">
             <button class="menu-item" type="button" onclick="exportUserState();closeMenus();">导出数据</button>
+            <button class="menu-item" type="button" onclick="syncGitHubStars();closeMenus();">从 GitHub 同步星标</button>
             <button class="menu-item" type="button" id="clear-updates-menu-item" onclick="clearFavoriteUpdates();closeMenus();" hidden>清空收藏更新</button>
           </div>
         </div>
@@ -2225,12 +2226,13 @@ async function analyzeCompare(){
 async function toggleState(key, url){
   const repo = repoByUrl(url);
   if(!repo) return;
+  const enabling = !((userState[key] || []).includes(url));
   const {resp, data} = await requestJson(
     "/api/state",
     {
       method:"POST",
       headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({state:key, enabled:!((userState[key] || []).includes(url)), repo}),
+      body:JSON.stringify({state:key, enabled:enabling, repo}),
     },
     "保存状态失败",
   );
@@ -2240,6 +2242,24 @@ async function toggleState(key, url){
   }
   userState = data.user_state;
   render();
+  if(key === "favorites" && enabling && repo.owner && repo.name){
+    try{
+      const {data: sd} = await requestJson(
+        "/api/star",
+        {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({owner:repo.owner, name:repo.name})},
+        "同步 GitHub 星标失败",
+      );
+      if(sd.already_starred){
+        toast("已在 GitHub 星标中 ⭐");
+      } else if(sd.ok){
+        toast("已同步到 GitHub 星标 ⭐");
+      } else if(sd.error){
+        toast(sd.error);
+      }
+    }catch(_err){
+      // GitHub 星标同步失败不阻断本地收藏
+    }
+  }
 }
 
 async function batchSetState(stateKey){
@@ -2269,6 +2289,24 @@ async function batchSetState(stateKey){
   const label = (INITIAL.states || []).find(state => state.key === stateKey)?.label || stateKey;
   render();
   toast(`已将 ${repos.length} 个仓库加入“${label}”`);
+}
+
+async function syncGitHubStars(){
+  toast("正在拉取 GitHub 星标，请稍候...");
+  let resp, data;
+  try{
+    ({resp, data} = await requestJson("/api/sync-stars", {method:"POST"}, "同步失败，请检查网络和 Token 配置"));
+  }catch(err){
+    toast(err.message || "同步失败");
+    return;
+  }
+  if(!resp.ok || !data.ok){
+    toast(data.error || "同步失败");
+    return;
+  }
+  if(data.user_state) userState = data.user_state;
+  render();
+  toast(data.message || "同步完成");
 }
 
 async function clearFavoriteUpdates(){

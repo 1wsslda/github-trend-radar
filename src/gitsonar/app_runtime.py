@@ -666,6 +666,24 @@ def set_repo_state(state_key: str, enabled: bool, repo: object) -> None:
         save_user_state()
 
 
+def batch_add_favorites(repos: list[dict[str, object]]) -> tuple[int, int]:
+    added = 0
+    with STATE_LOCK:
+        existing = set(USER_STATE.get('favorites', []))
+        for repo in repos:
+            clean = normalize_repo(repo)
+            if not clean:
+                continue
+            url = clean['url']
+            USER_STATE['repo_records'][url] = clean
+            if url not in existing:
+                USER_STATE['favorites'].insert(0, url)
+                existing.add(url)
+                added += 1
+        save_user_state()
+    return len(repos), added
+
+
 def sync_repo_records(snapshot: dict[str, object]) -> None:
     changed = False
     with STATE_LOCK:
@@ -1024,6 +1042,9 @@ ServerAppHandler = make_app_handler(
     open_chatgpt_target=shell_runtime.open_chatgpt_target,
     open_external_url=shell_runtime.open_external_url,
     clear_favorite_updates=github_runtime.clear_favorite_updates,
+    star_repo=github_runtime.star_repo,
+    fetch_user_starred=github_runtime.fetch_user_starred,
+    batch_add_favorites=batch_add_favorites,
     open_main_window=shell_runtime.open_main_window,
     hide_main_window=shell_runtime.hide_main_window,
     exit_app=shell_runtime.exit_app,
