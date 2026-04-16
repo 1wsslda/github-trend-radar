@@ -22,6 +22,7 @@ def make_app_handler(
     as_bool,
     set_repo_state,
     export_user_state,
+    import_user_state,
     normalize_settings,
     save_settings,
     apply_runtime_settings,
@@ -32,6 +33,16 @@ def make_app_handler(
     open_chatgpt_target,
     open_external_url,
     clear_favorite_updates,
+    run_discovery_search,
+    run_saved_discovery_query,
+    start_discovery_job,
+    start_saved_discovery_job,
+    get_discovery_job,
+    cancel_discovery_job,
+    delete_saved_discovery_query,
+    clear_discovery_results,
+    export_discovery_state,
+    export_active_discovery_job,
     open_main_window,
     hide_main_window,
     exit_app,
@@ -109,6 +120,21 @@ def make_app_handler(
                     return self.send_json({"ok": False, "error": str(exc)}, 500)
                 return self.send_json({"ok": True, "details": details})
 
+            if parsed.path == "/api/discovery":
+                return self.send_json({
+                    "ok": True,
+                    "discovery_state": export_discovery_state(),
+                    "active_job": export_active_discovery_job(),
+                })
+
+            if parsed.path == "/api/discovery/job":
+                params = parse_qs(parsed.query)
+                try:
+                    job = get_discovery_job((params.get("id") or [""])[0])
+                except Exception as exc:
+                    return self.send_json({"ok": False, "error": str(exc)}, 404)
+                return self.send_json({"ok": True, "job": job})
+
             if parsed.path == "/api/export":
                 if not self.is_loopback_request():
                     return self.send_json({"ok": False, "error": "该操作仅允许本机访问。"}, 403)
@@ -146,6 +172,17 @@ def make_app_handler(
                 except Exception as exc:
                     return self.send_json({"ok": False, "error": str(exc)}, 400)
                 return self.send_json({"ok": True, "user_state": export_user_state()})
+
+            if parsed.path == "/api/import":
+                try:
+                    result = import_user_state(self.read_json())
+                except Exception as exc:
+                    return self.send_json({"ok": False, "error": str(exc)}, 400)
+                return self.send_json({
+                    "ok": True,
+                    "message": "用户状态已导入",
+                    **result,
+                })
 
             if parsed.path == "/api/settings":
                 try:
@@ -206,6 +243,62 @@ def make_app_handler(
                     "ok": True,
                     "message": "已清空收藏更新记录。",
                     "user_state": export_user_state(),
+                })
+
+            if parsed.path == "/api/discover":
+                try:
+                    payload = self.read_json()
+                    job = start_discovery_job(payload)
+                except Exception as exc:
+                    return self.send_json({"ok": False, "error": str(exc)}, 400)
+                return self.send_json({
+                    "ok": True,
+                    "message": "关键词发现任务已开始",
+                    "job": job,
+                })
+
+            if parsed.path == "/api/discovery/run-saved":
+                try:
+                    payload = self.read_json()
+                    job = start_saved_discovery_job(normalize(payload.get("id")))
+                except Exception as exc:
+                    return self.send_json({"ok": False, "error": str(exc)}, 400)
+                return self.send_json({
+                    "ok": True,
+                    "message": "已开始重新运行保存的搜索",
+                    "job": job,
+                })
+
+            if parsed.path == "/api/discovery/cancel":
+                try:
+                    payload = self.read_json()
+                    job = cancel_discovery_job(normalize(payload.get("id")))
+                except Exception as exc:
+                    return self.send_json({"ok": False, "error": str(exc)}, 400)
+                return self.send_json({
+                    "ok": True,
+                    "message": "已发送取消请求",
+                    "job": job,
+                })
+
+            if parsed.path == "/api/discovery/delete":
+                try:
+                    payload = self.read_json()
+                    discovery_state = delete_saved_discovery_query(normalize(payload.get("id")))
+                except Exception as exc:
+                    return self.send_json({"ok": False, "error": str(exc)}, 400)
+                return self.send_json({
+                    "ok": True,
+                    "message": "已删除保存的搜索",
+                    "discovery_state": discovery_state,
+                })
+
+            if parsed.path == "/api/discovery/clear":
+                discovery_state = clear_discovery_results()
+                return self.send_json({
+                    "ok": True,
+                    "message": "已清空本次关键词发现结果",
+                    "discovery_state": discovery_state,
                 })
 
             if parsed.path == "/api/window/open":

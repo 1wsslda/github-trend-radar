@@ -2,136 +2,109 @@
 
 [English](README.md) | [简体中文](README.zh-CN.md)
 
-**Not just a Trending rank viewer, but a GitHub Intelligence Desk.**
+**GitSonar is a Windows desktop GitHub intelligence desk for ongoing repository discovery, organisation, tracking, and judgement.**
 
 ![GitSonar Screen](assets/screenshots/trending.png)
 
-GitSonar is a Windows desktop application built for developers, product managers, and researchers. It turns endless GitHub browsing into a structured pipeline: **Discover + Organise + Track + Judge**.
+GitSonar is not just a Trending viewer. It combines trend discovery, keyword discovery, local workflow states, update tracking, repo detail reading, side-by-side comparison, and ChatGPT prompt handoff in one tray-friendly desktop workspace.
 
-## 3 Core Workflows
+## Workflow
 
-1. **Noise Reduction & Accumulation**: Categorize the repositories you encounter into **Follow**, **Watch Later**, **Read**, or **Ignore**. Only pay attention to updates that matter.
-2. **Actionable Tracking**: Instead of just telling you a repository gained stars, it tracks hard metrics like new Releases and active Pushes across your followed lists.
-3. **AI-Driven Judgement**: Stop copying and pasting into browser tabs. With one click, send complex repository details or side-by-side comparisons to AI, getting structured technical or business judgements instantly from your desktop.
+1. **Discover**
+   Daily / weekly / monthly trend aggregation plus a keyword discovery panel with saved searches and ranking profiles.
+2. **Organise**
+   Local `Follow / Watch Later / Read / Ignore` states, search, filters, sorting, batch actions, and state import / export.
+3. **Track**
+   Followed repo updates for push, star / fork, and release changes, plus optional GitHub star sync and import.
+4. **Judge**
+   Repo detail drawer, README summary, side-by-side compare, and AI prompt handoff (ChatGPT web / desktop, Gemini web — single, batch, or compare workflows, multi-target supported).
 
-## The Pipeline
+## What Is Implemented Today
 
-`Discover` ➔ `Organise` ➔ `Track` ➔ `Judge`
+- Trend aggregation for day / week / month
+- Keyword discovery with saved searches
+- Local follow states and batch actions
+- Followed repo update tracking
+- Repo detail drawer and README summary
+- Side-by-side repo comparison
+- AI prompt handoff to ChatGPT web / desktop, Gemini web, or copy-only; multi-target supported
+- Tray, wake-up, close behavior, auto start, proxy support, and local token storage
 
-## Capability Matrix
+## Who It Is For
 
-| Module | Feature | Status | Note |
-| --- | --- | --- | --- |
-| **Discovery** | Dual-source trend aggregation (Day/Week/Month) | ✅ Ready | Blends native trending with API data |
-| | Multi-dimensional Sorting (Stars/Trend/Gained/Forks) | ✅ Ready | Deep filtering capabilities |
-| | Saved Filters & Custom Discovery Views | 🚧 Planned | Subscribe to specific languages or topics |
-| **Organisation** | 4-State Pipeline (Follow/Watch Later/Read/Ignore) | ✅ Ready | Move beyond "read and forget" |
-| | Import Initial Follow List | 🚧 Planned | Sync with existing GitHub account stars |
-| **Tracking** | Basic Update Monitoring (Push/Stars/Releases) | ✅ Ready | Dedicated updates panel for followed items |
-| | **Advanced Intelligence Center** | 🚧 High P0 | Change severity summaries, diffs, and noise reduction |
-| **AI Judgement** | Fast context prompt generation | ✅ Ready | Supports batching and comparison |
-| | Embedded AI Judgement Engine | 🚧 High P0 | Output direct "Keep Following" / "Ignore" conclusions |
-| **Desktop Core** | System tray / Hot wake-up / Proxy routing| ✅ Ready | Self-contained loop |
-| | First-run onboarding & Network Diagnostics | 🚧 Planned | Lower configuration barriers for Token/Proxy |
+- People who follow GitHub projects over time, not just once
+- Builders, researchers, product people, and heavy open-source users
+- Anyone who wants a long-running workspace instead of a one-off Trending page
 
-> **💡 What is the Advanced Intelligence Center? (The Next Core Focus)**
-> This is what pushes GitSonar beyond a simple crawler. Instead of just noting "gained 50 stars", it will analyze "Was there a major version bump? Has the main language shifted?" and output a conclusion.
+## Not Just A Trending Viewer
 
-## Interfaces
+- A viewer helps you discover repos. GitSonar keeps the follow-up workflow on desktop.
+- GitHub stars are only one signal. GitSonar adds local states, update tracking, detail reading, compare, and judgement tools.
+- The app is built to stay in the tray, refresh in the background, and come back when needed.
 
-**State Management** — Follow, watch later, read, ignore, with batch operations.
+## Terms
 
-![Favorites](assets/screenshots/favorites.png)
+- **Local `Follow / Favorites / favorites`**
+  The current UI and codebase still mix these labels. In practice they point to the same local follow list inside GitSonar.
+- **GitHub `Star`**
+  This is a GitHub platform action and metric. With a token configured, marking a repo as `Follow` will try to sync a GitHub star, and you can also import your existing GitHub stars into the local follow list.
 
-**Repository Detail** — Drawer view with README summary and quick actions.
+## Quick Start
 
-![Detail](assets/screenshots/detail.png)
+### Users
 
-**Update Tracking** — Monitor push, star/fork, and release changes for followed repos.
+- GitSonar is a Windows desktop app.
+- If this repository currently has published releases, download them from [GitHub Releases](https://github.com/1wsslda/github-trend-radar/releases):
+  - `GitSonarSetup.exe`
+  - `GitSonar.exe`
+- `artifacts/` is a repo build-output directory, not the default download entry for normal users.
+- There is currently **no auto-update and no code signing**. Windows SmartScreen may ask you to confirm before running.
 
-*Screenshot coming soon.*
+### Developers
 
-## Installation
+```powershell
+python -m pip install -r requirements.txt pyinstaller
+python src/GitSonar.pyw
+powershell -ExecutionPolicy Bypass -File .\scripts\build_exe.ps1
+powershell -ExecutionPolicy Bypass -File .\scripts\build_setup.ps1
+```
 
-**System Requirements**: Windows 10 and above.
-**Note**: The app is currently not signed. If Windows SmartScreen blocks execution, please select "Run anyway".
+One-click packaging:
 
-You can download the latest version from the [GitHub Releases](https://github.com/1wsslda/github-trend-radar/releases) page:
+```cmd
+scripts\build_all_click.cmd
+```
 
-1. **Installer (Recommended)**: Download `GitSonarSetup.exe` to install.
-2. **Portable (Standalone)**: Download `GitSonar.exe` and run directly.
+See [docs/BUILD.md](docs/BUILD.md) for build details.
 
-On first launch, configure what you need:
+## Security & Data
 
-### Recommended Defaults
+- Packaged app data lives under `%LOCALAPPDATA%\GitSonar`
+- Repository development runs use `runtime-data/`
+- Legacy `%LOCALAPPDATA%\GitHubTrendRadar` data is merged on first run when needed
+- GitHub tokens are stored locally with Windows DPAPI
+- Current network destinations include GitHub and Google Translate for translation
+- AI analysis currently means prompt handoff to external ChatGPT (web / desktop) or Gemini web — not embedded AI inside the app. Multiple targets can be selected to open simultaneously.
 
-- `GitHub Token`: recommended if available
-- `Proxy`: fill in a local proxy if GitHub is unstable in your network
-- `Refresh interval`: `1 hour`
-- `Result limit`: `25`
-- `Close behavior`: keep running in tray
+See [docs/SECURITY.md](docs/SECURITY.md) for the exact security boundary.
 
-## Roadmap Priorities
+## Roadmap
 
-These are the immediate evolutionary directions:
+Planned, not yet implemented:
 
-### Priority 1: Advanced Update Intelligence (The Deep End)
+- Smarter update judgement: summaries, prioritisation, and “since last read” views
+- Embedded AI judgement instead of prompt handoff
+- Custom discovery views, onboarding, diagnostics, and stronger local reliability tooling
 
-- **Embedded AI Engine**: Support for OpenAI, DeepSeek, Ollama APIs. Not just templating prompts, but directly outputting structured conclusions inside the app.
-- **Full-Spectrum Awareness**: Aggregate event streams per repo, highlight major version changes, auto-assign update severities, and provide "since last read" diffs.
+## Docs
 
-### Priority 2: Building a Personal Intelligence Pool
-
-- **Private Streams**: Save custom filters and perspectives.
-- **Account Sync**: Support an initial import from a user's GitHub Account Stars.
-- **Local Reliability**: Polish network diagnostics, provide recommended proxy values, and offer safe, lossless data migration and auto-backups.
-
-### Experience Upgrades
-
-- Global launch shortcuts.
-- Better release portals and portable updates.
-
-## Privacy & Data Security
-
-We take security boundaries seriously for an app handling your GitHub token:
-
-- **Strictly Local**: All data is stored purely locally at `%LOCALAPPDATA%\GitSonar`.
-- **Encrypted Tokens**: Your optionally provided GitHub Token is encrypted using native Windows encryption mechanisms before being persisted.
-- **Zero Telemetry**: Outside of strictly communicating with the genuine GitHub API and your configured AI endpoints, the application performs absolutely zero remote sniffing or telemetry on your reading habits and credentials.
+- [docs/BUILD.md](docs/BUILD.md)
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
+- [docs/FAQ.md](docs/FAQ.md)
+- [docs/SECURITY.md](docs/SECURITY.md)
+- [CHANGELOG.md](CHANGELOG.md)
+- [CONTRIBUTING.md](CONTRIBUTING.md)
 
 ## License
 
 This project is released under the [MIT License](LICENSE).
-
-## Docs
-
-## Naming
-
-- Brand: `GitSonar`
-- Chinese name: `GitHub 情报台`
-- Tagline: `Track GitHub projects with a desktop workflow.`
-
-
-
-Detailed docs remain in the `docs` directory:
-
-- [CHANGELOG.md](CHANGELOG.md)
-- [docs/BUILD.md](docs/BUILD.md)
-- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
-- [docs/FAQ.md](docs/FAQ.md)
-- [docs/MAINTENANCE.md](docs/MAINTENANCE.md)
-- [docs/SECURITY.md](docs/SECURITY.md)
-- [docs/RELEASE_CHECKLIST.md](docs/RELEASE_CHECKLIST.md)
-- [docs/RELEASE_NOTES_TEMPLATE.md](docs/RELEASE_NOTES_TEMPLATE.md)
-- [CONTRIBUTING.md](CONTRIBUTING.md)
-
-These documents are currently Chinese-first.
-
-## Repository Layout
-
-- `src/`: desktop entry script and application source package
-- `scripts/`: PowerShell and CMD build entry points
-- `packaging/`: Inno Setup installer definition
-- `runtime-data/`: local development runtime files, cache, and shell profile
-- `artifacts/`: generated EXE, installer, and PyInstaller temporary output
-- `docs/`: build, architecture, FAQ, and security notes

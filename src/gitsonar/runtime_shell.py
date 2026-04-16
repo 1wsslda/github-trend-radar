@@ -206,6 +206,12 @@ def make_shell_runtime(
             return "https://chatgpt.com/"
         return f"https://chatgpt.com/?q={quote(normalized_prompt)}"
 
+    def gemini_url(prompt: str) -> str:
+        normalized_prompt = normalize(prompt)
+        if not normalized_prompt:
+            return "https://gemini.google.com/"
+        return f"https://gemini.google.com/app?q={quote(normalized_prompt)}"
+
     def prompt_too_long(prompt: str) -> bool:
         return len(chatgpt_url(prompt)) > max_chatgpt_url_chars
 
@@ -233,6 +239,13 @@ def make_shell_runtime(
                 return opened, "未发现 ChatGPT 桌面版，已改为在默认浏览器打开 ChatGPT。提示词已复制到剪贴板，请手动粘贴。"
             opened = open_external_url(chatgpt_url(normalized_prompt))
             return opened, "未发现 ChatGPT 桌面版，已改为在默认浏览器打开 ChatGPT 并自动填入提示词。"
+
+        if cleaned_mode == "gemini_web":
+            if too_long:
+                opened = open_external_url("https://gemini.google.com/")
+                return opened, "提示词过长，已在默认浏览器打开 Gemini。提示词已复制到剪贴板，请手动粘贴。"
+            opened = open_external_url(gemini_url(normalized_prompt))
+            return opened, "已在默认浏览器打开 Gemini 并自动填入分析提示词。"
 
         if too_long:
             opened = open_external_url("https://chatgpt.com/")

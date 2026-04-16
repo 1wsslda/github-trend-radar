@@ -1,8 +1,9 @@
-﻿
+
 #!/usr/bin/env python3
 from __future__ import annotations
 
 import ctypes
+import hashlib
 import json
 import logging
 import os
@@ -143,6 +144,7 @@ HTML_PATH = os.path.join(RUNTIME_ROOT, 'trending.html')
 STATUS_PATH = os.path.join(RUNTIME_ROOT, 'status.json')
 SETTINGS_PATH = os.path.join(RUNTIME_ROOT, 'settings.json')
 USER_STATE_PATH = os.path.join(RUNTIME_ROOT, 'user_state.json')
+DISCOVERY_STATE_PATH = os.path.join(RUNTIME_ROOT, 'discovery_state.json')
 LATEST_SNAPSHOT_PATH = os.path.join(DATA_DIR, 'latest.json')
 DETAIL_CACHE_PATH = os.path.join(RUNTIME_ROOT, 'repo_details_cache.json')
 RUNTIME_STATE_PATH = os.path.join(RUNTIME_ROOT, 'runtime_state.json')
@@ -176,8 +178,8 @@ PERIODS = [
     {'key': 'monthly', 'label': '本月', 'days': 30},
 ]
 STATE_DEFS = [
-    {'key': 'favorites', 'label': '收藏夹', 'button': '收藏'},
-    {'key': 'watch_later', 'label': '稍后看', 'button': '稍后看'},
+    {'key': 'favorites', 'label': '关注', 'button': '关注'},
+    {'key': 'watch_later', 'label': '待看', 'button': '待看'},
     {'key': 'read', 'label': '已读', 'button': '已读'},
     {'key': 'ignored', 'label': '忽略', 'button': '忽略'},
 ]
@@ -205,11 +207,16 @@ TRANSLATE_SESSION.headers.update({
 })
 SETTINGS_LOCK = threading.RLock()
 STATE_LOCK = threading.RLock()
+DISCOVERY_LOCK = threading.RLock()
+DISCOVERY_JOB_LOCK = threading.RLock()
 REFRESH_LOCK = threading.Lock()
 TRANSLATION_LOCK = threading.RLock()
 DETAIL_CACHE_LOCK = threading.RLock()
 SETTINGS: dict[str, object] = {}
 USER_STATE: dict[str, object] = {}
+DISCOVERY_STATE: dict[str, object] = {}
+DISCOVERY_JOBS: dict[str, dict[str, object]] = {}
+ACTIVE_DISCOVERY_JOB_ID = ''
 CURRENT_SNAPSHOT: dict[str, object] = {}
 ACTIVE_PROXY = ''
 ACTIVE_PROXY_SOURCE = 'none'
@@ -412,6 +419,47 @@ def translate_text(text: str) -> str:
     return translated
 
 
+def translate_query_to_en(text: str) -> str:
+    raw = normalize(text)
+    if not raw:
+        return raw
+    if not has_han(raw):
+        return raw
+    cache_key = f'en::{raw}'
+    with TRANSLATION_LOCK:
+        cached = TRANSLATION_CACHE.get(cache_key)
+    if cached:
+        return cached
+    translated = ''
+    for attempt in range(TRANSLATE_RETRIES):
+        try:
+            response = TRANSLATE_SESSION.get(
+                'https://translate.googleapis.com/translate_a/single',
+                params={
+                    'client': 'gtx',
+                    'sl': 'auto',
+                    'tl': 'en',
+                    'dt': 't',
+                    'q': raw,
+                },
+                timeout=TRANSLATE_TIMEOUT,
+            )
+            response.raise_for_status()
+            data = response.json()
+            translated = normalize(''.join(part[0] for part in data[0] if isinstance(part, list) and part and part[0]))
+            if translated:
+                break
+        except Exception:
+            translated = ''
+            if attempt + 1 < TRANSLATE_RETRIES:
+                time.sleep(0.25 * (attempt + 1))
+    if not translated:
+        return raw
+    with TRANSLATION_LOCK:
+        TRANSLATION_CACHE[cache_key] = translated
+    return translated
+
+
 def apply_repo_translation(repo: dict[str, object]) -> None:
     raw = normalize(repo.get('description_raw') or repo.get('description'))
     repo['description_raw'] = raw
@@ -476,6 +524,7 @@ def sanitize_settings(include_sensitive: bool) -> dict[str, object]:
         'default_sort': SETTINGS.get('default_sort', 'stars'),
         'auto_start': bool(SETTINGS.get('auto_start')),
         'close_behavior': SETTINGS.get('close_behavior', 'tray'),
+        'has_github_token': bool(normalize(SETTINGS.get('github_token', ''))),
         'effective_proxy': ACTIVE_PROXY,
         'proxy_source': ACTIVE_PROXY_SOURCE,
         'runtime_root': RUNTIME_ROOT,
@@ -533,6 +582,54 @@ def default_user_state() -> dict[str, object]:
     return {'favorites': [], 'watch_later': [], 'read': [], 'ignored': [], 'repo_records': {}, 'favorite_watch': {}, 'favorite_updates': []}
 
 
+def default_discovery_state() -> dict[str, object]:
+    return {
+        'saved_queries': [],
+        'last_query': {},
+        'last_results': [],
+        'last_related_terms': [],
+        'last_generated_queries': [],
+        'last_translated_query': '',
+        'last_warnings': [],
+        'last_run_at': '',
+        'last_error': '',
+    }
+
+
+DISCOVERY_RANKING_PROFILES = {'balanced', 'hot', 'fresh', 'builder', 'trend'}
+
+
+def normalize_discovery_ranking_profile(value: object) -> str:
+    clean = normalize(value).lower()
+    return clean if clean in DISCOVERY_RANKING_PROFILES else 'balanced'
+
+
+def discovery_query_id(query: str, language: str, auto_expand: bool, ranking_profile: str = 'balanced') -> str:
+    payload = f'{normalize(query)}\n{normalize(language)}\n{int(bool(auto_expand))}\n{normalize_discovery_ranking_profile(ranking_profile)}'
+    return hashlib.sha1(payload.encode('utf-8')).hexdigest()[:16]
+
+
+def normalize_discovery_query(payload: object) -> dict[str, object] | None:
+    raw = payload if isinstance(payload, dict) else {}
+    query = normalize(raw.get('query'))
+    if not query:
+        return None
+    language = normalize(raw.get('language'))
+    auto_expand = as_bool(raw.get('auto_expand'), True)
+    ranking_profile = normalize_discovery_ranking_profile(raw.get('ranking_profile'))
+    default_limit = clamp_int(SETTINGS.get('result_limit', 20), 20, 5, 50) if SETTINGS else 20
+    return {
+        'id': normalize(raw.get('id')) or discovery_query_id(query, language, auto_expand, ranking_profile),
+        'query': query,
+        'language': language,
+        'limit': clamp_int(raw.get('limit'), default_limit, 5, 50),
+        'auto_expand': auto_expand,
+        'ranking_profile': ranking_profile,
+        'created_at': normalize(raw.get('created_at')) or iso_now(),
+        'last_run_at': normalize(raw.get('last_run_at')),
+    }
+
+
 def normalize_repo(repo: object) -> dict[str, object] | None:
     if not isinstance(repo, dict):
         return None
@@ -562,6 +659,16 @@ def normalize_repo(repo: object) -> dict[str, object] | None:
         'rank': clamp_int(repo.get('rank'), 0, 0),
         'period_key': normalize(repo.get('period_key')) or 'daily',
         'source_label': normalize(repo.get('source_label')) or 'GitHub API',
+        'updated_at': normalize(repo.get('updated_at')),
+        'pushed_at': normalize(repo.get('pushed_at')),
+        'topics': [normalize(item) for item in repo.get('topics', []) if normalize(item)] if isinstance(repo.get('topics'), list) else [],
+        'discover_source': normalize(repo.get('discover_source')),
+        'trending_hit': as_bool(repo.get('trending_hit'), False),
+        'relevance_score': clamp_int(repo.get('relevance_score'), 0, 0, 100),
+        'hot_score': clamp_int(repo.get('hot_score'), 0, 0, 100),
+        'composite_score': clamp_int(repo.get('composite_score'), 0, 0, 100),
+        'matched_terms': [normalize(item) for item in repo.get('matched_terms', []) if normalize(item)] if isinstance(repo.get('matched_terms'), list) else [],
+        'match_reasons': [normalize(item) for item in repo.get('match_reasons', []) if normalize(item)] if isinstance(repo.get('match_reasons'), list) else [],
     }
 
 
@@ -620,16 +727,45 @@ def normalize_favorite_update(payload: object) -> dict[str, object] | None:
     }
 
 
+def normalize_discovery_state(payload: object) -> dict[str, object]:
+    raw = payload if isinstance(payload, dict) else {}
+    state = default_discovery_state()
+    saved_queries: list[dict[str, object]] = []
+    seen_ids: set[str] = set()
+    for item in raw.get('saved_queries', []):
+        clean = normalize_discovery_query(item)
+        if clean and clean['id'] not in seen_ids:
+            saved_queries.append(clean)
+            seen_ids.add(clean['id'])
+    state['saved_queries'] = saved_queries
+    state['last_query'] = normalize_discovery_query(raw.get('last_query')) or {}
+    state['last_results'] = [clean for item in raw.get('last_results', []) if (clean := normalize_repo(item))]
+    state['last_related_terms'] = [normalize(item) for item in raw.get('last_related_terms', []) if normalize(item)][:12]
+    state['last_generated_queries'] = [normalize(item) for item in raw.get('last_generated_queries', []) if normalize(item)][:12]
+    state['last_translated_query'] = normalize(raw.get('last_translated_query'))
+    state['last_warnings'] = [normalize(item) for item in raw.get('last_warnings', []) if normalize(item)][:8]
+    state['last_run_at'] = normalize(raw.get('last_run_at'))
+    state['last_error'] = normalize(raw.get('last_error'))
+    return state
+
+
 def normalize_user_state(payload: object) -> dict[str, object]:
     raw = payload if isinstance(payload, dict) else {}
     state = default_user_state()
     for key in ('favorites', 'watch_later', 'read', 'ignored'):
-        state[key] = [normalize(item) for item in raw.get(key, []) if normalize(item)]
+        state[key] = list(dict.fromkeys(normalize(item) for item in raw.get(key, []) if normalize(item)))
     records = raw.get('repo_records', {}) if isinstance(raw.get('repo_records'), dict) else {}
     state['repo_records'] = {url: clean for url, repo in records.items() if (clean := normalize_repo(repo))}
     watch = raw.get('favorite_watch', {}) if isinstance(raw.get('favorite_watch'), dict) else {}
     state['favorite_watch'] = {url: clean for url, item in watch.items() if (clean := normalize_watch_entry(item))}
-    state['favorite_updates'] = [clean for item in raw.get('favorite_updates', []) if (clean := normalize_favorite_update(item))]
+    favorite_updates: list[dict[str, object]] = []
+    seen_update_ids: set[str] = set()
+    for item in raw.get('favorite_updates', []):
+        clean = normalize_favorite_update(item)
+        if clean and clean['id'] not in seen_update_ids:
+            favorite_updates.append(clean)
+            seen_update_ids.add(clean['id'])
+    state['favorite_updates'] = favorite_updates
     return state
 
 
@@ -647,6 +783,539 @@ def save_user_state() -> None:
 def export_user_state() -> dict[str, object]:
     with STATE_LOCK:
         return json.loads(json.dumps(USER_STATE, ensure_ascii=False))
+
+
+def state_counts(state: dict[str, object]) -> dict[str, int]:
+    return {
+        'favorites': len(state.get('favorites', [])),
+        'watch_later': len(state.get('watch_later', [])),
+        'read': len(state.get('read', [])),
+        'ignored': len(state.get('ignored', [])),
+        'repo_records': len(state.get('repo_records', {})),
+        'favorite_updates': len(state.get('favorite_updates', [])),
+    }
+
+
+def ordered_unique_urls(*groups: list[str]) -> list[str]:
+    seen: set[str] = set()
+    merged: list[str] = []
+    for group in groups:
+        for item in group:
+            clean = normalize(item)
+            if clean and clean not in seen:
+                merged.append(clean)
+                seen.add(clean)
+    return merged
+
+
+def merge_favorite_updates(*groups: list[dict[str, object]]) -> list[dict[str, object]]:
+    merged: list[dict[str, object]] = []
+    seen_ids: set[str] = set()
+    for group in groups:
+        for item in group:
+            clean = normalize_favorite_update(item)
+            if clean and clean['id'] not in seen_ids:
+                merged.append(clean)
+                seen_ids.add(clean['id'])
+    return merged[:100]
+
+
+def coerce_import_user_state(payload: object) -> dict[str, object]:
+    if isinstance(payload, dict):
+        if isinstance(payload.get('data'), dict):
+            raw_state = payload.get('data')
+        elif isinstance(payload.get('user_state'), dict):
+            raw_state = payload.get('user_state')
+        else:
+            raw_state = payload
+    else:
+        raw_state = {}
+    state = normalize_user_state(raw_state)
+    if not any(state.get(key) for key in ('favorites', 'watch_later', 'read', 'ignored')) and not state.get('repo_records'):
+        raise ValueError('导入文件里没有可恢复的用户状态')
+    return state
+
+
+def import_user_state(payload: object) -> dict[str, object]:
+    mode = normalize(payload.get('mode') if isinstance(payload, dict) else '').lower()
+    if mode not in {'merge', 'replace'}:
+        mode = 'merge'
+    imported = coerce_import_user_state(payload)
+    with STATE_LOCK:
+        before_counts = state_counts(USER_STATE)
+        if mode == 'replace':
+            next_state = imported
+        else:
+            next_state = default_user_state()
+            for key in ('favorites', 'watch_later', 'read', 'ignored'):
+                next_state[key] = ordered_unique_urls(imported.get(key, []), USER_STATE.get(key, []))
+            next_state['repo_records'] = dict(USER_STATE.get('repo_records', {}))
+            next_state['repo_records'].update(imported.get('repo_records', {}))
+            next_state['favorite_watch'] = dict(USER_STATE.get('favorite_watch', {}))
+            next_state['favorite_watch'].update(imported.get('favorite_watch', {}))
+            next_state['favorite_updates'] = merge_favorite_updates(
+                imported.get('favorite_updates', []),
+                USER_STATE.get('favorite_updates', []),
+            )
+
+        favorite_urls = set(next_state.get('favorites', []))
+        next_state['favorite_watch'] = {
+            url: item for url, item in next_state.get('favorite_watch', {}).items()
+            if url in favorite_urls and normalize_watch_entry(item)
+        }
+        next_state['favorite_updates'] = [
+            item for item in next_state.get('favorite_updates', [])
+            if item.get('url') in favorite_urls
+        ][:100]
+        USER_STATE.clear()
+        USER_STATE.update(normalize_user_state(next_state))
+        save_user_state()
+        after_counts = state_counts(USER_STATE)
+    sync_repo_records(CURRENT_SNAPSHOT)
+    return {
+        'mode': mode,
+        'before_counts': before_counts,
+        'after_counts': after_counts,
+        'user_state': export_user_state(),
+    }
+
+
+def load_discovery_state() -> dict[str, object]:
+    state = normalize_discovery_state(load_json_file(DISCOVERY_STATE_PATH, default_discovery_state()))
+    if not os.path.exists(DISCOVERY_STATE_PATH):
+        atomic_write_json(DISCOVERY_STATE_PATH, state)
+    return state
+
+
+def save_discovery_state() -> None:
+    atomic_write_json(DISCOVERY_STATE_PATH, DISCOVERY_STATE)
+
+
+def export_discovery_state() -> dict[str, object]:
+    with DISCOVERY_LOCK:
+        return json.loads(json.dumps(DISCOVERY_STATE, ensure_ascii=False))
+
+
+def clear_discovery_results() -> dict[str, object]:
+    with DISCOVERY_LOCK:
+        DISCOVERY_STATE['last_query'] = {}
+        DISCOVERY_STATE['last_results'] = []
+        DISCOVERY_STATE['last_related_terms'] = []
+        DISCOVERY_STATE['last_generated_queries'] = []
+        DISCOVERY_STATE['last_translated_query'] = ''
+        DISCOVERY_STATE['last_warnings'] = []
+        DISCOVERY_STATE['last_run_at'] = ''
+        DISCOVERY_STATE['last_error'] = ''
+        save_discovery_state()
+        return export_discovery_state()
+
+
+def upsert_saved_discovery_query(query_payload: dict[str, object], *, last_run_at: str = '') -> None:
+    clean = normalize_discovery_query(query_payload)
+    if not clean:
+        return
+    if last_run_at:
+        clean['last_run_at'] = normalize(last_run_at)
+    with DISCOVERY_LOCK:
+        existing = [item for item in DISCOVERY_STATE.get('saved_queries', []) if item.get('id') != clean['id']]
+        existing.insert(0, clean)
+        DISCOVERY_STATE['saved_queries'] = existing[:20]
+        save_discovery_state()
+
+
+def delete_saved_discovery_query(query_id: str) -> dict[str, object]:
+    clean_id = normalize(query_id)
+    if not clean_id:
+        raise ValueError('缺少搜索标识')
+    with DISCOVERY_LOCK:
+        DISCOVERY_STATE['saved_queries'] = [item for item in DISCOVERY_STATE.get('saved_queries', []) if item.get('id') != clean_id]
+        save_discovery_state()
+        return export_discovery_state()
+
+
+DISCOVERY_JOB_STAGE_LABELS = {
+    'queued': '等待开始',
+    'initial_search': '首轮搜索中',
+    'initial_results': '首轮结果已返回',
+    'seed_details': '正在补全详情',
+    'expansion_search': '正在扩展相关词',
+    'rescoring': '正在综合重排',
+    'completed': '已完成',
+    'failed': '执行失败',
+    'cancelled': '已取消',
+}
+
+DISCOVERY_JOB_STAGE_PROGRESS = {
+    'queued': 0.02,
+    'initial_search': 0.16,
+    'initial_results': 0.38,
+    'seed_details': 0.52,
+    'expansion_search': 0.74,
+    'rescoring': 0.9,
+    'completed': 1.0,
+    'failed': 1.0,
+    'cancelled': 1.0,
+}
+
+DISCOVERY_JOB_TERMINAL = {'completed', 'failed', 'cancelled'}
+
+
+def discovery_warning_list(items: object, *, limit: int = 8) -> list[str]:
+    if not isinstance(items, list):
+        return []
+    return list(dict.fromkeys(normalize(item) for item in items if normalize(item)))[:limit]
+
+
+def estimate_discovery_eta(query_payload: dict[str, object]) -> tuple[int, int]:
+    limit = clamp_int(query_payload.get('limit'), 20, 5, 50)
+    has_token = bool(normalize(SETTINGS.get('github_token', '')))
+    auto_expand = as_bool(query_payload.get('auto_expand'), True)
+    language = normalize(query_payload.get('language'))
+    size_penalty = min(6, max(0, (limit - 5) // 10) * 2)
+    initial_seconds = 14 + size_penalty
+    if language:
+        initial_seconds += 1
+    if not has_token:
+        initial_seconds += 2
+    full_seconds = initial_seconds + (10 if auto_expand else 6) + (4 if has_token else 5) + size_penalty
+    return initial_seconds, max(initial_seconds + 2, full_seconds)
+
+
+def build_discovery_job_message(stage: str, query_payload: dict[str, object], payload: dict[str, object] | None = None) -> str:
+    query = normalize(query_payload.get('query')) or '当前关键词'
+    payload = payload if isinstance(payload, dict) else {}
+    result_count = len(payload.get('results', [])) if isinstance(payload.get('results'), list) else 0
+    if stage == 'initial_search':
+        return f'正在为“{query}”执行首轮 GitHub 搜索'
+    if stage == 'initial_results':
+        return f'首轮结果已返回 {result_count} 个候选，正在继续补全与扩词'
+    if stage == 'seed_details':
+        return f'正在为“{query}”补全首批仓库详情'
+    if stage == 'expansion_search':
+        return f'正在扩展相关词并补充更多候选仓库'
+    if stage == 'rescoring':
+        return f'正在对“{query}”执行综合打分与重排'
+    if stage == 'completed':
+        return f'关键词发现已完成，共返回 {result_count} 个结果'
+    if stage == 'cancelled':
+        return '关键词发现已取消'
+    if stage == 'failed':
+        return normalize(payload.get('error')) or '关键词发现失败'
+    return '正在准备关键词发现任务'
+
+
+def build_discovery_job_snapshot(job: dict[str, object]) -> dict[str, object]:
+    started_ts = float(job.get('_started_ts') or 0.0)
+    finished_ts = float(job.get('_finished_ts') or 0.0)
+    now_ts = finished_ts or time.time()
+    elapsed_seconds = max(0, int(round(now_ts - started_ts))) if started_ts else 0
+    eta_initial_seconds = clamp_int(job.get('eta_initial_seconds'), 4, 1, 300)
+    eta_full_seconds = clamp_int(job.get('eta_full_seconds'), eta_initial_seconds + 2, eta_initial_seconds, 600)
+    preview_results = [clean for item in job.get('preview_results', []) if (clean := normalize_repo(item))]
+    status = normalize(job.get('status')) or 'queued'
+    target_seconds = eta_initial_seconds if not preview_results and status not in DISCOVERY_JOB_TERMINAL else eta_full_seconds
+    eta_remaining_seconds = 0 if status in DISCOVERY_JOB_TERMINAL else max(1, target_seconds - elapsed_seconds)
+    return {
+        'id': normalize(job.get('id')),
+        'status': status,
+        'stage': normalize(job.get('stage')) or 'queued',
+        'stage_label': normalize(job.get('stage_label')) or DISCOVERY_JOB_STAGE_LABELS.get(normalize(job.get('stage')) or 'queued', '处理中'),
+        'message': normalize(job.get('message')),
+        'query': normalize_discovery_query(job.get('query')) or {},
+        'save_query': as_bool(job.get('save_query'), False),
+        'cancel_requested': as_bool(job.get('cancel_requested'), False),
+        'created_at': normalize(job.get('created_at')),
+        'started_at': normalize(job.get('started_at')),
+        'finished_at': normalize(job.get('finished_at')),
+        'elapsed_seconds': elapsed_seconds,
+        'eta_initial_seconds': eta_initial_seconds,
+        'eta_full_seconds': eta_full_seconds,
+        'eta_remaining_seconds': eta_remaining_seconds,
+        'progress': max(0.0, min(1.0, float(job.get('progress') or 0.0))),
+        'progress_percent': max(0, min(100, int(round(float(job.get('progress') or 0.0) * 100)))),
+        'translated_query': normalize(job.get('translated_query')),
+        'generated_queries': [normalize(item) for item in job.get('generated_queries', []) if normalize(item)][:12] if isinstance(job.get('generated_queries'), list) else [],
+        'related_terms': [normalize(item) for item in job.get('related_terms', []) if normalize(item)][:12] if isinstance(job.get('related_terms'), list) else [],
+        'warnings': discovery_warning_list(job.get('warnings'), limit=8),
+        'preview_results': preview_results[:50],
+        'error': normalize(job.get('error')),
+        'discovery_state': job.get('discovery_state') if isinstance(job.get('discovery_state'), dict) else None,
+    }
+
+
+def export_active_discovery_job() -> dict[str, object] | None:
+    with DISCOVERY_JOB_LOCK:
+        active_id = normalize(ACTIVE_DISCOVERY_JOB_ID)
+        job = DISCOVERY_JOBS.get(active_id) if active_id else None
+        if not isinstance(job, dict):
+            return None
+        return build_discovery_job_snapshot(job)
+
+
+def update_discovery_job(job_id: str, **changes) -> dict[str, object] | None:
+    global ACTIVE_DISCOVERY_JOB_ID
+    clean_id = normalize(job_id)
+    if not clean_id:
+        return None
+    with DISCOVERY_JOB_LOCK:
+        job = DISCOVERY_JOBS.get(clean_id)
+        if not isinstance(job, dict):
+            return None
+        if 'status' in changes and normalize(changes.get('status')) == 'running' and not normalize(job.get('started_at')):
+            job['started_at'] = iso_now()
+            job['_started_ts'] = time.time()
+        if 'stage' in changes:
+            stage = normalize(changes.get('stage')) or job.get('stage') or 'queued'
+            job['stage'] = stage
+            job['stage_label'] = DISCOVERY_JOB_STAGE_LABELS.get(stage, stage)
+            job['progress'] = DISCOVERY_JOB_STAGE_PROGRESS.get(stage, job.get('progress', 0.0))
+        for key in ('status', 'message', 'translated_query', 'error'):
+            if key in changes and changes.get(key) is not None:
+                job[key] = normalize(changes.get(key))
+        for key in ('generated_queries', 'related_terms'):
+            if key in changes and changes.get(key) is not None:
+                job[key] = [normalize(item) for item in changes.get(key, []) if normalize(item)][:12]
+        if 'warnings' in changes and changes.get('warnings') is not None:
+            existing = discovery_warning_list(job.get('warnings'), limit=8)
+            incoming = discovery_warning_list(changes.get('warnings'), limit=8)
+            job['warnings'] = list(dict.fromkeys([*existing, *incoming]))[:8]
+        if 'preview_results' in changes and changes.get('preview_results') is not None:
+            job['preview_results'] = [clean for item in changes.get('preview_results', []) if (clean := normalize_repo(item))][:50]
+        if 'discovery_state' in changes and isinstance(changes.get('discovery_state'), dict):
+            job['discovery_state'] = changes.get('discovery_state')
+        if 'cancel_requested' in changes:
+            job['cancel_requested'] = as_bool(changes.get('cancel_requested'), False)
+        status = normalize(job.get('status')) or 'queued'
+        if status not in DISCOVERY_JOB_TERMINAL:
+            ACTIVE_DISCOVERY_JOB_ID = clean_id
+        else:
+            job['finished_at'] = normalize(job.get('finished_at')) or iso_now()
+            job['_finished_ts'] = float(job.get('_finished_ts') or time.time())
+            if ACTIVE_DISCOVERY_JOB_ID == clean_id:
+                ACTIVE_DISCOVERY_JOB_ID = ''
+        snapshot = build_discovery_job_snapshot(job)
+        stale_ids = [
+            key for key, value in DISCOVERY_JOBS.items()
+            if key != ACTIVE_DISCOVERY_JOB_ID and normalize(value.get('status')) in DISCOVERY_JOB_TERMINAL
+        ]
+        for stale_id in stale_ids[:-10]:
+            DISCOVERY_JOBS.pop(stale_id, None)
+        return snapshot
+
+
+def apply_discovery_result(query_payload: dict[str, object], discovery: dict[str, object], *, save_query: bool) -> dict[str, object]:
+    results = [clean for item in discovery.get('results', []) if (clean := normalize_repo(item))]
+    last_run_at = normalize(discovery.get('run_at')) or iso_now()
+    warnings = discovery_warning_list(discovery.get('warnings'), limit=8)
+    with DISCOVERY_LOCK:
+        DISCOVERY_STATE['last_query'] = query_payload
+        DISCOVERY_STATE['last_results'] = results
+        DISCOVERY_STATE['last_related_terms'] = [normalize(item) for item in discovery.get('related_terms', []) if normalize(item)][:12]
+        DISCOVERY_STATE['last_generated_queries'] = [normalize(item) for item in discovery.get('generated_queries', []) if normalize(item)][:12]
+        DISCOVERY_STATE['last_translated_query'] = normalize(discovery.get('translated_query'))
+        DISCOVERY_STATE['last_warnings'] = warnings
+        DISCOVERY_STATE['last_run_at'] = last_run_at
+        DISCOVERY_STATE['last_error'] = ''
+        if save_query:
+            saved_queries = [item for item in DISCOVERY_STATE.get('saved_queries', []) if item.get('id') != query_payload['id']]
+            saved_query = dict(query_payload)
+            saved_query['last_run_at'] = last_run_at
+            saved_queries.insert(0, saved_query)
+            DISCOVERY_STATE['saved_queries'] = saved_queries[:20]
+        elif query_payload['id'] in {item.get('id') for item in DISCOVERY_STATE.get('saved_queries', [])}:
+            for item in DISCOVERY_STATE['saved_queries']:
+                if item.get('id') == query_payload['id']:
+                    item['last_run_at'] = last_run_at
+                    break
+        save_discovery_state()
+        return export_discovery_state()
+
+
+def run_discovery_search(payload: object) -> dict[str, object]:
+    query_payload = normalize_discovery_query(payload)
+    if not query_payload:
+        raise ValueError('请输入关键词')
+    save_query = as_bool(payload.get('save_query') if isinstance(payload, dict) else False, False)
+    discovery = github_runtime.discover_repos(
+        query=query_payload['query'],
+        language=query_payload['language'],
+        limit=query_payload['limit'],
+        auto_expand=query_payload['auto_expand'],
+        ranking_profile=query_payload['ranking_profile'],
+    )
+    return apply_discovery_result(query_payload, discovery, save_query=save_query)
+
+
+def run_saved_discovery_query(query_id: str) -> dict[str, object]:
+    clean_id = normalize(query_id)
+    if not clean_id:
+        raise ValueError('缺少搜索标识')
+    with DISCOVERY_LOCK:
+        query_payload = next((dict(item) for item in DISCOVERY_STATE.get('saved_queries', []) if item.get('id') == clean_id), None)
+    if not query_payload:
+        raise ValueError('未找到已保存搜索')
+    query_payload['save_query'] = False
+    return run_discovery_search(query_payload)
+
+
+def start_discovery_job(payload: object) -> dict[str, object]:
+    global ACTIVE_DISCOVERY_JOB_ID
+    query_payload = normalize_discovery_query(payload)
+    if not query_payload:
+        raise ValueError('请输入关键词')
+    save_query = as_bool(payload.get('save_query') if isinstance(payload, dict) else False, False)
+    eta_initial_seconds, eta_full_seconds = estimate_discovery_eta(query_payload)
+    job_hash = hashlib.sha1(f"{query_payload['id']}-{time.time()}".encode('utf-8')).hexdigest()[:8]
+    job_id = f"discover-{int(time.time() * 1000)}-{job_hash}"
+    created_at = iso_now()
+    with DISCOVERY_JOB_LOCK:
+        for other_id, other in DISCOVERY_JOBS.items():
+            if other_id == job_id:
+                continue
+            if normalize(other.get('status')) not in DISCOVERY_JOB_TERMINAL:
+                other['cancel_requested'] = True
+                other['message'] = '已有新的关键词发现开始，当前任务正在取消'
+        DISCOVERY_JOBS[job_id] = {
+            'id': job_id,
+            'status': 'queued',
+            'stage': 'queued',
+            'stage_label': DISCOVERY_JOB_STAGE_LABELS['queued'],
+            'message': '正在准备关键词发现任务',
+            'query': query_payload,
+            'save_query': save_query,
+            'cancel_requested': False,
+            'created_at': created_at,
+            'started_at': '',
+            'finished_at': '',
+            'progress': DISCOVERY_JOB_STAGE_PROGRESS['queued'],
+            'eta_initial_seconds': eta_initial_seconds,
+            'eta_full_seconds': eta_full_seconds,
+            'translated_query': '',
+            'generated_queries': [],
+            'related_terms': [],
+            'warnings': [],
+            'preview_results': [],
+            'error': '',
+            'discovery_state': None,
+            '_created_ts': time.time(),
+            '_started_ts': 0.0,
+            '_finished_ts': 0.0,
+        }
+        ACTIVE_DISCOVERY_JOB_ID = job_id
+        snapshot = build_discovery_job_snapshot(DISCOVERY_JOBS[job_id])
+
+    cancel_error = getattr(github_runtime, 'DiscoveryCancelledError', RuntimeError)
+
+    def worker():
+        def is_cancelled() -> bool:
+            with DISCOVERY_JOB_LOCK:
+                job = DISCOVERY_JOBS.get(job_id, {})
+                return as_bool(job.get('cancel_requested'), False)
+
+        def on_progress(stage: str, progress_payload: dict[str, object]) -> None:
+            update_discovery_job(
+                job_id,
+                status='running',
+                stage=stage,
+                message=build_discovery_job_message(stage, query_payload, progress_payload),
+                translated_query=progress_payload.get('translated_query'),
+                generated_queries=progress_payload.get('generated_queries'),
+                related_terms=progress_payload.get('related_terms'),
+                warnings=progress_payload.get('warnings'),
+                preview_results=progress_payload.get('results'),
+            )
+
+        try:
+            update_discovery_job(
+                job_id,
+                status='running',
+                stage='initial_search',
+                message=build_discovery_job_message('initial_search', query_payload),
+            )
+            discovery = github_runtime.discover_repos(
+                query=query_payload['query'],
+                language=query_payload['language'],
+                limit=query_payload['limit'],
+                auto_expand=query_payload['auto_expand'],
+                ranking_profile=query_payload['ranking_profile'],
+                progress_callback=on_progress,
+                is_cancelled=is_cancelled,
+            )
+            if is_cancelled():
+                raise cancel_error('关键词发现已取消')
+            discovery_state = apply_discovery_result(query_payload, discovery, save_query=save_query)
+            update_discovery_job(
+                job_id,
+                status='completed',
+                stage='completed',
+                message=build_discovery_job_message('completed', query_payload, {'results': discovery_state.get('last_results', [])}),
+                translated_query=discovery.get('translated_query'),
+                generated_queries=discovery.get('generated_queries'),
+                related_terms=discovery.get('related_terms'),
+                warnings=discovery.get('warnings'),
+                preview_results=discovery_state.get('last_results'),
+                discovery_state=discovery_state,
+            )
+        except cancel_error:
+            update_discovery_job(
+                job_id,
+                status='cancelled',
+                stage='cancelled',
+                message=build_discovery_job_message('cancelled', query_payload),
+            )
+        except Exception as exc:
+            update_discovery_job(
+                job_id,
+                status='failed',
+                stage='failed',
+                message=build_discovery_job_message('failed', query_payload, {'error': str(exc)}),
+                error=str(exc),
+            )
+
+    threading.Thread(target=worker, name=f'discovery-job-{job_id}', daemon=True).start()
+    return snapshot
+
+
+def start_saved_discovery_job(query_id: str) -> dict[str, object]:
+    clean_id = normalize(query_id)
+    if not clean_id:
+        raise ValueError('缺少搜索标识')
+    with DISCOVERY_LOCK:
+        query_payload = next((dict(item) for item in DISCOVERY_STATE.get('saved_queries', []) if item.get('id') == clean_id), None)
+    if not query_payload:
+        raise ValueError('未找到已保存搜索')
+    query_payload['save_query'] = False
+    return start_discovery_job(query_payload)
+
+
+def get_discovery_job(job_id: str) -> dict[str, object]:
+    clean_id = normalize(job_id)
+    if not clean_id:
+        active = export_active_discovery_job()
+        if active:
+            return active
+        raise ValueError('缺少 discovery job 标识')
+    with DISCOVERY_JOB_LOCK:
+        job = DISCOVERY_JOBS.get(clean_id)
+        if not isinstance(job, dict):
+            raise ValueError('未找到对应的 discovery job')
+        return build_discovery_job_snapshot(job)
+
+
+def cancel_discovery_job(job_id: str) -> dict[str, object]:
+    clean_id = normalize(job_id)
+    if not clean_id:
+        raise ValueError('缺少 discovery job 标识')
+    with DISCOVERY_JOB_LOCK:
+        job = DISCOVERY_JOBS.get(clean_id)
+        if not isinstance(job, dict):
+            raise ValueError('未找到对应的 discovery job')
+        status = normalize(job.get('status'))
+        if status in DISCOVERY_JOB_TERMINAL:
+            return build_discovery_job_snapshot(job)
+        job['cancel_requested'] = True
+        job['message'] = '已收到取消请求，当前阶段结束后会停止'
+        return build_discovery_job_snapshot(job)
 
 
 def set_repo_state(state_key: str, enabled: bool, repo: object) -> None:
@@ -896,6 +1565,7 @@ def write_html(snapshot: dict[str, object], note: str, pending: bool) -> None:
         app_name=APP_NAME,
         snapshot=snapshot,
         user_state=export_user_state(),
+        discovery_state=export_discovery_state(),
         settings=sanitize_settings(False),
         periods=PERIODS,
         states=STATE_DEFS,
@@ -1006,6 +1676,7 @@ github_runtime = make_github_runtime(
     detail_fetch_lock=detail_fetch_lock,
     strip_markdown=strip_markdown,
     translate_text=translate_text,
+    translate_query_to_en=translate_query_to_en,
     save_translation_cache=save_translation_cache,
     save_repo_details=save_repo_details,
     parse_iso_timestamp=parse_iso_timestamp,
@@ -1032,6 +1703,7 @@ ServerAppHandler = make_app_handler(
     as_bool=as_bool,
     set_repo_state=set_repo_state,
     export_user_state=export_user_state,
+    import_user_state=import_user_state,
     normalize_settings=normalize_settings,
     save_settings=save_settings,
     apply_runtime_settings=apply_runtime_settings,
@@ -1042,6 +1714,16 @@ ServerAppHandler = make_app_handler(
     open_chatgpt_target=shell_runtime.open_chatgpt_target,
     open_external_url=shell_runtime.open_external_url,
     clear_favorite_updates=github_runtime.clear_favorite_updates,
+    run_discovery_search=run_discovery_search,
+    run_saved_discovery_query=run_saved_discovery_query,
+    start_discovery_job=start_discovery_job,
+    start_saved_discovery_job=start_saved_discovery_job,
+    get_discovery_job=get_discovery_job,
+    cancel_discovery_job=cancel_discovery_job,
+    delete_saved_discovery_query=delete_saved_discovery_query,
+    clear_discovery_results=clear_discovery_results,
+    export_discovery_state=export_discovery_state,
+    export_active_discovery_job=export_active_discovery_job,
     star_repo=github_runtime.star_repo,
     fetch_user_starred=github_runtime.fetch_user_starred,
     batch_add_favorites=batch_add_favorites,
@@ -1085,6 +1767,8 @@ def main() -> None:
         update_auto_start(bool(SETTINGS.get('auto_start')))
         USER_STATE.clear()
         USER_STATE.update(load_user_state())
+        DISCOVERY_STATE.clear()
+        DISCOVERY_STATE.update(load_discovery_state())
         RUNTIME_PORT = choose_runtime_port()
         CURRENT_SNAPSHOT = load_snapshot()
         sync_repo_records(CURRENT_SNAPSHOT)
