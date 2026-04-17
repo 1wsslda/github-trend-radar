@@ -211,6 +211,49 @@ def make_github_runtime(
                 break
         return repos
 
+    def sync_local_favorites_with_starred(repos: list[dict[str, object]]) -> dict[str, int]:
+        cleaned_repos: list[dict[str, object]] = []
+        seen_urls: set[str] = set()
+        for repo in repos:
+            clean = normalize_repo(repo)
+            if not clean:
+                continue
+            url = normalize(clean.get("url"))
+            if not url or url in seen_urls:
+                continue
+            cleaned_repos.append(clean)
+            seen_urls.add(url)
+
+        favorite_urls = [normalize(repo.get("url")) for repo in cleaned_repos if normalize(repo.get("url"))]
+        favorite_set = set(favorite_urls)
+
+        with state_lock:
+            existing_favorites = [normalize(item) for item in user_state.get("favorites", []) if normalize(item)]
+            existing_set = set(existing_favorites)
+            added = sum(1 for url in favorite_urls if url not in existing_set)
+            removed = sum(1 for url in existing_favorites if url not in favorite_set)
+
+            repo_records = user_state.setdefault("repo_records", {})
+            for repo in cleaned_repos:
+                repo_records[str(repo.get("url") or "")] = repo
+
+            user_state["favorites"] = favorite_urls
+            user_state["favorite_watch"] = {
+                url: item for url, item in user_state.get("favorite_watch", {}).items()
+                if url in favorite_set and normalize_watch_entry(item)
+            }
+            user_state["favorite_updates"] = [
+                clean for item in user_state.get("favorite_updates", [])
+                if (clean := normalize_favorite_update(item)) and clean["url"] in favorite_set
+            ][:100]
+            save_user_state()
+
+        return {
+            "total": len(favorite_urls),
+            "added": added,
+            "removed": removed,
+        }
+
     def fetch_period(period: dict[str, object], fallback: dict[str, object]) -> list[dict[str, object]]:
         limit = clamp_int(settings.get("result_limit", 25), 25, 10, 100)
         key = str(period["key"])
@@ -1250,34 +1293,70 @@ def make_github_runtime(
             page += 1
         return repos
 
+    def fetch_repo_starred_state(owner: str, name: str) -> bool:
+        response = session.get(
+            f"https://api.github.com/user/starred/{owner}/{name}",
+            timeout=api_timeout,
+            headers={"Accept": "application/vnd.github+json"},
+        )
+        if response.status_code == 204:
+            return True
+        if response.status_code == 404:
+            return False
+        response.raise_for_status()
+        return False
+
     def check_repo_starred(owner: str, name: str) -> bool:
         if not normalize(settings.get("github_token", "")):
             return False
         try:
-            response = session.get(
-                f"https://api.github.com/user/starred/{owner}/{name}",
-                timeout=api_timeout,
-                headers={"Accept": "application/vnd.github+json"},
-            )
-            return response.status_code == 204
+            return fetch_repo_starred_state(owner, name)
         except Exception:
             return False
 
-    def star_repo(owner: str, name: str) -> dict[str, object]:
+    def set_repo_starred(owner: str, name: str, enabled: bool) -> dict[str, object]:
         if not normalize(settings.get("github_token", "")):
             return {"ok": False, "error": "请先在设置中配置 GitHub Token"}
+        owner = normalize(owner)
+        name = normalize(name)
+        if not owner or not name:
+            return {"ok": False, "error": "缺少仓库信息"}
         try:
-            if check_repo_starred(owner, name):
-                return {"ok": False, "already_starred": True, "message": "该仓库已在你的 GitHub 星标中"}
-            response = session.put(
-                f"https://api.github.com/user/starred/{owner}/{name}",
+            starred = fetch_repo_starred_state(owner, name)
+            endpoint = f"https://api.github.com/user/starred/{owner}/{name}"
+            if enabled:
+                if starred:
+                    return {"ok": False, "already_starred": True, "message": "该仓库已在你的 GitHub 星标中"}
+                response = session.put(
+                    endpoint,
+                    timeout=api_timeout,
+                    headers={"Accept": "application/vnd.github+json", "Content-Length": "0"},
+                )
+                response.raise_for_status()
+                return {"ok": True, "message": "已同步到 GitHub 星标 ⭐"}
+            if not starred:
+                return {"ok": False, "already_unstarred": True, "message": "该仓库已经不在你的 GitHub 星标中"}
+            response = session.delete(
+                endpoint,
                 timeout=api_timeout,
-                headers={"Accept": "application/vnd.github+json", "Content-Length": "0"},
+                headers={"Accept": "application/vnd.github+json"},
             )
             response.raise_for_status()
-            return {"ok": True, "message": "已同步到 GitHub 星标 ⭐"}
+            return {"ok": True, "message": "已从 GitHub 取消星标"}
         except Exception as exc:
             return {"ok": False, "error": str(exc)}
+
+
+    def unstar_repo(owner: str, name: str) -> dict[str, object]:
+        return set_repo_starred(owner, name, False)
+
+    def sync_favorite_repo(repo: object, enabled: bool) -> dict[str, object] | None:
+        if not normalize(settings.get("github_token", "")):
+            return None
+        clean = normalize_repo(repo)
+        if not clean:
+            raise ValueError("缺少仓库信息")
+        return set_repo_starred(str(clean.get("owner") or ""), str(clean.get("name") or ""), enabled)
 
     return SimpleNamespace(
         DiscoveryCancelledError=DiscoveryCancelledError,
@@ -1300,6 +1379,10 @@ def make_github_runtime(
         track_favorite_updates=track_favorite_updates,
         clear_favorite_updates=clear_favorite_updates,
         fetch_user_starred=fetch_user_starred,
+        sync_local_favorites_with_starred=sync_local_favorites_with_starred,
+        fetch_repo_starred_state=fetch_repo_starred_state,
         check_repo_starred=check_repo_starred,
-        star_repo=star_repo,
+        set_repo_starred=set_repo_starred,
+        unstar_repo=unstar_repo,
+        sync_favorite_repo=sync_favorite_repo,
     )

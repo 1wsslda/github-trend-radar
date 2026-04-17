@@ -11,9 +11,6 @@ import time
 import webbrowser
 from types import SimpleNamespace
 
-import pystray
-from PIL import Image, ImageDraw
-
 logger = logging.getLogger(__name__)
 
 
@@ -30,7 +27,6 @@ def make_shell_runtime(
     get_browser_process,
     set_browser_process,
     set_browser_hidden,
-    get_close_behavior,
     normalize,
     quote,
 ):
@@ -396,59 +392,21 @@ def make_shell_runtime(
         show_browser_window()
         return True
 
-    def hide_main_window() -> bool:
-        with browser_lock:
-            hidden = hide_browser_window()
-            if hidden:
-                set_browser_hidden(True)
-                write_runtime_state()
-                notify_tray("主窗口已隐藏到系统托盘，图标可能在任务栏右下角的隐藏图标里。")
-            return hidden
-
     def close_main_window() -> None:
         with browser_lock:
             set_browser_process(None)
             set_browser_hidden(False)
         terminate_browser_tree()
 
-    _tray_icon_holder: list = [None]
-
-    def create_tray_image() -> Image.Image:
-        image = Image.new("RGBA", (64, 64), (9, 17, 26, 0))
-        draw = ImageDraw.Draw(image)
-        draw.rounded_rectangle(
-            (6, 6, 58, 58),
-            radius=16,
-            fill=(17, 26, 36, 255),
-            outline=(102, 182, 255, 255),
-            width=3,
-        )
-        draw.polygon(
-            [(20, 20), (34, 20), (28, 30), (40, 30), (24, 46), (30, 34), (18, 34)],
-            fill=(102, 182, 255, 255),
-        )
-        draw.ellipse((42, 12, 50, 20), fill=(63, 185, 80, 255))
-        return image
-
-    def request_app_exit(icon: pystray.Icon | None = None) -> None:
+    def request_app_exit(icon=None) -> None:
         disarm_close_monitor()
         app_exit_event.set()
-        if icon is not None:
-            icon.stop()
 
     def exit_app() -> None:
-        request_app_exit(_tray_icon_holder[0])
-
-    def notify_safe(icon: pystray.Icon, message: str) -> None:
-        try:
-            icon.notify(message, app_name)
-        except Exception:
-            pass
+        request_app_exit()
 
     def notify_tray(message: str) -> None:
-        icon = _tray_icon_holder[0]
-        if icon:
-            notify_safe(icon, message)
+        return None
 
     def close_monitor_loop() -> None:
         nonlocal close_monitor_handled
@@ -469,40 +427,17 @@ def make_shell_runtime(
                 should_handle = True
             if not should_handle:
                 continue
-            if normalize(get_close_behavior()).lower() == "exit":
-                exit_app()
-            else:
-                notify_tray("主窗口已关闭，程序仍在系统托盘中运行，图标可能在任务栏右下角的隐藏图标里。")
-
-    def tray_refresh(icon: pystray.Icon, _item) -> None:
-        if start_refresh_async("tray"):
-            notify_safe(icon, "已开始后台刷新。")
-        else:
-            notify_safe(icon, "后台正在刷新，请稍后。")
+            exit_app()
 
     def run_tray_loop() -> None:
-        def _setup(icon: pystray.Icon) -> None:
-            _tray_icon_holder[0] = icon
-
         threading.Thread(target=close_monitor_loop, daemon=True).start()
-        pystray.Icon(
-            app_slug,
-            create_tray_image(),
-            app_name,
-            menu=pystray.Menu(
-                pystray.MenuItem("打开主窗口", lambda icon, item: open_main_window(), default=True),
-                pystray.MenuItem("隐藏到托盘", lambda icon, item: hide_main_window()),
-                pystray.MenuItem("立即刷新", tray_refresh),
-                pystray.Menu.SEPARATOR,
-                pystray.MenuItem("退出程序", lambda icon, item: request_app_exit(icon)),
-            ),
-        ).run(setup=_setup)
+        while not app_exit_event.wait(0.8):
+            pass
 
     return SimpleNamespace(
         open_chatgpt_target=open_chatgpt_target,
         open_external_url=open_external_url,
         open_main_window=open_main_window,
-        hide_main_window=hide_main_window,
         close_main_window=close_main_window,
         exit_app=exit_app,
         run_tray_loop=run_tray_loop,

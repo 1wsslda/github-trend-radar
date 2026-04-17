@@ -191,7 +191,6 @@ DEFAULT_SETTINGS = {
     'proxy': '',
     'default_sort': 'stars',
     'auto_start': False,
-    'close_behavior': 'tray',
 }
 HAN_RE = re.compile(r'[\u3400-\u9fff]')
 
@@ -509,8 +508,6 @@ def normalize_settings(payload: object) -> dict[str, object]:
     settings['proxy'] = normalize_proxy_url(raw.get('proxy', ''))
     settings['default_sort'] = normalize(raw.get('default_sort', DEFAULT_SETTINGS['default_sort'])) or DEFAULT_SETTINGS['default_sort']
     settings['auto_start'] = as_bool(raw.get('auto_start'), False)
-    close_behavior = normalize(raw.get('close_behavior', DEFAULT_SETTINGS['close_behavior'])).lower()
-    settings['close_behavior'] = close_behavior if close_behavior in {'tray', 'exit'} else DEFAULT_SETTINGS['close_behavior']
     return settings
 
 
@@ -523,7 +520,6 @@ def sanitize_settings(include_sensitive: bool) -> dict[str, object]:
         'result_limit': SETTINGS.get('result_limit', 25),
         'default_sort': SETTINGS.get('default_sort', 'stars'),
         'auto_start': bool(SETTINGS.get('auto_start')),
-        'close_behavior': SETTINGS.get('close_behavior', 'tray'),
         'has_github_token': bool(normalize(SETTINGS.get('github_token', ''))),
         'effective_proxy': ACTIVE_PROXY,
         'proxy_source': ACTIVE_PROXY_SOURCE,
@@ -1334,25 +1330,6 @@ def set_repo_state(state_key: str, enabled: bool, repo: object) -> None:
             USER_STATE.get('favorite_watch', {}).pop(url, None)
         save_user_state()
 
-
-def batch_add_favorites(repos: list[dict[str, object]]) -> tuple[int, int]:
-    added = 0
-    with STATE_LOCK:
-        existing = set(USER_STATE.get('favorites', []))
-        for repo in repos:
-            clean = normalize_repo(repo)
-            if not clean:
-                continue
-            url = clean['url']
-            USER_STATE['repo_records'][url] = clean
-            if url not in existing:
-                USER_STATE['favorites'].insert(0, url)
-                existing.add(url)
-                added += 1
-        save_user_state()
-    return len(repos), added
-
-
 def sync_repo_records(snapshot: dict[str, object]) -> None:
     changed = False
     with STATE_LOCK:
@@ -1580,6 +1557,11 @@ def refresh_once_locked(source: str, status_written: bool = False) -> dict[str, 
         write_status(True, str(CURRENT_SNAPSHOT.get('fetched_at', '')), source, '')
     snapshot = github_runtime.fetch_all()
     save_snapshot(snapshot)
+    if normalize(SETTINGS.get('github_token', '')):
+        try:
+            github_runtime.sync_local_favorites_with_starred(github_runtime.fetch_user_starred())
+        except Exception as exc:
+            logger.warning('同步 GitHub 星标到本地关注失败: %s', exc)
     sync_repo_records(snapshot)
     new_update_count = github_runtime.track_favorite_updates()
     CURRENT_SNAPSHOT = snapshot
@@ -1640,7 +1622,6 @@ shell_runtime = make_shell_runtime(
     get_browser_process=get_browser_process,
     set_browser_process=set_browser_process,
     set_browser_hidden=set_browser_hidden,
-    get_close_behavior=lambda: normalize(SETTINGS.get('close_behavior', 'tray')).lower(),
     normalize=normalize,
     quote=quote,
 )
@@ -1714,8 +1695,6 @@ ServerAppHandler = make_app_handler(
     open_chatgpt_target=shell_runtime.open_chatgpt_target,
     open_external_url=shell_runtime.open_external_url,
     clear_favorite_updates=github_runtime.clear_favorite_updates,
-    run_discovery_search=run_discovery_search,
-    run_saved_discovery_query=run_saved_discovery_query,
     start_discovery_job=start_discovery_job,
     start_saved_discovery_job=start_saved_discovery_job,
     get_discovery_job=get_discovery_job,
@@ -1724,11 +1703,10 @@ ServerAppHandler = make_app_handler(
     clear_discovery_results=clear_discovery_results,
     export_discovery_state=export_discovery_state,
     export_active_discovery_job=export_active_discovery_job,
-    star_repo=github_runtime.star_repo,
+    sync_favorite_repo=github_runtime.sync_favorite_repo,
     fetch_user_starred=github_runtime.fetch_user_starred,
-    batch_add_favorites=batch_add_favorites,
+    sync_local_favorites_with_starred=github_runtime.sync_local_favorites_with_starred,
     open_main_window=shell_runtime.open_main_window,
-    hide_main_window=shell_runtime.hide_main_window,
     exit_app=shell_runtime.exit_app,
 )
 
@@ -1749,7 +1727,7 @@ def main() -> None:
     ensure_runtime_layout()
     if not acquire_single_instance():
         if not request_existing_instance_open():
-            show_message_box('GitSonar 已经在运行。请从系统托盘打开主窗口。')
+            show_message_box('GitSonar 已经在运行。')
         return
     server = None
     logger.info('=' * 40)

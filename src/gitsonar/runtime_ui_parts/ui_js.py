@@ -4,10 +4,13 @@ from __future__ import annotations
 JS = r"""const INITIAL = __PAYLOAD__;
 const DISCOVER_PANEL_KEY = "discover";
 const UPDATE_PANEL_KEY = "favorite-updates";
+const FILTER_PANEL_STORAGE_KEY = "gtr-filter-panel";
 const INTERACTIVE_SELECTOR = "button,a,input,select,label,textarea";
 const SORT_KEYS = new Set(["stars","trending","gained","forks","name","language"]);
 const PRIMARY_SORT_KEYS = ["stars","trending","gained"];
 const STATE_FILTER_KEYS = new Set(["","unmarked","favorites","watch_later","read","ignored"]);
+const PRIMARY_STATE_KEYS = new Set(["favorites","watch_later"]);
+const LEGACY_STATE_PANEL_KEYS = new Set(["favorites","watch_later","read","ignored"]);
 const SORT_LABELS = {
   stars:"总星标",
   trending:"趋势",
@@ -30,14 +33,14 @@ const DISCOVERY_RANKING_LABELS = {
   builder:"偏工程可用",
   trend:"偏趋势",
 };
-const CUSTOM_SELECT_IDS = ["language","discover-ranking-profile","setting-close-behavior"];
+const CUSTOM_SELECT_IDS = ["language","discover-ranking-profile"];
 
 let snapshot = INITIAL.snapshot || {};
 let userState = INITIAL.userState || {};
 let discoveryState = INITIAL.discoveryState || {};
 let settings = INITIAL.settings || {};
 let currentNote = INITIAL.note || "";
-let panel = localStorage.getItem("gtr-tab") || "daily";
+let panel = normalizePanelKey(localStorage.getItem("gtr-tab") || "daily");
 let stateFilter = normalizeStateFilter(localStorage.getItem("gtr-state-filter") || "");
 let sortPrimary = normalizeSortKey(localStorage.getItem("gtr-sort-primary") || settings.default_sort || "stars");
 let aiTargets = normalizeAiTargets(localStorage.getItem("gtr-ai-targets") || localStorage.getItem("gtr-ai-target") || "");
@@ -45,11 +48,14 @@ let comparePrompt = "";
 let selectedUrls = loadSelectedUrls();
 let languageFilter = localStorage.getItem("gtr-language") || "";
 let discoverDraft = loadDiscoverDraft();
+let filterPanelOpen = (localStorage.getItem(FILTER_PANEL_STORAGE_KEY) ?? "true") === "true";
 let pendingImportMode = "merge";
 let discoveryBusy = false;
 let discoveryStartedAt = 0;
 let activeDiscoveryJob = null;
 let discoveryPollToken = 0;
+
+normalizeRuntimePayload();
 
 function normalizeSortKey(value){
   const key = String(value || "").trim();
@@ -84,8 +90,108 @@ function discoveryRankingLabel(value){
   return DISCOVERY_RANKING_LABELS[key] || DISCOVERY_RANKING_LABELS.balanced;
 }
 
-function closeBehaviorLabel(value){
-  return String(value || "").trim() === "exit" ? "关闭主窗口时直接退出程序" : "关闭主窗口时保留托盘运行";
+function normalizePanelKey(value){
+  const key = String(value || "").trim();
+  if(!key) return "daily";
+  if(key === "updates") return UPDATE_PANEL_KEY;
+  if(LEGACY_STATE_PANEL_KEYS.has(key)) return `saved:${key}`;
+  return key;
+}
+
+function normalizeUpdateEntry(payload){
+  const raw = payload && typeof payload === "object" ? payload : {};
+  const repo = raw.repo && typeof raw.repo === "object" ? raw.repo : {};
+  const previous = raw.old_repo_state && typeof raw.old_repo_state === "object" ? raw.old_repo_state : {};
+  const url = String(raw.url || repo.url || "").trim();
+  const fullName = String(raw.full_name || repo.full_name || "").trim();
+  if(!url || !fullName) return null;
+
+  const changes = [];
+  if(Array.isArray(raw.changes)){
+    raw.changes.forEach(item => {
+      const change = String(item || "").trim();
+      if(change) changes.push(change);
+    });
+  }
+  if(!changes.length && Number.isFinite(Number(previous.stars)) && Number(repo.stars || raw.stars || 0) !== Number(previous.stars || 0)){
+    changes.push(`Star ${Number(previous.stars || 0)} → ${Number(repo.stars || raw.stars || 0)}`);
+  }
+  if(!changes.length && Number.isFinite(Number(previous.forks)) && Number(repo.forks || raw.forks || 0) !== Number(previous.forks || 0)){
+    changes.push(`Fork ${Number(previous.forks || 0)} → ${Number(repo.forks || raw.forks || 0)}`);
+  }
+  const summary = String(raw.change_summary || "").trim();
+  if(summary) changes.push(summary);
+  if(!changes.length && String(repo.latest_release_tag || raw.latest_release_tag || "").trim()){
+    changes.push(`新版本 ${String(repo.latest_release_tag || raw.latest_release_tag).trim()}`);
+  }
+  if(!changes.length && String(repo.pushed_at || raw.pushed_at || "").trim()){
+    changes.push("仓库有新的提交活动");
+  }
+  if(!changes.length){
+    changes.push("检测到仓库更新");
+  }
+
+  const checkedAt = String(raw.checked_at || "").trim();
+  const timestamp = Number(raw.timestamp || 0);
+  const fallbackCheckedAt = checkedAt || (timestamp > 0 ? new Date(timestamp * 1000).toLocaleString("zh-CN", {hour12:false}) : "");
+
+  return {
+    id:String(raw.id || `${fullName}:${fallbackCheckedAt || url}`),
+    full_name:fullName,
+    url,
+    checked_at:fallbackCheckedAt,
+    changes,
+    stars:Number(raw.stars || repo.stars || 0) || 0,
+    forks:Number(raw.forks || repo.forks || 0) || 0,
+    latest_release_tag:String(raw.latest_release_tag || repo.latest_release_tag || "").trim(),
+    pushed_at:String(raw.pushed_at || repo.pushed_at || "").trim(),
+  };
+}
+
+function normalizeRuntimePayload(){
+  if(!snapshot || typeof snapshot !== "object") snapshot = {};
+  if(!userState || typeof userState !== "object") userState = {};
+  if(!userState.repo_records || typeof userState.repo_records !== "object") userState.repo_records = {};
+  if(!Array.isArray(userState.favorite_updates)) userState.favorite_updates = [];
+
+  if(Array.isArray(snapshot.periods)){
+    snapshot.periods.forEach(period => {
+      if(!period || typeof period !== "object") return;
+      const key = String(period.key || "").trim();
+      if(!key || Array.isArray(snapshot[key]) || !Array.isArray(period.items)) return;
+      snapshot[key] = period.items;
+    });
+  }
+
+  const normalizedUpdates = [];
+  const seenUpdateIds = new Set();
+  [...(userState.favorite_updates || []), ...(Array.isArray(snapshot.favorite_updates) ? snapshot.favorite_updates : [])].forEach(entry => {
+    const clean = normalizeUpdateEntry(entry);
+    if(!clean || seenUpdateIds.has(clean.id)) return;
+    normalizedUpdates.push(clean);
+    seenUpdateIds.add(clean.id);
+  });
+  userState.favorite_updates = normalizedUpdates;
+}
+
+function periodDefs(){
+  if(Array.isArray(INITIAL.periods) && INITIAL.periods.length) return INITIAL.periods;
+  if(Array.isArray(snapshot.periods) && snapshot.periods.length) return snapshot.periods;
+  return [
+    {key:"daily", label:"今天"},
+    {key:"weekly", label:"本周"},
+    {key:"monthly", label:"本月"},
+  ].filter(period => Array.isArray(snapshot[period.key]));
+}
+
+function stateDefs(){
+  if(Array.isArray(INITIAL.states) && INITIAL.states.length) return INITIAL.states;
+  return [
+    {key:"favorites", label:"关注"},
+    {key:"watch_later", label:"待看"},
+    {key:"read", label:"已读"},
+    {key:"ignored", label:"忽略"},
+  ];
 }
 
 function loadSelectedUrls(){
@@ -214,7 +320,7 @@ function current(key){
 }
 
 function saved(key){
-  return (userState[key] || []).map(url => userState.repo_records?.[url]).filter(Boolean);
+  return (userState[key] || []).map(url => userState.repo_records?.[url] || repoByUrl(url) || synthesizeRepoFromUrl(url)).filter(Boolean);
 }
 
 function discoveryResults(){
@@ -254,15 +360,44 @@ function synthesizeRepoFromUpdate(update){
   };
 }
 
+function synthesizeRepoFromUrl(url){
+  const link = String(url || "").trim();
+  if(!link) return null;
+  try{
+    const parts = new URL(link).pathname.split("/").filter(Boolean);
+    if(parts.length < 2) return null;
+    const [owner, name] = parts;
+    return {
+      full_name:`${owner}/${name}`,
+      owner,
+      name,
+      url:link,
+      description:"当前快照里没有这条仓库记录。",
+      description_raw:"当前快照里没有这条仓库记录。",
+      language:"",
+      stars:0,
+      forks:0,
+      gained:0,
+      gained_text:"",
+      growth_source:"unavailable",
+      rank:0,
+      period_key:"saved",
+      source_label:"本地状态",
+    };
+  }catch(_err){
+    return null;
+  }
+}
+
 function repoByUrl(url){
-  for(const period of INITIAL.periods || []){
+  for(const period of periodDefs()){
     const hit = current(period.key).find(repo => repo.url === url);
     if(hit) return hit;
   }
   const discoveryHit = discoveryResults().find(repo => repo.url === url);
   if(discoveryHit) return discoveryHit;
   if(userState.repo_records?.[url]) return userState.repo_records[url];
-  return synthesizeRepoFromUpdate(updateByUrl(url));
+  return synthesizeRepoFromUpdate(updateByUrl(url)) || synthesizeRepoFromUrl(url);
 }
 
 function panelRepoSource(){
@@ -905,7 +1040,7 @@ function visibleRepos(){
     if(language && (repo.language || "") !== language) return false;
     if(panel === DISCOVER_PANEL_KEY) return true;
     if(stateFilter === "unmarked"){
-      if((INITIAL.states || []).some(state => (userState[state.key] || []).includes(repo.url))) return false;
+      if(stateDefs().some(state => (userState[state.key] || []).includes(repo.url))) return false;
     }else if(stateFilter && !((userState[stateFilter] || []).includes(repo.url))){
       return false;
     }
@@ -942,19 +1077,94 @@ function visibleLinkList(){
 
 function tabsData(){
   return [
-    ...(INITIAL.periods || []).map(period => ({key:period.key, label:period.label, count:current(period.key).length})),
-    {key:DISCOVER_PANEL_KEY, label:"关键词发现", count:discoveryResults().length},
-    ...(INITIAL.states || []).map(state => ({key:`saved:${state.key}`, label:state.label, count:(userState[state.key] || []).length})),
-    {key:UPDATE_PANEL_KEY, label:"收藏更新", count:(userState.favorite_updates || []).length},
+    ...periodDefs().map(period => ({
+      key:period.key,
+      label:period.label,
+      count:current(period.key).length,
+      family:"trend",
+    })),
+    {key:DISCOVER_PANEL_KEY, label:"发现", count:discoveryResults().length, family:"discover"},
+    ...stateDefs().map(state => ({
+      key:`saved:${state.key}`,
+      label:state.label,
+      count:(userState[state.key] || []).length,
+      family:"library",
+    })),
+    {key:UPDATE_PANEL_KEY, label:"更新", count:(userState.favorite_updates || []).length, family:"updates"},
   ];
 }
 
 function ensureValidPanel(){
+  panel = normalizePanelKey(panel);
   const keys = new Set(tabsData().map(tab => tab.key));
   if(!keys.has(panel)){
     panel = "daily";
     localStorage.setItem("gtr-tab", panel);
   }
+}
+
+function panelMeta(key = panel){
+  return tabsData().find(tab => tab.key === key) || null;
+}
+
+function panelFamily(key = panel){
+  return panelMeta(key)?.family || "trend";
+}
+
+function renderTabs(){
+  const tabs = tabsData();
+  const activeFamily = panelFamily();
+  const trendTabs = tabs.filter(tab => tab.family === "trend");
+  const libraryTabs = tabs.filter(tab => tab.family === "library");
+  const discoverTab = tabs.find(tab => tab.family === "discover");
+  const updatesTab = tabs.find(tab => tab.family === "updates");
+  const activeTrend = trendTabs.find(tab => tab.key === panel) || trendTabs[0];
+  const activeLibrary = libraryTabs.find(tab => tab.key === panel) || libraryTabs[0];
+  const libraryCount = libraryTabs.reduce((sum, tab) => sum + (tab.count || 0), 0);
+  const trendMenu = trendTabs.map(tab => `
+    <button class="menu-item ${tab.key === panel ? "active" : ""}" type="button" onclick='setPanel(${JSON.stringify(tab.key)});closeMenus();'>
+      <span>${h(tab.label)}</span>
+      <span class="nav-count">${tab.count}</span>
+    </button>
+  `).join("");
+  const libraryMenu = libraryTabs.map(tab => `
+    <button class="menu-item ${tab.key === panel ? "active" : ""}" type="button" onclick='setPanel(${JSON.stringify(tab.key)});closeMenus();'>
+      <span>${h(tab.label)}</span>
+      <span class="nav-count">${tab.count}</span>
+    </button>
+  `).join("");
+
+  document.getElementById("tabs").innerHTML = `<div class="nav-main">
+    <div class="menu-wrap" data-menu-id="nav-trend-menu">
+      <button class="nav-pill menu-toggle ${activeFamily === "trend" ? "active" : ""}" type="button" aria-haspopup="menu" aria-expanded="false" onclick='toggleMenu(event, "nav-trend-menu")'>
+        趋势
+        ${activeTrend ? `<span class="nav-pill-note">${h(activeTrend.label)}</span><span class="nav-count">${activeTrend.count}</span>` : ""}
+        <span class="menu-caret"></span>
+      </button>
+      <div class="menu-panel align-left nav-menu-panel" id="nav-trend-menu-panel">
+        ${trendMenu}
+      </div>
+    </div>
+    <button class="nav-pill ${panel === DISCOVER_PANEL_KEY ? "active" : ""}" type="button" onclick='setPanel(${JSON.stringify(DISCOVER_PANEL_KEY)})'>
+      发现
+      ${discoverTab ? `<span class="nav-count">${discoverTab.count}</span>` : ""}
+    </button>
+    <div class="menu-wrap" data-menu-id="nav-library-menu">
+      <button class="nav-pill menu-toggle ${activeFamily === "library" ? "active" : ""}" type="button" aria-haspopup="menu" aria-expanded="false" onclick='toggleMenu(event, "nav-library-menu")'>
+        我的库
+        ${activeLibrary ? `<span class="nav-pill-note">${h(activeLibrary.label)}</span>` : ""}
+        <span class="nav-count">${libraryCount}</span>
+        <span class="menu-caret"></span>
+      </button>
+      <div class="menu-panel align-left nav-menu-panel" id="nav-library-menu-panel">
+        ${libraryMenu}
+      </div>
+    </div>
+    <button class="nav-pill ${panel === UPDATE_PANEL_KEY ? "active" : ""}" type="button" onclick='setPanel(${JSON.stringify(UPDATE_PANEL_KEY)})'>
+      更新
+      ${updatesTab ? `<span class="nav-count">${updatesTab.count}</span>` : ""}
+    </button>
+  </div>`;
 }
 
 function menuRoot(id){
@@ -1110,6 +1320,31 @@ function syncAiTargetUI(){
   });
 }
 
+function syncFilterPanel(){
+  const filterPanel = document.getElementById("filter-panel");
+  const filterToggle = document.getElementById("filter-toggle");
+  const canUseFilters = panel !== UPDATE_PANEL_KEY && panel !== DISCOVER_PANEL_KEY;
+  const isOpen = canUseFilters && filterPanelOpen;
+
+  if(filterPanel){
+    filterPanel.hidden = !canUseFilters;
+    filterPanel.classList.toggle("is-open", isOpen);
+  }
+  if(filterToggle){
+    filterToggle.hidden = !canUseFilters;
+    filterToggle.disabled = !canUseFilters;
+    filterToggle.classList.toggle("active", isOpen);
+    filterToggle.setAttribute("aria-expanded", isOpen ? "true" : "false");
+  }
+}
+
+function toggleFilterPanel(force){
+  if(panel === UPDATE_PANEL_KEY || panel === DISCOVER_PANEL_KEY) return;
+  filterPanelOpen = typeof force === "boolean" ? force : !filterPanelOpen;
+  localStorage.setItem(FILTER_PANEL_STORAGE_KEY, filterPanelOpen ? "true" : "false");
+  syncFilterPanel();
+}
+
 function syncControlStates(){
   const isUpdatePanel = panel === UPDATE_PANEL_KEY;
   const isDiscoverPanel = panel === DISCOVER_PANEL_KEY;
@@ -1124,7 +1359,8 @@ function syncControlStates(){
   stateFilterGroup.classList.toggle("is-disabled", disableListControls);
   document.getElementById("sort-primary-group").classList.toggle("is-disabled", disableListControls);
   document.getElementById("clear-updates-menu-item").hidden = !isUpdatePanel || !(userState.favorite_updates || []).length;
-  document.getElementById("discover-shell").hidden = !isDiscoverPanel;
+  document.getElementById("discover-module").hidden = !isDiscoverPanel;
+  syncFilterPanel();
   syncCustomSelect("language");
 }
 
@@ -1138,20 +1374,61 @@ function repoInState(stateKey, url){
   return !!((userState[stateKey] || []).includes(url));
 }
 
+function stableMenuId(prefix, value){
+  const normalized = String(value || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(-48);
+  return `${prefix}-${normalized || "item"}`;
+}
+
 function metricPillMarkup(label, value){
   return `<span class="meta-pill"><strong>${h(label)}</strong><span>${value}</span></span>`;
 }
 
 function repoStateActionsMarkup(repo){
-  return (INITIAL.states || []).map(state => {
+  if(!repo || !repo.url) return "";
+  const primaryActions = stateDefs().filter(state => PRIMARY_STATE_KEYS.has(state.key)).map(state => {
     const active = repoInState(state.key, repo.url);
     return `<button class="state-chip ${active ? "active" : ""}" type="button" aria-pressed="${active ? "true" : "false"}" onclick='toggleState(${JSON.stringify(state.key)}, ${JSON.stringify(repo.url)})'>${h(state.label)}</button>`;
   }).join("");
+  const secondaryActions = stateDefs().filter(state => !PRIMARY_STATE_KEYS.has(state.key));
+  if(!secondaryActions.length) return primaryActions;
+  const menuId = stableMenuId("repo-state", repo.url || repo.full_name);
+  const secondaryMarkup = secondaryActions.map(state => {
+    const active = repoInState(state.key, repo.url);
+    return `<button class="menu-item${active ? " active" : ""}" type="button" onclick='toggleState(${JSON.stringify(state.key)}, ${JSON.stringify(repo.url)});closeMenus();'>${h(state.label)}</button>`;
+  }).join("");
+  return `${primaryActions}
+    <div class="menu-wrap" data-menu-id="${h(menuId)}">
+      <button class="action-quiet compact menu-toggle state-more-toggle" type="button" aria-haspopup="menu" aria-expanded="false" onclick='toggleMenu(event, ${JSON.stringify(menuId)})'>更多<span class="menu-caret"></span></button>
+      <div class="menu-panel align-left" id="${h(menuId)}-panel">
+        ${secondaryMarkup}
+      </div>
+    </div>`;
+}
+
+function cardsByUrl(url){
+  const matches = [];
+  document.querySelectorAll("[data-select-url]").forEach(card => {
+    if(card.getAttribute("data-select-url") === url) matches.push(card);
+  });
+  return matches;
+}
+
+function syncStateActionsForUrl(url){
+  const repo = repoByUrl(url) || synthesizeRepoFromUpdate(updateByUrl(url));
+  if(!repo) return;
+  cardsByUrl(url).forEach(card => {
+    const actions = card.querySelector(".card-state-actions");
+    if(actions) actions.innerHTML = repoStateActionsMarkup(repo);
+  });
 }
 
 function descBlockMarkup(text, muted = false){
   const safe = h(text || "暂无描述");
-  return `<div class="desc-wrap"><div class="desc${muted ? " muted" : ""}">${safe}</div><div class="desc-popover">${safe}</div></div>`;
+  return `<div class="desc-wrap"><div class="desc${muted ? " muted" : ""}">${safe}</div></div>`;
 }
 
 function refreshSelectionSummary(){
@@ -1223,8 +1500,11 @@ function renderRepoCards(repos, isChunk = false){
     return `<article class="card selectable ${selected ? "selected" : ""}" data-select-url="${h(repo.url)}" tabindex="0">
       <div class="card-head">
         <div class="card-title-wrap">
-          <div class="badges">
-            ${badgeMarkup}
+          <div class="card-meta-row">
+            <div class="badges">
+              ${badgeMarkup}
+            </div>
+            <div class="card-metrics">${metricMarkup}</div>
           </div>
           <div class="card-topline">
             <a class="title" href="${h(repo.url)}" target="_blank" rel="noopener" data-external-url="${h(repo.url)}">${h(repo.full_name)}</a>
@@ -1236,7 +1516,6 @@ function renderRepoCards(repos, isChunk = false){
         ${descBlockMarkup(descriptionText)}
         ${reasonMarkup}
         <div class="card-footer">
-          <div class="card-metrics">${metricMarkup}</div>
           <div class="card-state-row">
             <div class="card-state-actions">${repoStateActionsMarkup(repo)}</div>
             <div class="card-utility-actions">
@@ -1267,10 +1546,13 @@ function renderUpdateCards(items, isChunk = false){
     return `<article class="update-card selectable ${selected ? "selected" : ""}" data-select-url="${h(update.url)}" tabindex="0">
       <div class="card-head">
         <div class="card-title-wrap">
-          <div class="badges">
-            ${selected ? selectedBadgeMarkup(selectedIdx) : ""}
-            <span class="badge source">收藏更新</span>
-            ${update.latest_release_tag ? `<span class="badge source">${h(update.latest_release_tag)}</span>` : ""}
+          <div class="card-meta-row">
+            <div class="badges">
+              ${selected ? selectedBadgeMarkup(selectedIdx) : ""}
+              <span class="badge source">收藏更新</span>
+              ${update.latest_release_tag ? `<span class="badge source">${h(update.latest_release_tag)}</span>` : ""}
+            </div>
+            <div class="card-metrics">${metricMarkup}</div>
           </div>
           <div class="card-topline">
             <a class="title" href="${h(update.url)}" target="_blank" rel="noopener" data-external-url="${h(update.url)}">${h(update.full_name)}</a>
@@ -1282,7 +1564,6 @@ function renderUpdateCards(items, isChunk = false){
         ${changeBadges ? `<div class="badges">${changeBadges}</div>` : ""}
         ${descBlockMarkup(summary)}
         <div class="card-footer">
-          <div class="card-metrics">${metricMarkup}</div>
           <div class="card-state-row">
             <div class="card-state-actions">${repoStateActionsMarkup(repo)}</div>
             <div class="card-utility-actions">
@@ -1296,59 +1577,31 @@ function renderUpdateCards(items, isChunk = false){
   }).join("");
 }
 
-function render(){
-  cleanupSelected();
-  ensureValidPanel();
+function refreshVisibleCards(){
   const isUpdatePanel = panel === UPDATE_PANEL_KEY;
-  const isDiscoverPanel = panel === DISCOVER_PANEL_KEY;
-  document.getElementById("note").textContent = currentNote || "已显示最新数据";
+  const data = isUpdatePanel ? visibleUpdates() : visibleRepos();
+  const renderFn = isUpdatePanel ? renderUpdateCards : renderRepoCards;
 
-  const languages = [...new Set(panelRepoSource().map(repo => repo.language).filter(Boolean))]
-    .sort((a, b) => String(a).localeCompare(String(b), "zh-Hans-CN"));
-  const languageNode = document.getElementById("language");
-  languageNode.innerHTML = '<option value="">全部语言</option>' + languages.map(language => `<option value="${h(language)}">${h(language)}</option>`).join("");
-  languageNode.value = languages.includes(languageFilter) ? languageFilter : "";
-  languageFilter = languageNode.value;
+  window.__lazyData = data;
+  window.__lazyRenderFn = renderFn;
+  window.__lazyIndex = 30;
 
-  
-  const _tabs = tabsData();
-  const periods = _tabs.slice(0, 3);
-  const discover = _tabs.find(t => t.key === DISCOVER_PANEL_KEY);
-  const states = _tabs.filter(t => t.key.startsWith('saved:'));
-  const updatesTab = _tabs.find(t => t.key === UPDATE_PANEL_KEY);
-
-  const renderGroup = (title, items) => {
-    const validItems = items.filter(Boolean);
-    if(!validItems.length) return "";
-    return `<div class="tab-group"><div class="tab-group-title">${h(title)}</div><div class="tab-group-row">` + validItems.map(tab => `<button class="tab ${tab.key === panel ? "active" : ""}" type="button" onclick='setPanel(${JSON.stringify(tab.key)})'>${h(tab.label)} <span class="tab-count">${tab.count}</span></button>`).join("") + `</div></div>`;
-  };
-  
-  document.getElementById("tabs").innerHTML = `<div class="tab-groups">` + renderGroup("发现", [...periods, discover]) + renderGroup("整理", states) + renderGroup("跟踪", [updatesTab]) + `</div>`;
-
-
-  const repos = visibleRepos();
-  const updates = visibleUpdates();
-  
-  window.__lazyData = isUpdatePanel ? updates : repos;
-  window.__lazyRenderFn = isUpdatePanel ? renderUpdateCards : renderRepoCards;
-  window.__lazyIndex = 30; // Chunk size
-  
   const container = document.getElementById("cards");
-  container.innerHTML = window.__lazyRenderFn(window.__lazyData.slice(0, window.__lazyIndex));
+  container.innerHTML = renderFn(data.slice(0, window.__lazyIndex));
   if(window.__lazyObserver){
     window.__lazyObserver.disconnect();
   }
-  
-  if (window.__lazyData.length > window.__lazyIndex) {
+
+  if(window.__lazyData.length > window.__lazyIndex){
     container.insertAdjacentHTML("beforeend", '<div id="lazy-sentinel" style="height:40px;"></div>');
     window.__lazyObserver = new IntersectionObserver((entries) => {
       if(entries[0].isIntersecting) {
         const sentinel = document.getElementById("lazy-sentinel");
         if(sentinel) sentinel.remove();
-        
+
         const nextChunk = window.__lazyData.slice(window.__lazyIndex, window.__lazyIndex + 30);
         window.__lazyIndex += 30;
-        
+
         if(nextChunk.length) {
           container.insertAdjacentHTML("beforeend", window.__lazyRenderFn(nextChunk, true));
         }
@@ -1361,6 +1614,31 @@ function render(){
     }, { rootMargin: "200px" });
     window.__lazyObserver.observe(document.getElementById("lazy-sentinel"));
   }
+}
+
+function render(){
+  cleanupSelected();
+  ensureValidPanel();
+  const isUpdatePanel = panel === UPDATE_PANEL_KEY;
+  const isDiscoverPanel = panel === DISCOVER_PANEL_KEY;
+  document.getElementById("note").textContent = currentNote || "已显示最新数据";
+
+  const languageSource = (!isUpdatePanel && !isDiscoverPanel) ? panelRepoSource() : [];
+  const languages = [...new Set(languageSource.map(repo => repo.language).filter(Boolean))]
+    .sort((a, b) => String(a).localeCompare(String(b), "zh-Hans-CN"));
+  const languageNode = document.getElementById("language");
+  languageNode.innerHTML = '<option value="">全部语言</option>' + languages.map(language => `<option value="${h(language)}">${h(language)}</option>`).join("");
+  languageNode.value = languages.includes(languageFilter) ? languageFilter : "";
+  languageFilter = languageNode.value;
+  renderTabs();
+
+  const repos = visibleRepos();
+  const updates = visibleUpdates();
+
+  window.__lazyData = isUpdatePanel ? updates : repos;
+  window.__lazyRenderFn = isUpdatePanel ? renderUpdateCards : renderRepoCards;
+  window.__lazyIndex = 30;
+  refreshVisibleCards();
 
   syncStateFilterUI();
   syncSortUI();
@@ -1373,7 +1651,7 @@ function render(){
 }
 
 function setPanel(nextPanel){
-  panel = String(nextPanel || "daily");
+  panel = normalizePanelKey(nextPanel || "daily");
   localStorage.setItem("gtr-tab", panel);
   closeMenus();
   render();
@@ -1564,6 +1842,7 @@ async function toggleState(key, url){
   const requestKey = `${key}::${url}`;
   if(pendingStateRequests.has(requestKey)) return;
   pendingStateRequests.add(requestKey);
+  const wasVisible = visibleLinkList().includes(url);
   const enabling = !((userState[key] || []).includes(url));
   try{
     const {resp, data} = await requestJson(
@@ -1573,31 +1852,25 @@ async function toggleState(key, url){
         headers:{"Content-Type":"application/json"},
         body:JSON.stringify({state:key, enabled:enabling, repo}),
       },
-      "更新状态失败",
+      "Update failed",
     );
     if(!resp.ok || !data.ok){
-      toast(data.error || "更新状态失败");
+      toast(data.error || "Update failed");
       return;
     }
     userState = data.user_state;
-    render();
-    if(key === "favorites" && enabling && repo.owner && repo.name){
-      try{
-        const {data: sd} = await requestJson(
-          "/api/star",
-          {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({owner:repo.owner, name:repo.name})},
-          "同步 GitHub 星标失败",
-        );
-        if(sd.already_starred){
-          toast(sd.message || "该仓库已在你的 GitHub 星标中");
-        } else if(sd.ok){
-          toast(sd.message || "已同步到 GitHub 星标 ⭐");
-        } else if(sd.error){
-          toast(sd.error);
-        }
-      }catch(_err){
-        // GitHub 星标同步失败不影响本地收藏状态
-      }
+    const isStillVisible = visibleLinkList().includes(url);
+    renderTabs();
+    if(wasVisible !== isStillVisible){
+      cleanupSelected();
+      refreshVisibleCards();
+    }else{
+      syncStateActionsForUrl(url);
+    }
+    refreshSelectionSummary();
+    const githubStarSync = data.github_star_sync;
+    if(key === "favorites" && githubStarSync?.message){
+      toast(githubStarSync.message);
     }
   } finally {
     pendingStateRequests.delete(requestKey);
@@ -1628,7 +1901,7 @@ async function batchSetState(stateKey){
     if(data.user_state) lastState = data.user_state;
   }
   if(lastState) userState = lastState;
-  const label = (INITIAL.states || []).find(state => state.key === stateKey)?.label || stateKey;
+  const label = stateDefs().find(state => state.key === stateKey)?.label || stateKey;
   render();
   toast(`已将 ${repos.length} 个仓库加入“${label}”`);
 }
@@ -1706,17 +1979,7 @@ function poll(){
 }
 
 async function hideToTray(){
-  try{
-    const {resp, data} = await requestJson("/api/window/hide", {method:"POST"}, "隐藏到托盘失败");
-    if(!resp.ok || !data.ok){
-      toast(data.error || data.message || "隐藏到托盘失败");
-      return;
-    }
-    toast(data.message || "已隐藏到系统托盘");
-    setTimeout(() => window.close(), 150);
-  }catch(error){
-    toast(error.message || "隐藏到托盘失败");
-  }
+  toast("当前版本已禁用系统托盘");
 }
 
 async function exitApp(){
@@ -1744,10 +2007,8 @@ async function openSettings(){
   document.getElementById("setting-refresh-hours").value = settings.refresh_hours || 1;
   document.getElementById("setting-result-limit").value = settings.result_limit || 25;
   document.getElementById("setting-port").value = settings.port || 8080;
-  document.getElementById("setting-close-behavior").value = settings.close_behavior || "tray";
   document.getElementById("setting-auto-start").checked = !!settings.auto_start;
-  document.getElementById("settings-runtime-hint").textContent = `当前生效端口 ${settings.effective_port || settings.port || 8080} · 当前代理 ${settings.effective_proxy || "未启用"} · 当前关闭行为 ${closeBehaviorLabel(settings.close_behavior)} · 程序不提供 VPN${settings.restart_required ? " · 修改端口后需重启生效" : ""}`;
-  syncCustomSelect("setting-close-behavior");
+  document.getElementById("settings-runtime-hint").textContent = `当前生效端口 ${settings.effective_port || settings.port || 8080} · 当前代理 ${settings.effective_proxy || "未启用"} · 关闭主窗口时会直接退出程序 · 程序不提供 VPN${settings.restart_required ? " · 修改端口后需重启生效" : ""}`;
   setOverlayVisible("settings-modal", true);
 }
 
@@ -1762,7 +2023,6 @@ async function saveSettings(){
     refresh_hours:Number(document.getElementById("setting-refresh-hours").value || 1),
     result_limit:Number(document.getElementById("setting-result-limit").value || 25),
     port:Number(document.getElementById("setting-port").value || 8080),
-    close_behavior:document.getElementById("setting-close-behavior").value,
     auto_start:document.getElementById("setting-auto-start").checked,
     default_sort:sortPrimary,
   };

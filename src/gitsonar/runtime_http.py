@@ -33,8 +33,6 @@ def make_app_handler(
     open_chatgpt_target,
     open_external_url,
     clear_favorite_updates,
-    run_discovery_search,
-    run_saved_discovery_query,
     start_discovery_job,
     start_saved_discovery_job,
     get_discovery_job,
@@ -44,11 +42,10 @@ def make_app_handler(
     export_discovery_state,
     export_active_discovery_job,
     open_main_window,
-    hide_main_window,
     exit_app,
-    star_repo,
+    sync_favorite_repo,
     fetch_user_starred,
-    batch_add_favorites,
+    sync_local_favorites_with_starred,
 ):
     class AppHandler(SimpleHTTPRequestHandler):
         def __init__(self, *args, **kwargs):
@@ -66,7 +63,7 @@ def make_app_handler(
         def require_loopback(self) -> bool:
             if self.is_loopback_request():
                 return True
-            self.send_json({"ok": False, "error": "该操作仅允许本机访问。"}, 403)
+            self.send_json({"ok": False, "error": "This action is only available from localhost."}, 403)
             return False
 
         def end_headers(self):
@@ -88,7 +85,7 @@ def make_app_handler(
             try:
                 length = max(0, int(raw_length))
             except (TypeError, ValueError):
-                logger.warning("收到无效 Content-Length: %r，按 0 处理", raw_length)
+                logger.warning("Invalid Content-Length received: %r; treating as 0", raw_length)
                 length = 0
             raw_body = self.rfile.read(length).decode("utf-8") if length else "{}"
             if not raw_body.strip():
@@ -96,9 +93,9 @@ def make_app_handler(
             try:
                 payload = json.loads(raw_body)
             except json.JSONDecodeError as exc:
-                raise ValueError(f"请求体不是有效的 JSON: {exc.msg}") from exc
+                raise ValueError(f"Request body is not valid JSON: {exc.msg}") from exc
             if not isinstance(payload, dict):
-                raise ValueError("请求体必须是 JSON 对象")
+                raise ValueError("Request body must be a JSON object")
             return payload
 
         def do_GET(self):
@@ -121,11 +118,13 @@ def make_app_handler(
                 return self.send_json({"ok": True, "details": details})
 
             if parsed.path == "/api/discovery":
-                return self.send_json({
-                    "ok": True,
-                    "discovery_state": export_discovery_state(),
-                    "active_job": export_active_discovery_job(),
-                })
+                return self.send_json(
+                    {
+                        "ok": True,
+                        "discovery_state": export_discovery_state(),
+                        "active_job": export_active_discovery_job(),
+                    }
+                )
 
             if parsed.path == "/api/discovery/job":
                 params = parse_qs(parsed.query)
@@ -137,7 +136,7 @@ def make_app_handler(
 
             if parsed.path == "/api/export":
                 if not self.is_loopback_request():
-                    return self.send_json({"ok": False, "error": "该操作仅允许本机访问。"}, 403)
+                    return self.send_json({"ok": False, "error": "This action is only available from localhost."}, 403)
                 try:
                     body = json.dumps(export_user_state(), ensure_ascii=False, indent=2).encode("utf-8")
                 except Exception as exc:
@@ -154,7 +153,7 @@ def make_app_handler(
                 self.path = "/trending.html"
                 return super().do_GET()
 
-            return self.send_json({"ok": False, "error": "未知接口。"}, 404)
+            return self.send_json({"ok": False, "error": "Unknown endpoint."}, 404)
 
         def do_POST(self):
             parsed = urlparse(self.path)
@@ -164,25 +163,34 @@ def make_app_handler(
             if parsed.path == "/api/state":
                 try:
                     payload = self.read_json()
-                    set_repo_state(
-                        normalize(payload.get("state")),
-                        as_bool(payload.get("enabled"), True),
-                        payload.get("repo"),
-                    )
+                    state_key = normalize(payload.get("state"))
+                    enabled = as_bool(payload.get("enabled"), True)
+                    github_star_sync = None
+                    if state_key == "favorites":
+                        github_star_sync = sync_favorite_repo(payload.get("repo"), enabled)
+                        if github_star_sync and not (
+                            github_star_sync.get("ok")
+                            or github_star_sync.get("already_starred")
+                            or github_star_sync.get("already_unstarred")
+                        ):
+                            return self.send_json(github_star_sync, 400)
+                    set_repo_state(state_key, enabled, payload.get("repo"))
                 except Exception as exc:
                     return self.send_json({"ok": False, "error": str(exc)}, 400)
-                return self.send_json({"ok": True, "user_state": export_user_state()})
+                return self.send_json(
+                    {
+                        "ok": True,
+                        "user_state": export_user_state(),
+                        "github_star_sync": github_star_sync,
+                    }
+                )
 
             if parsed.path == "/api/import":
                 try:
                     result = import_user_state(self.read_json())
                 except Exception as exc:
                     return self.send_json({"ok": False, "error": str(exc)}, 400)
-                return self.send_json({
-                    "ok": True,
-                    "message": "用户状态已导入",
-                    **result,
-                })
+                return self.send_json({"ok": True, "message": "User state imported.", **result})
 
             if parsed.path == "/api/settings":
                 try:
@@ -198,25 +206,27 @@ def make_app_handler(
                 try:
                     update_auto_start(bool(settings.get("auto_start")))
                 except Exception as exc:
-                    logger.warning("更新开机启动项失败（设置已保存）: %s", exc)
+                    logger.warning("Failed to update auto-start entry after saving settings: %s", exc)
 
                 restart_required = bool(
                     clamp_int(settings.get("port", 8080), 8080, 1, 65535) != current_port()
                 )
                 if restart_required:
-                    message = f"设置已保存，端口会在重启应用后切换到 {settings.get('port', 8080)}。"
+                    message = f"Settings saved. Port will switch to {settings.get('port', 8080)} after restart."
                 else:
-                    message = "设置已保存。"
-                return self.send_json({
-                    "ok": True,
-                    "message": message,
-                    "settings": sanitize_settings(True),
-                })
+                    message = "Settings saved."
+                return self.send_json(
+                    {
+                        "ok": True,
+                        "message": message,
+                        "settings": sanitize_settings(True),
+                    }
+                )
 
             if parsed.path == "/api/refresh":
                 if start_refresh_async("manual"):
-                    return self.send_json({"ok": True, "message": "已开始后台刷新。"})
-                return self.send_json({"ok": False, "error": "后台正在刷新，请稍后。"}, 409)
+                    return self.send_json({"ok": True, "message": "Background refresh started."})
+                return self.send_json({"ok": False, "error": "Refresh already in progress."}, 409)
 
             if parsed.path == "/api/chatgpt/open":
                 try:
@@ -231,7 +241,7 @@ def make_app_handler(
                     payload = self.read_json()
                     url = normalize(payload.get("url"))
                     if not url:
-                        raise ValueError("缺少链接地址。")
+                        raise ValueError("Missing URL.")
                     opened = open_external_url(url)
                 except Exception as exc:
                     return self.send_json({"ok": False, "error": str(exc)}, 400)
@@ -239,11 +249,13 @@ def make_app_handler(
 
             if parsed.path == "/api/favorite-updates/clear":
                 clear_favorite_updates()
-                return self.send_json({
-                    "ok": True,
-                    "message": "已清空收藏更新记录。",
-                    "user_state": export_user_state(),
-                })
+                return self.send_json(
+                    {
+                        "ok": True,
+                        "message": "Favorite updates cleared.",
+                        "user_state": export_user_state(),
+                    }
+                )
 
             if parsed.path == "/api/discover":
                 try:
@@ -251,11 +263,7 @@ def make_app_handler(
                     job = start_discovery_job(payload)
                 except Exception as exc:
                     return self.send_json({"ok": False, "error": str(exc)}, 400)
-                return self.send_json({
-                    "ok": True,
-                    "message": "关键词发现任务已开始",
-                    "job": job,
-                })
+                return self.send_json({"ok": True, "message": "Discovery job started.", "job": job})
 
             if parsed.path == "/api/discovery/run-saved":
                 try:
@@ -263,11 +271,7 @@ def make_app_handler(
                     job = start_saved_discovery_job(normalize(payload.get("id")))
                 except Exception as exc:
                     return self.send_json({"ok": False, "error": str(exc)}, 400)
-                return self.send_json({
-                    "ok": True,
-                    "message": "已开始重新运行保存的搜索",
-                    "job": job,
-                })
+                return self.send_json({"ok": True, "message": "Saved discovery rerun started.", "job": job})
 
             if parsed.path == "/api/discovery/cancel":
                 try:
@@ -275,11 +279,7 @@ def make_app_handler(
                     job = cancel_discovery_job(normalize(payload.get("id")))
                 except Exception as exc:
                     return self.send_json({"ok": False, "error": str(exc)}, 400)
-                return self.send_json({
-                    "ok": True,
-                    "message": "已发送取消请求",
-                    "job": job,
-                })
+                return self.send_json({"ok": True, "message": "Cancellation requested.", "job": job})
 
             if parsed.path == "/api/discovery/delete":
                 try:
@@ -287,68 +287,52 @@ def make_app_handler(
                     discovery_state = delete_saved_discovery_query(normalize(payload.get("id")))
                 except Exception as exc:
                     return self.send_json({"ok": False, "error": str(exc)}, 400)
-                return self.send_json({
-                    "ok": True,
-                    "message": "已删除保存的搜索",
-                    "discovery_state": discovery_state,
-                })
+                return self.send_json(
+                    {
+                        "ok": True,
+                        "message": "Saved discovery deleted.",
+                        "discovery_state": discovery_state,
+                    }
+                )
 
             if parsed.path == "/api/discovery/clear":
                 discovery_state = clear_discovery_results()
-                return self.send_json({
-                    "ok": True,
-                    "message": "已清空本次关键词发现结果",
-                    "discovery_state": discovery_state,
-                })
+                return self.send_json(
+                    {
+                        "ok": True,
+                        "message": "Discovery results cleared.",
+                        "discovery_state": discovery_state,
+                    }
+                )
 
             if parsed.path == "/api/window/open":
                 return self.send_json({"ok": True, "opened": open_main_window()})
 
-            if parsed.path == "/api/window/hide":
-                hidden = hide_main_window()
-                return self.send_json({
-                    "ok": hidden,
-                    "message": "已隐藏到系统托盘。" if hidden else "当前窗口无法隐藏。",
-                })
-
             if parsed.path == "/api/window/exit":
                 exit_app()
-                return self.send_json({
-                    "ok": True,
-                    "message": "正在退出程序。",
-                })
+                return self.send_json({"ok": True, "message": "Application exit requested."})
 
             if parsed.path == "/api/sync-stars":
                 try:
                     starred = fetch_user_starred()
-                    total, added = batch_add_favorites(starred)
+                    summary = sync_local_favorites_with_starred(starred)
+                    total = int(summary.get("total") or 0)
+                    added = int(summary.get("added") or 0)
+                    removed = int(summary.get("removed") or 0)
                 except Exception as exc:
                     return self.send_json({"ok": False, "error": str(exc)}, 400)
-                skipped = total - added
-                msg = f"同步完成：共 {total} 个星标仓库，新增 {added} 个"
-                if skipped:
-                    msg += f"（{skipped} 个已在收藏中）"
-                return self.send_json({
-                    "ok": True,
-                    "total": total,
-                    "added": added,
-                    "message": msg,
-                    "user_state": export_user_state(),
-                })
+                message = f"GitHub stars synced: total {total}, added {added}, removed {removed}."
+                return self.send_json(
+                    {
+                        "ok": True,
+                        "total": total,
+                        "added": added,
+                        "removed": removed,
+                        "message": message,
+                        "user_state": export_user_state(),
+                    }
+                )
 
-            if parsed.path == "/api/star":
-                try:
-                    payload = self.read_json()
-                    owner = normalize(payload.get("owner", ""))
-                    name = normalize(payload.get("name", ""))
-                    if not owner or not name:
-                        raise ValueError("缺少仓库信息")
-                    result = star_repo(owner, name)
-                except Exception as exc:
-                    return self.send_json({"ok": False, "error": str(exc)}, 400)
-                status = 200 if (result.get("ok") or result.get("already_starred")) else 400
-                return self.send_json(result, status)
-
-            return self.send_json({"ok": False, "error": "未知接口。"}, 404)
+            return self.send_json({"ok": False, "error": "Unknown endpoint."}, 404)
 
     return AppHandler
