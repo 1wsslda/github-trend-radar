@@ -1,6 +1,0 @@
-#!/usr/bin/env python3
-from __future__ import annotations
-
-from .runtime_ui_parts import build_html
-
-__all__ = ["build_html"]

@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+"""HTTP request handler factory for the local runtime server."""
+
 import json
 import logging
 from http.server import SimpleHTTPRequestHandler
@@ -46,7 +48,9 @@ def make_app_handler(
     sync_favorite_repo,
     fetch_user_starred,
     sync_local_favorites_with_starred,
+    validate_github_token,
 ):
+    # Keep the handler thin: request parsing lives here, business logic is injected.
     class AppHandler(SimpleHTTPRequestHandler):
         def __init__(self, *args, **kwargs):
             super().__init__(*args, directory=runtime_root, **kwargs)
@@ -222,6 +226,14 @@ def make_app_handler(
                         "settings": sanitize_settings(True),
                     }
                 )
+
+            if parsed.path == "/api/settings/token-status":
+                try:
+                    payload = self.read_json()
+                    status = validate_github_token(payload.get("github_token", ""))
+                except Exception as exc:
+                    return self.send_json({"ok": False, "error": str(exc)}, 400)
+                return self.send_json({"ok": True, "status": status})
 
             if parsed.path == "/api/refresh":
                 if start_refresh_async("manual"):

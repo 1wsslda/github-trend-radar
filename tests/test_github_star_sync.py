@@ -13,19 +13,20 @@ if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
 from gitsonar.runtime_github import make_github_runtime
-from gitsonar.runtime_utils import clamp_int, extract_count, iso_now, normalize, parse_iso_timestamp, strip_markdown
+from gitsonar.runtime.utils import clamp_int, extract_count, iso_now, normalize, parse_iso_timestamp, strip_markdown
 
 
 class _StubResponse:
-    def __init__(self, status_code: int):
+    def __init__(self, status_code: int, payload: object | None = None):
         self.status_code = status_code
+        self._payload = {} if payload is None else payload
 
     def raise_for_status(self):
         if self.status_code >= 400:
             raise RuntimeError(f"HTTP {self.status_code}")
 
     def json(self):
-        return {}
+        return self._payload
 
 
 class _ScriptedSession:
@@ -245,6 +246,52 @@ class GitHubStarSyncTests(unittest.TestCase):
 
         self.assertIsNone(result)
         self.assertEqual(session.calls, [])
+
+    def test_validate_github_token_reports_empty_invalid_insufficient_and_success_states(self):
+        empty_runtime = build_runtime(_ScriptedSession(), token="")
+        self.assertEqual(empty_runtime.validate_github_token()["state"], "empty")
+
+        invalid_session = _ScriptedSession({"GET": [_StubResponse(401)]})
+        invalid_runtime = build_runtime(invalid_session)
+        invalid = invalid_runtime.validate_github_token("bad-token")
+        self.assertEqual(invalid["state"], "invalid")
+        self.assertEqual(invalid_session.calls, [("GET", "https://api.github.com/user")])
+
+        insufficient_session = _ScriptedSession(
+            {
+                "GET": [
+                    _StubResponse(200, {"login": "octo"}),
+                    _StubResponse(403),
+                ]
+            }
+        )
+        insufficient_runtime = build_runtime(insufficient_session)
+        insufficient = insufficient_runtime.validate_github_token("limited-token")
+        self.assertEqual(insufficient["state"], "insufficient")
+        self.assertEqual(insufficient["login"], "octo")
+        self.assertEqual(
+            insufficient_session.calls,
+            [
+                ("GET", "https://api.github.com/user"),
+                ("GET", "https://api.github.com/user/starred"),
+            ],
+        )
+
+        success_session = _ScriptedSession(
+            {
+                "GET": [
+                    _StubResponse(200, {"login": "octo"}),
+                    _StubResponse(200, []),
+                ]
+            }
+        )
+        success_runtime = build_runtime(success_session)
+        success = success_runtime.validate_github_token("good-token")
+        self.assertEqual(success["state"], "success")
+        self.assertEqual(success["login"], "octo")
+        self.assertIn("详情", success["message"])
+        self.assertIn("发现", success["message"])
+        self.assertIn("星标同步", success["message"])
 
     def test_unstar_repo_returns_error_when_check_fails(self):
         session = _ScriptedSession({"GET": [_StubResponse(500)]})

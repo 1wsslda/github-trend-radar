@@ -80,7 +80,7 @@ GitSonar 不是把 GitHub Trending 页面搬到桌面。它把趋势发现、关
 
 ```powershell
 python -m pip install -r requirements.txt pyinstaller
-python src/GitSonar.pyw
+python src/gitsonar/__main__.py
 ```
 
 构建 EXE：

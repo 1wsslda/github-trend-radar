@@ -64,7 +64,7 @@ GitSonar is not just a Trending viewer. It combines trend discovery, keyword dis
 
 ```powershell
 python -m pip install -r requirements.txt pyinstaller
-python src/GitSonar.pyw
+python src/gitsonar/__main__.py
 powershell -ExecutionPolicy Bypass -File .\scripts\build_exe.ps1
 powershell -ExecutionPolicy Bypass -File .\scripts\build_setup.ps1
 ```

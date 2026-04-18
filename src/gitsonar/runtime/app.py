@@ -4,28 +4,52 @@ from __future__ import annotations
 
 import ctypes
 import hashlib
-import json
 import logging
 import os
 import re
-import shutil
 import socket
-import subprocess
 import sys
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta
 from http.server import ThreadingHTTPServer
-from urllib.parse import quote, urlparse
+from urllib.parse import quote
 
 import requests
 from bs4 import BeautifulSoup
-from .runtime_github import make_github_runtime
-from .runtime_http import make_app_handler
-from .runtime_shell import make_shell_runtime
-from .runtime_ui import build_html as build_runtime_html
-from .runtime_utils import (
+from ..runtime_github import make_github_runtime
+from ..runtime_ui import build_html as build_runtime_html
+from .http import make_app_handler
+from .paths import (
+    APP_NAME,
+    APP_SLUG,
+    CACHE_PATH,
+    DATA_DIR,
+    DESKTOP_SHELL_DIR,
+    DETAIL_CACHE_PATH,
+    DEV_ENTRY_SCRIPT,
+    DISCOVERY_STATE_PATH,
+    EXEC_DIR,
+    HTML_PATH,
+    LEGACY_APP_NAME,
+    LEGACY_APP_SLUG,
+    LEGACY_RUNTIME_STATE_PATH,
+    LATEST_SNAPSHOT_PATH,
+    LOCAL_HOST,
+    RUNTIME_ROOT,
+    RUNTIME_STATE_PATH,
+    SERVER_HOST,
+    SETTINGS_PATH,
+    STATUS_PATH,
+    USER_STATE_PATH,
+)
+from .settings import DEFAULT_SETTINGS, make_settings_runtime
+from .shell import make_shell_runtime
+from .startup import make_startup_runtime
+from .state import make_state_runtime
+from .translation import make_translation_runtime
+from .utils import (
     as_bool,
     atomic_write_json,
     atomic_write_text,
@@ -52,107 +76,6 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-APP_NAME = 'GitSonar'
-APP_SLUG = 'GitSonar'
-LEGACY_APP_NAME = 'GitHub Trend Radar'
-LEGACY_APP_SLUG = 'GitHubTrendRadar'
-IS_FROZEN = getattr(sys, 'frozen', False)
-PACKAGE_DIR = os.path.dirname(os.path.abspath(__file__))
-PROJECT_ROOT = os.path.dirname(os.path.dirname(PACKAGE_DIR))
-DEV_RUNTIME_ROOT = os.path.join(PROJECT_ROOT, 'runtime-data')
-DEV_ENTRY_SCRIPT = os.path.join(PROJECT_ROOT, 'src', 'GitSonar.pyw')
-EXEC_DIR = os.path.dirname(os.path.abspath(sys.executable)) if IS_FROZEN else PROJECT_ROOT
-LOCAL_APPDATA_ROOT = os.environ.get('LOCALAPPDATA', EXEC_DIR)
-DEV_RUNTIME_ITEMS = (
-    'data',
-    '.desktop_shell',
-    '.translation_cache.json',
-    'settings.json',
-    'status.json',
-    'trending.html',
-    'user_state.json',
-    'repo_details_cache.json',
-    'runtime_state.json',
-)
-
-
-def runtime_root_for_slug(slug: str) -> str:
-    return os.path.join(LOCAL_APPDATA_ROOT, slug) if IS_FROZEN else DEV_RUNTIME_ROOT
-
-
-def merge_dev_runtime_root() -> str:
-    preferred = DEV_RUNTIME_ROOT
-    legacy = PROJECT_ROOT
-    try:
-        os.makedirs(preferred, exist_ok=True)
-        migrated_items: list[str] = []
-        for name in DEV_RUNTIME_ITEMS:
-            source = os.path.join(legacy, name)
-            target = os.path.join(preferred, name)
-            if not os.path.exists(source) or os.path.exists(target):
-                continue
-            try:
-                if os.path.isdir(source):
-                    shutil.copytree(source, target, dirs_exist_ok=True)
-                else:
-                    shutil.copy2(source, target)
-                migrated_items.append(name)
-            except Exception as exc:
-                logger.warning('迁移开发态运行数据失败: %s (%s)', source, exc)
-        if migrated_items:
-            logger.info('已将 %s 项开发态运行数据迁移到 %s', len(migrated_items), preferred)
-    except Exception as exc:
-        logger.warning('初始化开发态运行目录失败，回退到仓库根目录: %s', exc)
-        return legacy
-    return preferred
-
-
-def merge_legacy_runtime_root() -> str:
-    preferred = runtime_root_for_slug(APP_SLUG)
-    legacy = runtime_root_for_slug(LEGACY_APP_SLUG)
-    if not IS_FROZEN or preferred == legacy or not os.path.isdir(legacy):
-        return preferred
-    try:
-        os.makedirs(preferred, exist_ok=True)
-        migrated_items: list[str] = []
-        for name in os.listdir(legacy):
-            source = os.path.join(legacy, name)
-            target = os.path.join(preferred, name)
-            if os.path.exists(target):
-                continue
-            try:
-                if os.path.isdir(source):
-                    shutil.copytree(source, target, dirs_exist_ok=True)
-                else:
-                    shutil.copy2(source, target)
-                migrated_items.append(name)
-            except Exception as exc:
-                logger.warning('迁移旧数据项失败: %s (%s)', source, exc)
-        if migrated_items:
-            logger.info('已从旧数据目录合并 %s 项到 %s', len(migrated_items), preferred)
-    except Exception as exc:
-        logger.warning('初始化新数据目录失败，回退到旧目录: %s', exc)
-        if os.path.isdir(legacy) and not os.path.isdir(preferred):
-            return legacy
-    return preferred
-
-
-RUNTIME_ROOT = merge_legacy_runtime_root() if IS_FROZEN else merge_dev_runtime_root()
-LEGACY_RUNTIME_ROOT = runtime_root_for_slug(LEGACY_APP_SLUG) if IS_FROZEN else PROJECT_ROOT
-DATA_DIR = os.path.join(RUNTIME_ROOT, 'data')
-HTML_PATH = os.path.join(RUNTIME_ROOT, 'trending.html')
-STATUS_PATH = os.path.join(RUNTIME_ROOT, 'status.json')
-SETTINGS_PATH = os.path.join(RUNTIME_ROOT, 'settings.json')
-USER_STATE_PATH = os.path.join(RUNTIME_ROOT, 'user_state.json')
-DISCOVERY_STATE_PATH = os.path.join(RUNTIME_ROOT, 'discovery_state.json')
-LATEST_SNAPSHOT_PATH = os.path.join(DATA_DIR, 'latest.json')
-DETAIL_CACHE_PATH = os.path.join(RUNTIME_ROOT, 'repo_details_cache.json')
-RUNTIME_STATE_PATH = os.path.join(RUNTIME_ROOT, 'runtime_state.json')
-DESKTOP_SHELL_DIR = os.path.join(RUNTIME_ROOT, '.desktop_shell')
-CACHE_PATH = os.path.join(RUNTIME_ROOT, '.translation_cache.json')
-LEGACY_RUNTIME_STATE_PATH = os.path.join(LEGACY_RUNTIME_ROOT, 'runtime_state.json')
-LOCAL_HOST = '127.0.0.1'
-SERVER_HOST = LOCAL_HOST
 SEARCH_API_URL = 'https://api.github.com/search/repositories'
 REPO_API_URL = 'https://api.github.com/repos'
 API_TIMEOUT = (5, 12)
@@ -183,15 +106,6 @@ STATE_DEFS = [
     {'key': 'read', 'label': '已读', 'button': '已读'},
     {'key': 'ignored', 'label': '忽略', 'button': '忽略'},
 ]
-DEFAULT_SETTINGS = {
-    'port': 8080,
-    'refresh_hours': 1,
-    'result_limit': 25,
-    'github_token': '',
-    'proxy': '',
-    'default_sort': 'stars',
-    'auto_start': False,
-}
 HAN_RE = re.compile(r'[\u3400-\u9fff]')
 
 SESSION = requests.Session()
@@ -217,13 +131,7 @@ DISCOVERY_STATE: dict[str, object] = {}
 DISCOVERY_JOBS: dict[str, dict[str, object]] = {}
 ACTIVE_DISCOVERY_JOB_ID = ''
 CURRENT_SNAPSHOT: dict[str, object] = {}
-ACTIVE_PROXY = ''
-ACTIVE_PROXY_SOURCE = 'none'
 RUNTIME_PORT: int | None = None
-BROWSER_PROCESS: subprocess.Popen | None = None
-BROWSER_HIDDEN = False
-MAIN_URL = ''
-SINGLE_INSTANCE_MUTEXES: list[object] = []
 APP_EXIT_EVENT = threading.Event()
 BROWSER_LOCK = threading.RLock()
 DETAIL_FETCH_SEMAPHORE = threading.Semaphore(3)
@@ -360,573 +268,142 @@ def save_repo_details(cache_key: str, details: dict[str, object]) -> None:
         atomic_write_json(DETAIL_CACHE_PATH, DETAIL_CACHE)
 
 
-def load_translation_cache() -> dict[str, str]:
-    raw = load_json_file(CACHE_PATH, {})
-    if not isinstance(raw, dict):
-        return {}
-    return {normalize(key): normalize(value) for key, value in raw.items() if normalize(key) and normalize(value)}
-
-
-def save_translation_cache() -> None:
-    with TRANSLATION_LOCK:
-        if len(TRANSLATION_CACHE) > _MAX_TRANSLATION_CACHE_SIZE:
-            trimmed = dict(list(TRANSLATION_CACHE.items())[-_MAX_TRANSLATION_CACHE_SIZE:])
-            TRANSLATION_CACHE.clear()
-            TRANSLATION_CACHE.update(trimmed)
-        atomic_write_json(CACHE_PATH, TRANSLATION_CACHE)
-
-
-def has_han(text: str) -> bool:
-    return bool(HAN_RE.search(text or ''))
-
-
-def translate_text(text: str) -> str:
-    raw = normalize(text)
-    if not raw or has_han(raw):
-        return raw
-    with TRANSLATION_LOCK:
-        cached = TRANSLATION_CACHE.get(raw)
-    if cached:
-        return cached
-    translated = ''
-    for attempt in range(TRANSLATE_RETRIES):
-        try:
-            response = TRANSLATE_SESSION.get(
-                'https://translate.googleapis.com/translate_a/single',
-                params={
-                    'client': 'gtx',
-                    'sl': 'auto',
-                    'tl': 'zh-CN',
-                    'dt': 't',
-                    'q': raw,
-                },
-                timeout=TRANSLATE_TIMEOUT,
-            )
-            response.raise_for_status()
-            data = response.json()
-            translated = normalize(''.join(part[0] for part in data[0] if isinstance(part, list) and part and part[0]))
-            if translated:
-                break
-        except Exception:
-            translated = ''
-            if attempt + 1 < TRANSLATE_RETRIES:
-                time.sleep(0.25 * (attempt + 1))
-    if not translated:
-        return raw
-    with TRANSLATION_LOCK:
-        TRANSLATION_CACHE[raw] = translated
-    return translated
-
-
-def translate_query_to_en(text: str) -> str:
-    raw = normalize(text)
-    if not raw:
-        return raw
-    if not has_han(raw):
-        return raw
-    cache_key = f'en::{raw}'
-    with TRANSLATION_LOCK:
-        cached = TRANSLATION_CACHE.get(cache_key)
-    if cached:
-        return cached
-    translated = ''
-    for attempt in range(TRANSLATE_RETRIES):
-        try:
-            response = TRANSLATE_SESSION.get(
-                'https://translate.googleapis.com/translate_a/single',
-                params={
-                    'client': 'gtx',
-                    'sl': 'auto',
-                    'tl': 'en',
-                    'dt': 't',
-                    'q': raw,
-                },
-                timeout=TRANSLATE_TIMEOUT,
-            )
-            response.raise_for_status()
-            data = response.json()
-            translated = normalize(''.join(part[0] for part in data[0] if isinstance(part, list) and part and part[0]))
-            if translated:
-                break
-        except Exception:
-            translated = ''
-            if attempt + 1 < TRANSLATE_RETRIES:
-                time.sleep(0.25 * (attempt + 1))
-    if not translated:
-        return raw
-    with TRANSLATION_LOCK:
-        TRANSLATION_CACHE[cache_key] = translated
-    return translated
-
-
-def apply_repo_translation(repo: dict[str, object]) -> None:
-    raw = normalize(repo.get('description_raw') or repo.get('description'))
-    repo['description_raw'] = raw
-    if not raw:
-        repo['description'] = ''
-        return
-    with TRANSLATION_LOCK:
-        cached = TRANSLATION_CACHE.get(raw)
-    repo['description'] = cached or raw
-
-
-def translate_repo_list(repos: list[dict[str, object]]) -> None:
-    pending: list[str] = []
-    seen: set[str] = set()
-    for repo in repos:
-        apply_repo_translation(repo)
-        raw = normalize(repo.get('description_raw'))
-        lowered = raw.lower()
-        if raw and not has_han(raw) and repo.get('description') == raw and lowered not in seen:
-            seen.add(lowered)
-            pending.append(raw)
-    if not pending:
-        return
-    with ThreadPoolExecutor(max_workers=min(4, len(pending))) as executor:
-        futures = [executor.submit(translate_text, text) for text in pending]
-        for future in as_completed(futures):
-            future.result()
-    save_translation_cache()
-    for repo in repos:
-        apply_repo_translation(repo)
-
-
-def translate_snapshot(snapshot: dict[str, object]) -> None:
-    repos: list[dict[str, object]] = []
-    for period in PERIODS:
-        repos.extend(snapshot.get(period['key'], []))
-    translate_repo_list(repos)
-
-
-def normalize_settings(payload: object) -> dict[str, object]:
-    raw = payload if isinstance(payload, dict) else {}
-    settings = dict(DEFAULT_SETTINGS)
-    settings['port'] = clamp_int(raw.get('port'), DEFAULT_SETTINGS['port'], 1, 65535)
-    settings['refresh_hours'] = clamp_int(raw.get('refresh_hours'), DEFAULT_SETTINGS['refresh_hours'], 1, 24)
-    settings['result_limit'] = clamp_int(raw.get('result_limit'), DEFAULT_SETTINGS['result_limit'], 10, 100)
-    settings['github_token'] = decrypt_secret(normalize(raw.get('github_token', '')))
-    settings['proxy'] = normalize_proxy_url(raw.get('proxy', ''))
-    settings['default_sort'] = normalize(raw.get('default_sort', DEFAULT_SETTINGS['default_sort'])) or DEFAULT_SETTINGS['default_sort']
-    settings['auto_start'] = as_bool(raw.get('auto_start'), False)
-    return settings
-
-
-def sanitize_settings(include_sensitive: bool) -> dict[str, object]:
-    payload = {
-        'port': SETTINGS.get('port', 8080),
-        'effective_port': current_port(),
-        'restart_required': bool(RUNTIME_PORT and clamp_int(SETTINGS.get('port', 8080), 8080, 1, 65535) != current_port()),
-        'refresh_hours': SETTINGS.get('refresh_hours', 1),
-        'result_limit': SETTINGS.get('result_limit', 25),
-        'default_sort': SETTINGS.get('default_sort', 'stars'),
-        'auto_start': bool(SETTINGS.get('auto_start')),
-        'has_github_token': bool(normalize(SETTINGS.get('github_token', ''))),
-        'effective_proxy': ACTIVE_PROXY,
-        'proxy_source': ACTIVE_PROXY_SOURCE,
-        'runtime_root': RUNTIME_ROOT,
-    }
-    if include_sensitive:
-        payload['github_token'] = SETTINGS.get('github_token', '')
-        payload['proxy'] = SETTINGS.get('proxy', '')
-    return payload
-
-
-def save_settings(settings: dict[str, object]) -> None:
-    payload = dict(settings)
-    token = normalize(payload.get('github_token', ''))
-    if token:
-        payload['github_token'] = encrypt_secret(token)
-    atomic_write_json(SETTINGS_PATH, payload)
-
-
-def load_settings() -> dict[str, object]:
-    settings = normalize_settings(load_json_file(SETTINGS_PATH, DEFAULT_SETTINGS))
-    if not os.path.exists(SETTINGS_PATH):
-        save_settings(settings)
-    return settings
-
-
-def apply_runtime_settings() -> None:
-    global ACTIVE_PROXY, ACTIVE_PROXY_SOURCE
-    SESSION.proxies.clear()
-    TRANSLATE_SESSION.proxies.clear()
-    ACTIVE_PROXY = ''
-    ACTIVE_PROXY_SOURCE = 'none'
-    configured = normalize_proxy_url(SETTINGS.get('proxy', ''))
-    effective = configured
-    if configured:
-        host, port = parse_proxy_endpoint(configured)
-        if host in {'127.0.0.1', 'localhost'} and port and not tcp_port_open(host, port):
-            effective = detect_local_proxy(skip={configured})
-            ACTIVE_PROXY_SOURCE = 'auto-fallback' if effective else 'none'
-        else:
-            ACTIVE_PROXY_SOURCE = 'configured'
-    else:
-        effective = detect_local_proxy()
-        ACTIVE_PROXY_SOURCE = 'auto' if effective else 'none'
-    if effective:
-        SESSION.proxies.update({'http': effective, 'https': effective})
-        TRANSLATE_SESSION.proxies.update({'http': effective, 'https': effective})
-        ACTIVE_PROXY = effective
-    SESSION.headers.pop('Authorization', None)
-    token = normalize(SETTINGS.get('github_token', ''))
-    if token:
-        SESSION.headers['Authorization'] = f'Bearer {token}'
-
-
-def default_user_state() -> dict[str, object]:
-    return {'favorites': [], 'watch_later': [], 'read': [], 'ignored': [], 'repo_records': {}, 'favorite_watch': {}, 'favorite_updates': []}
-
-
-def default_discovery_state() -> dict[str, object]:
-    return {
-        'saved_queries': [],
-        'last_query': {},
-        'last_results': [],
-        'last_related_terms': [],
-        'last_generated_queries': [],
-        'last_translated_query': '',
-        'last_warnings': [],
-        'last_run_at': '',
-        'last_error': '',
-    }
-
-
-DISCOVERY_RANKING_PROFILES = {'balanced', 'hot', 'fresh', 'builder', 'trend'}
-
-
-def normalize_discovery_ranking_profile(value: object) -> str:
-    clean = normalize(value).lower()
-    return clean if clean in DISCOVERY_RANKING_PROFILES else 'balanced'
-
-
-def discovery_query_id(query: str, language: str, auto_expand: bool, ranking_profile: str = 'balanced') -> str:
-    payload = f'{normalize(query)}\n{normalize(language)}\n{int(bool(auto_expand))}\n{normalize_discovery_ranking_profile(ranking_profile)}'
-    return hashlib.sha1(payload.encode('utf-8')).hexdigest()[:16]
-
-
-def normalize_discovery_query(payload: object) -> dict[str, object] | None:
-    raw = payload if isinstance(payload, dict) else {}
-    query = normalize(raw.get('query'))
-    if not query:
-        return None
-    language = normalize(raw.get('language'))
-    auto_expand = as_bool(raw.get('auto_expand'), True)
-    ranking_profile = normalize_discovery_ranking_profile(raw.get('ranking_profile'))
-    default_limit = clamp_int(SETTINGS.get('result_limit', 20), 20, 5, 50) if SETTINGS else 20
-    return {
-        'id': normalize(raw.get('id')) or discovery_query_id(query, language, auto_expand, ranking_profile),
-        'query': query,
-        'language': language,
-        'limit': clamp_int(raw.get('limit'), default_limit, 5, 50),
-        'auto_expand': auto_expand,
-        'ranking_profile': ranking_profile,
-        'created_at': normalize(raw.get('created_at')) or iso_now(),
-        'last_run_at': normalize(raw.get('last_run_at')),
-    }
-
-
-def normalize_repo(repo: object) -> dict[str, object] | None:
-    if not isinstance(repo, dict):
-        return None
-    full_name = normalize(repo.get('full_name'))
-    url = normalize(repo.get('url'))
-    if not full_name or not url or '/' not in full_name:
-        return None
-    owner, name = full_name.split('/', 1)
-    gained = clamp_int(repo.get('gained'), 0, 0)
-    gained_text = normalize(repo.get('gained_text'))
-    growth_source = normalize(repo.get('growth_source')).lower()
-    if growth_source not in {'trending', 'estimated', 'unavailable'}:
-        growth_source = 'trending' if gained_text or gained > 0 else 'unavailable'
-    return {
-        'full_name': full_name,
-        'owner': owner,
-        'name': name,
-        'url': url,
-        'description': normalize(repo.get('description')),
-        'description_raw': normalize(repo.get('description_raw') or repo.get('description')),
-        'language': normalize(repo.get('language')),
-        'stars': clamp_int(repo.get('stars'), 0, 0),
-        'forks': clamp_int(repo.get('forks'), 0, 0),
-        'gained': gained,
-        'gained_text': gained_text,
-        'growth_source': growth_source,
-        'rank': clamp_int(repo.get('rank'), 0, 0),
-        'period_key': normalize(repo.get('period_key')) or 'daily',
-        'source_label': normalize(repo.get('source_label')) or 'GitHub API',
-        'updated_at': normalize(repo.get('updated_at')),
-        'pushed_at': normalize(repo.get('pushed_at')),
-        'topics': [normalize(item) for item in repo.get('topics', []) if normalize(item)] if isinstance(repo.get('topics'), list) else [],
-        'discover_source': normalize(repo.get('discover_source')),
-        'trending_hit': as_bool(repo.get('trending_hit'), False),
-        'relevance_score': clamp_int(repo.get('relevance_score'), 0, 0, 100),
-        'hot_score': clamp_int(repo.get('hot_score'), 0, 0, 100),
-        'composite_score': clamp_int(repo.get('composite_score'), 0, 0, 100),
-        'matched_terms': [normalize(item) for item in repo.get('matched_terms', []) if normalize(item)] if isinstance(repo.get('matched_terms'), list) else [],
-        'match_reasons': [normalize(item) for item in repo.get('match_reasons', []) if normalize(item)] if isinstance(repo.get('match_reasons'), list) else [],
-    }
-
-
-def repo_from_url(url: object) -> dict[str, object] | None:
-    raw = normalize(url)
-    if not raw:
-        return None
-    parsed = urlparse(raw)
-    parts = [part for part in parsed.path.split('/') if part]
-    if len(parts) < 2:
-        return None
-    full_name = f'{parts[0]}/{parts[1]}'
-    return normalize_repo({'full_name': full_name, 'url': f'https://github.com/{full_name}'})
-
-
-def normalize_watch_entry(payload: object) -> dict[str, object] | None:
-    raw = payload if isinstance(payload, dict) else {}
-    full_name = normalize(raw.get('full_name'))
-    url = normalize(raw.get('url'))
-    if not full_name or not url:
-        return None
-    return {
-        'full_name': full_name,
-        'url': url,
-        'stars': clamp_int(raw.get('stars'), 0, 0),
-        'forks': clamp_int(raw.get('forks'), 0, 0),
-        'open_issues': clamp_int(raw.get('open_issues'), 0, 0),
-        'updated_at': normalize(raw.get('updated_at')),
-        'pushed_at': normalize(raw.get('pushed_at')),
-        'latest_release_tag': normalize(raw.get('latest_release_tag')),
-        'latest_release_published_at': normalize(raw.get('latest_release_published_at')),
-        'release_checked_at': normalize(raw.get('release_checked_at')),
-        'checked_at': normalize(raw.get('checked_at')),
-    }
-
-
-def normalize_favorite_update(payload: object) -> dict[str, object] | None:
-    raw = payload if isinstance(payload, dict) else {}
-    full_name = normalize(raw.get('full_name'))
-    url = normalize(raw.get('url'))
-    if not full_name or not url:
-        return None
-    changes = [normalize(item) for item in raw.get('changes', []) if normalize(item)]
-    if not changes:
-        return None
-    return {
-        'id': normalize(raw.get('id')) or f'{full_name}:{normalize(raw.get("checked_at"))}',
-        'full_name': full_name,
-        'url': url,
-        'checked_at': normalize(raw.get('checked_at')),
-        'changes': changes,
-        'stars': clamp_int(raw.get('stars'), 0, 0),
-        'forks': clamp_int(raw.get('forks'), 0, 0),
-        'latest_release_tag': normalize(raw.get('latest_release_tag')),
-        'pushed_at': normalize(raw.get('pushed_at')),
-    }
-
-
-def normalize_discovery_state(payload: object) -> dict[str, object]:
-    raw = payload if isinstance(payload, dict) else {}
-    state = default_discovery_state()
-    saved_queries: list[dict[str, object]] = []
-    seen_ids: set[str] = set()
-    for item in raw.get('saved_queries', []):
-        clean = normalize_discovery_query(item)
-        if clean and clean['id'] not in seen_ids:
-            saved_queries.append(clean)
-            seen_ids.add(clean['id'])
-    state['saved_queries'] = saved_queries
-    state['last_query'] = normalize_discovery_query(raw.get('last_query')) or {}
-    state['last_results'] = [clean for item in raw.get('last_results', []) if (clean := normalize_repo(item))]
-    state['last_related_terms'] = [normalize(item) for item in raw.get('last_related_terms', []) if normalize(item)][:12]
-    state['last_generated_queries'] = [normalize(item) for item in raw.get('last_generated_queries', []) if normalize(item)][:12]
-    state['last_translated_query'] = normalize(raw.get('last_translated_query'))
-    state['last_warnings'] = [normalize(item) for item in raw.get('last_warnings', []) if normalize(item)][:8]
-    state['last_run_at'] = normalize(raw.get('last_run_at'))
-    state['last_error'] = normalize(raw.get('last_error'))
-    return state
-
-
-def normalize_user_state(payload: object) -> dict[str, object]:
-    raw = payload if isinstance(payload, dict) else {}
-    state = default_user_state()
-    for key in ('favorites', 'watch_later', 'read', 'ignored'):
-        state[key] = list(dict.fromkeys(normalize(item) for item in raw.get(key, []) if normalize(item)))
-    records = raw.get('repo_records', {}) if isinstance(raw.get('repo_records'), dict) else {}
-    state['repo_records'] = {url: clean for url, repo in records.items() if (clean := normalize_repo(repo))}
-    watch = raw.get('favorite_watch', {}) if isinstance(raw.get('favorite_watch'), dict) else {}
-    state['favorite_watch'] = {url: clean for url, item in watch.items() if (clean := normalize_watch_entry(item))}
-    favorite_updates: list[dict[str, object]] = []
-    seen_update_ids: set[str] = set()
-    for item in raw.get('favorite_updates', []):
-        clean = normalize_favorite_update(item)
-        if clean and clean['id'] not in seen_update_ids:
-            favorite_updates.append(clean)
-            seen_update_ids.add(clean['id'])
-    state['favorite_updates'] = favorite_updates
-    return state
-
-
-def load_user_state() -> dict[str, object]:
-    state = normalize_user_state(load_json_file(USER_STATE_PATH, default_user_state()))
-    if not os.path.exists(USER_STATE_PATH):
-        atomic_write_json(USER_STATE_PATH, state)
-    return state
-
-
-def save_user_state() -> None:
-    atomic_write_json(USER_STATE_PATH, USER_STATE)
-
-
-def export_user_state() -> dict[str, object]:
-    with STATE_LOCK:
-        return json.loads(json.dumps(USER_STATE, ensure_ascii=False))
-
-
-def state_counts(state: dict[str, object]) -> dict[str, int]:
-    return {
-        'favorites': len(state.get('favorites', [])),
-        'watch_later': len(state.get('watch_later', [])),
-        'read': len(state.get('read', [])),
-        'ignored': len(state.get('ignored', [])),
-        'repo_records': len(state.get('repo_records', {})),
-        'favorite_updates': len(state.get('favorite_updates', [])),
-    }
-
-
-def ordered_unique_urls(*groups: list[str]) -> list[str]:
-    seen: set[str] = set()
-    merged: list[str] = []
-    for group in groups:
-        for item in group:
-            clean = normalize(item)
-            if clean and clean not in seen:
-                merged.append(clean)
-                seen.add(clean)
-    return merged
-
-
-def merge_favorite_updates(*groups: list[dict[str, object]]) -> list[dict[str, object]]:
-    merged: list[dict[str, object]] = []
-    seen_ids: set[str] = set()
-    for group in groups:
-        for item in group:
-            clean = normalize_favorite_update(item)
-            if clean and clean['id'] not in seen_ids:
-                merged.append(clean)
-                seen_ids.add(clean['id'])
-    return merged[:100]
-
-
-def coerce_import_user_state(payload: object) -> dict[str, object]:
-    if isinstance(payload, dict):
-        if isinstance(payload.get('data'), dict):
-            raw_state = payload.get('data')
-        elif isinstance(payload.get('user_state'), dict):
-            raw_state = payload.get('user_state')
-        else:
-            raw_state = payload
-    else:
-        raw_state = {}
-    state = normalize_user_state(raw_state)
-    if not any(state.get(key) for key in ('favorites', 'watch_later', 'read', 'ignored')) and not state.get('repo_records'):
-        raise ValueError('导入文件里没有可恢复的用户状态')
-    return state
-
-
-def import_user_state(payload: object) -> dict[str, object]:
-    mode = normalize(payload.get('mode') if isinstance(payload, dict) else '').lower()
-    if mode not in {'merge', 'replace'}:
-        mode = 'merge'
-    imported = coerce_import_user_state(payload)
-    with STATE_LOCK:
-        before_counts = state_counts(USER_STATE)
-        if mode == 'replace':
-            next_state = imported
-        else:
-            next_state = default_user_state()
-            for key in ('favorites', 'watch_later', 'read', 'ignored'):
-                next_state[key] = ordered_unique_urls(imported.get(key, []), USER_STATE.get(key, []))
-            next_state['repo_records'] = dict(USER_STATE.get('repo_records', {}))
-            next_state['repo_records'].update(imported.get('repo_records', {}))
-            next_state['favorite_watch'] = dict(USER_STATE.get('favorite_watch', {}))
-            next_state['favorite_watch'].update(imported.get('favorite_watch', {}))
-            next_state['favorite_updates'] = merge_favorite_updates(
-                imported.get('favorite_updates', []),
-                USER_STATE.get('favorite_updates', []),
-            )
-
-        favorite_urls = set(next_state.get('favorites', []))
-        next_state['favorite_watch'] = {
-            url: item for url, item in next_state.get('favorite_watch', {}).items()
-            if url in favorite_urls and normalize_watch_entry(item)
-        }
-        next_state['favorite_updates'] = [
-            item for item in next_state.get('favorite_updates', [])
-            if item.get('url') in favorite_urls
-        ][:100]
-        USER_STATE.clear()
-        USER_STATE.update(normalize_user_state(next_state))
-        save_user_state()
-        after_counts = state_counts(USER_STATE)
-    sync_repo_records(CURRENT_SNAPSHOT)
-    return {
-        'mode': mode,
-        'before_counts': before_counts,
-        'after_counts': after_counts,
-        'user_state': export_user_state(),
-    }
-
-
-def load_discovery_state() -> dict[str, object]:
-    state = normalize_discovery_state(load_json_file(DISCOVERY_STATE_PATH, default_discovery_state()))
-    if not os.path.exists(DISCOVERY_STATE_PATH):
-        atomic_write_json(DISCOVERY_STATE_PATH, state)
-    return state
-
-
-def save_discovery_state() -> None:
-    atomic_write_json(DISCOVERY_STATE_PATH, DISCOVERY_STATE)
-
-
-def export_discovery_state() -> dict[str, object]:
-    with DISCOVERY_LOCK:
-        return json.loads(json.dumps(DISCOVERY_STATE, ensure_ascii=False))
-
-
-def clear_discovery_results() -> dict[str, object]:
-    with DISCOVERY_LOCK:
-        DISCOVERY_STATE['last_query'] = {}
-        DISCOVERY_STATE['last_results'] = []
-        DISCOVERY_STATE['last_related_terms'] = []
-        DISCOVERY_STATE['last_generated_queries'] = []
-        DISCOVERY_STATE['last_translated_query'] = ''
-        DISCOVERY_STATE['last_warnings'] = []
-        DISCOVERY_STATE['last_run_at'] = ''
-        DISCOVERY_STATE['last_error'] = ''
-        save_discovery_state()
-        return export_discovery_state()
-
-
-def upsert_saved_discovery_query(query_payload: dict[str, object], *, last_run_at: str = '') -> None:
-    clean = normalize_discovery_query(query_payload)
-    if not clean:
-        return
-    if last_run_at:
-        clean['last_run_at'] = normalize(last_run_at)
-    with DISCOVERY_LOCK:
-        existing = [item for item in DISCOVERY_STATE.get('saved_queries', []) if item.get('id') != clean['id']]
-        existing.insert(0, clean)
-        DISCOVERY_STATE['saved_queries'] = existing[:20]
-        save_discovery_state()
-
-
-def delete_saved_discovery_query(query_id: str) -> dict[str, object]:
-    clean_id = normalize(query_id)
-    if not clean_id:
-        raise ValueError('缺少搜索标识')
-    with DISCOVERY_LOCK:
-        DISCOVERY_STATE['saved_queries'] = [item for item in DISCOVERY_STATE.get('saved_queries', []) if item.get('id') != clean_id]
-        save_discovery_state()
-        return export_discovery_state()
+translation_runtime = make_translation_runtime(
+    cache_path=CACHE_PATH,
+    translation_cache=TRANSLATION_CACHE,
+    translation_lock=TRANSLATION_LOCK,
+    translate_session=TRANSLATE_SESSION,
+    normalize=normalize,
+    load_json_file=load_json_file,
+    atomic_write_json=atomic_write_json,
+    translate_timeout=TRANSLATE_TIMEOUT,
+    translate_retries=TRANSLATE_RETRIES,
+    max_translation_cache_size=_MAX_TRANSLATION_CACHE_SIZE,
+    han_re=HAN_RE,
+    thread_pool_executor_cls=ThreadPoolExecutor,
+    as_completed=as_completed,
+    periods=PERIODS,
+)
+load_translation_cache = translation_runtime.load_translation_cache
+save_translation_cache = translation_runtime.save_translation_cache
+has_han = translation_runtime.has_han
+translate_text = translation_runtime.translate_text
+translate_query_to_en = translation_runtime.translate_query_to_en
+apply_repo_translation = translation_runtime.apply_repo_translation
+translate_repo_list = translation_runtime.translate_repo_list
+translate_snapshot = translation_runtime.translate_snapshot
+
+settings_runtime = make_settings_runtime(
+    settings=SETTINGS,
+    settings_path=SETTINGS_PATH,
+    runtime_root=RUNTIME_ROOT,
+    session=SESSION,
+    translate_session=TRANSLATE_SESSION,
+    current_port_getter=lambda: current_port(),
+    runtime_port_getter=lambda: RUNTIME_PORT,
+    normalize=normalize,
+    clamp_int=clamp_int,
+    as_bool=as_bool,
+    decrypt_secret=decrypt_secret,
+    encrypt_secret=encrypt_secret,
+    normalize_proxy_url=normalize_proxy_url,
+    parse_proxy_endpoint=parse_proxy_endpoint,
+    detect_local_proxy=detect_local_proxy,
+    tcp_port_open=tcp_port_open,
+    load_json_file=load_json_file,
+    atomic_write_json=atomic_write_json,
+    default_settings=DEFAULT_SETTINGS,
+)
+normalize_settings = settings_runtime.normalize_settings
+sanitize_settings = settings_runtime.sanitize_settings
+save_settings = settings_runtime.save_settings
+load_settings = settings_runtime.load_settings
+apply_runtime_settings = settings_runtime.apply_runtime_settings
+
+state_runtime = make_state_runtime(
+    settings=SETTINGS,
+    user_state=USER_STATE,
+    discovery_state=DISCOVERY_STATE,
+    state_lock=STATE_LOCK,
+    discovery_lock=DISCOVERY_LOCK,
+    current_snapshot_getter=lambda: CURRENT_SNAPSHOT,
+    sync_repo_records_callback=lambda snapshot: sync_repo_records(snapshot),
+    user_state_path=USER_STATE_PATH,
+    discovery_state_path=DISCOVERY_STATE_PATH,
+    latest_snapshot_path=LATEST_SNAPSHOT_PATH,
+    periods=PERIODS,
+    normalize=normalize,
+    clamp_int=clamp_int,
+    as_bool=as_bool,
+    iso_now=iso_now,
+    load_json_file=load_json_file,
+    atomic_write_json=atomic_write_json,
+    apply_repo_translation=apply_repo_translation,
+)
+default_user_state = state_runtime.default_user_state
+default_discovery_state = state_runtime.default_discovery_state
+normalize_discovery_ranking_profile = state_runtime.normalize_discovery_ranking_profile
+discovery_query_id = state_runtime.discovery_query_id
+normalize_discovery_query = state_runtime.normalize_discovery_query
+normalize_repo = state_runtime.normalize_repo
+repo_from_url = state_runtime.repo_from_url
+normalize_watch_entry = state_runtime.normalize_watch_entry
+normalize_favorite_update = state_runtime.normalize_favorite_update
+normalize_discovery_state = state_runtime.normalize_discovery_state
+normalize_user_state = state_runtime.normalize_user_state
+load_user_state = state_runtime.load_user_state
+save_user_state = state_runtime.save_user_state
+export_user_state = state_runtime.export_user_state
+import_user_state = state_runtime.import_user_state
+load_discovery_state = state_runtime.load_discovery_state
+save_discovery_state = state_runtime.save_discovery_state
+export_discovery_state = state_runtime.export_discovery_state
+clear_discovery_results = state_runtime.clear_discovery_results
+upsert_saved_discovery_query = state_runtime.upsert_saved_discovery_query
+delete_saved_discovery_query = state_runtime.delete_saved_discovery_query
+discovery_warning_list = state_runtime.discovery_warning_list
+empty_snapshot = state_runtime.empty_snapshot
+load_snapshot = state_runtime.load_snapshot
+save_snapshot = state_runtime.save_snapshot
+state_counts = state_runtime.state_counts
+ordered_unique_urls = state_runtime.ordered_unique_urls
+merge_favorite_updates = state_runtime.merge_favorite_updates
+
+startup_runtime = make_startup_runtime(
+    app_name=APP_NAME,
+    app_slug=APP_SLUG,
+    legacy_app_name=LEGACY_APP_NAME,
+    legacy_app_slug=LEGACY_APP_SLUG,
+    dev_entry_script=DEV_ENTRY_SCRIPT,
+    exec_dir=EXEC_DIR,
+    runtime_state_path=RUNTIME_STATE_PATH,
+    legacy_runtime_state_path=LEGACY_RUNTIME_STATE_PATH,
+    local_host=LOCAL_HOST,
+    local_control=LOCAL_CONTROL,
+    normalize=normalize,
+    clamp_int=clamp_int,
+    iso_now=iso_now,
+    load_json_file=load_json_file,
+    atomic_write_json=atomic_write_json,
+    current_port_getter=lambda: current_port(),
+)
+startup_dir = startup_runtime.startup_dir
+startup_launcher_path = startup_runtime.startup_launcher_path
+startup_cmd_path = startup_runtime.startup_cmd_path
+startup_launch_command = startup_runtime.startup_launch_command
+startup_launcher_script = startup_runtime.startup_launcher_script
+update_auto_start = startup_runtime.update_auto_start
+write_runtime_state = startup_runtime.write_runtime_state
+get_main_url = startup_runtime.get_main_url
+get_browser_process = startup_runtime.get_browser_process
+set_browser_process = startup_runtime.set_browser_process
+set_browser_hidden = startup_runtime.set_browser_hidden
+clear_runtime_state = startup_runtime.clear_runtime_state
+acquire_single_instance = startup_runtime.acquire_single_instance
+release_single_instance = startup_runtime.release_single_instance
+request_existing_instance_open = startup_runtime.request_existing_instance_open
+show_message_box = startup_runtime.show_message_box
+set_main_url = startup_runtime.set_main_url
 
 
 DISCOVERY_JOB_STAGE_LABELS = {
@@ -1343,90 +820,6 @@ def sync_repo_records(snapshot: dict[str, object]) -> None:
             save_user_state()
 
 
-def startup_dir() -> str:
-    return os.path.join(os.environ.get('APPDATA', ''), 'Microsoft', 'Windows', 'Start Menu', 'Programs', 'Startup')
-
-
-def startup_launcher_path(app_name: str = APP_NAME) -> str:
-    return os.path.join(startup_dir(), f'{app_name}.vbs')
-
-
-def startup_cmd_path(app_name: str = APP_NAME) -> str:
-    return os.path.join(startup_dir(), f'{app_name}.cmd')
-
-
-def startup_launch_command() -> list[str]:
-    if getattr(sys, 'frozen', False):
-        return [sys.executable]
-    executable = sys.executable
-    if os.name == 'nt' and os.path.basename(executable).lower() == 'python.exe':
-        pythonw = os.path.join(os.path.dirname(executable), 'pythonw.exe')
-        if os.path.exists(pythonw):
-            executable = pythonw
-    return [executable, DEV_ENTRY_SCRIPT]
-
-
-def vbs_string(value: str) -> str:
-    return normalize(value).replace('"', '""')
-
-
-def startup_launcher_script() -> str:
-    command = ' '.join(f'"{part}"' for part in startup_launch_command())
-    return (
-        'Set shell = CreateObject("WScript.Shell")\r\n'
-        f'shell.CurrentDirectory = "{vbs_string(EXEC_DIR)}"\r\n'
-        f'shell.Run "{vbs_string(command)}", 0, False\r\n'
-    )
-
-
-def update_auto_start(enabled: bool) -> None:
-    path = startup_launcher_path(APP_NAME)
-    cleanup_paths = {
-        startup_cmd_path(APP_NAME),
-        startup_launcher_path(LEGACY_APP_NAME),
-        startup_cmd_path(LEGACY_APP_NAME),
-    }
-    if enabled:
-        os.makedirs(os.path.dirname(path), exist_ok=True)
-        with open(path, 'w', encoding='utf-8') as f:
-            f.write(startup_launcher_script())
-        for candidate in cleanup_paths:
-            try:
-                os.remove(candidate)
-            except FileNotFoundError:
-                pass
-    else:
-        for candidate in {path, *cleanup_paths}:
-            try:
-                os.remove(candidate)
-            except FileNotFoundError:
-                pass
-
-
-def empty_snapshot() -> dict[str, object]:
-    snapshot = {'fetched_at': iso_now()}
-    for period in PERIODS:
-        snapshot[period['key']] = []
-    return snapshot
-
-
-def load_snapshot() -> dict[str, object]:
-    raw = load_json_file(LATEST_SNAPSHOT_PATH, empty_snapshot())
-    if not isinstance(raw, dict):
-        return empty_snapshot()
-    snapshot = empty_snapshot()
-    snapshot['fetched_at'] = normalize(raw.get('fetched_at')) or iso_now()
-    for period in PERIODS:
-        snapshot[period['key']] = [clean for repo in raw.get(period['key'], []) if (clean := normalize_repo(repo))]
-        for repo in snapshot[period['key']]:
-            apply_repo_translation(repo)
-    return snapshot
-
-
-def save_snapshot(snapshot: dict[str, object]) -> None:
-    atomic_write_json(LATEST_SNAPSHOT_PATH, snapshot)
-
-
 def current_port() -> int:
     return RUNTIME_PORT or clamp_int(SETTINGS.get('port', 8080), 8080, 1, 65535)
 
@@ -1447,94 +840,6 @@ def choose_runtime_port() -> int:
 
 def write_status(refreshing: bool, fetched_at: str = '', source: str = '', error: str = '') -> None:
     atomic_write_json(STATUS_PATH, {'refreshing': refreshing, 'fetched_at': fetched_at, 'source': source, 'error': error, 'updated_at': iso_now()})
-
-
-def write_runtime_state() -> None:
-    pid = int(BROWSER_PROCESS.pid) if BROWSER_PROCESS and BROWSER_PROCESS.poll() is None else 0
-    atomic_write_json(RUNTIME_STATE_PATH, {'pid': os.getpid(), 'port': current_port(), 'url': MAIN_URL, 'browser_pid': pid, 'browser_hidden': BROWSER_HIDDEN, 'updated_at': iso_now()})
-
-
-def get_main_url() -> str:
-    return MAIN_URL
-
-
-def get_browser_process() -> subprocess.Popen | None:
-    return BROWSER_PROCESS
-
-
-def set_browser_process(process: subprocess.Popen | None) -> None:
-    global BROWSER_PROCESS
-    BROWSER_PROCESS = process
-
-
-def set_browser_hidden(hidden: bool) -> None:
-    global BROWSER_HIDDEN
-    BROWSER_HIDDEN = hidden
-
-
-def clear_runtime_state() -> None:
-    try:
-        os.remove(RUNTIME_STATE_PATH)
-    except FileNotFoundError:
-        pass
-
-
-def acquire_single_instance() -> bool:
-    global SINGLE_INSTANCE_MUTEXES
-    if os.name != 'nt':
-        return True
-    handles: list[object] = []
-    for slug in dict.fromkeys((APP_SLUG, LEGACY_APP_SLUG)):
-        mutex = ctypes.windll.kernel32.CreateMutexW(None, False, f'Local\\{slug}Singleton')
-        if not mutex:
-            continue
-        if ctypes.windll.kernel32.GetLastError() == 183:
-            ctypes.windll.kernel32.CloseHandle(mutex)
-            for handle in handles:
-                ctypes.windll.kernel32.CloseHandle(handle)
-            return False
-        handles.append(mutex)
-    SINGLE_INSTANCE_MUTEXES = handles
-    return True
-
-def release_single_instance() -> None:
-    global SINGLE_INSTANCE_MUTEXES
-    for handle in SINGLE_INSTANCE_MUTEXES:
-        try:
-            ctypes.windll.kernel32.CloseHandle(handle)
-        except Exception:
-            pass
-    SINGLE_INSTANCE_MUTEXES = []
-
-
-def request_existing_instance_open() -> bool:
-    for runtime_path in dict.fromkeys((RUNTIME_STATE_PATH, LEGACY_RUNTIME_STATE_PATH)):
-        runtime = load_json_file(runtime_path, {})
-        if not isinstance(runtime, dict):
-            continue
-        port = clamp_int(runtime.get('port'), 0, 1, 65535)
-        url = normalize(runtime.get('url'))
-        for _ in range(8):
-            if port:
-                try:
-                    if LOCAL_CONTROL.post(f'http://{LOCAL_HOST}:{port}/api/window/open', timeout=2).ok:
-                        return True
-                except Exception:
-                    pass
-            time.sleep(0.35)
-        if url:
-            try:
-                if os.name == 'nt' and hasattr(os, 'startfile'):
-                    os.startfile(url)
-                    return True
-            except Exception:
-                pass
-    return False
-
-
-def show_message_box(message: str) -> None:
-    if os.name == 'nt':
-        ctypes.windll.user32.MessageBoxW(None, message, APP_NAME, 0x40)
 
 
 def write_html(snapshot: dict[str, object], note: str, pending: bool) -> None:
@@ -1706,6 +1011,7 @@ ServerAppHandler = make_app_handler(
     sync_favorite_repo=github_runtime.sync_favorite_repo,
     fetch_user_starred=github_runtime.fetch_user_starred,
     sync_local_favorites_with_starred=github_runtime.sync_local_favorites_with_starred,
+    validate_github_token=github_runtime.validate_github_token,
     open_main_window=shell_runtime.open_main_window,
     exit_app=shell_runtime.exit_app,
 )
@@ -1722,7 +1028,7 @@ def refresh_loop(run_immediately: bool = False) -> None:
 
 
 def main() -> None:
-    global CURRENT_SNAPSHOT, RUNTIME_PORT, MAIN_URL
+    global CURRENT_SNAPSHOT, RUNTIME_PORT
     configure_console()
     ensure_runtime_layout()
     if not acquire_single_instance():
@@ -1755,9 +1061,9 @@ def main() -> None:
         write_html(CURRENT_SNAPSHOT, note, True)
         write_status(True, str(CURRENT_SNAPSHOT.get('fetched_at', '')), 'cache', '')
         server = ThreadingHTTPServer((SERVER_HOST, current_port()), ServerAppHandler)
-        MAIN_URL = f'http://{LOCAL_HOST}:{current_port()}/trending.html?v={int(time.time())}'
+        set_main_url(f'http://{LOCAL_HOST}:{current_port()}/trending.html?v={int(time.time())}')
         write_runtime_state()
-        logger.info('本机访问: %s', MAIN_URL)
+        logger.info('本机访问: %s', get_main_url())
         logger.info('每 %s 小时自动更新一次', SETTINGS.get('refresh_hours', 1))
         threading.Thread(target=server.serve_forever, daemon=True).start()
         threading.Thread(target=refresh_loop, kwargs={'run_immediately': True}, daemon=True).start()

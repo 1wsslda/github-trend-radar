@@ -14,12 +14,34 @@ if str(SRC) not in sys.path:
 
 from gitsonar import app_runtime
 from gitsonar.runtime_github import make_github_runtime
-from gitsonar.runtime_utils import clamp_int, extract_count, iso_now, normalize, parse_iso_timestamp, strip_markdown
+from gitsonar.runtime.utils import clamp_int, extract_count, iso_now, normalize, parse_iso_timestamp, strip_markdown
 
 
 class _DummySession:
     def get(self, *args, **kwargs):
         raise AssertionError("network should not be used in discovery scoring tests")
+
+
+class _SearchResponse:
+    def __init__(self, items: list[dict[str, object]]):
+        self.status_code = 200
+        self._items = list(items)
+
+    def raise_for_status(self):
+        return None
+
+    def json(self):
+        return {"items": list(self._items)}
+
+
+class _RecordingSearchSession:
+    def __init__(self, items: list[dict[str, object]]):
+        self._items = list(items)
+        self.calls: list[tuple[str, dict[str, object]]] = []
+
+    def get(self, url: str, **kwargs):
+        self.calls.append((url, dict(kwargs)))
+        return _SearchResponse(self._items)
 
 
 def _normalize_repo_stub(repo):
@@ -29,17 +51,24 @@ def _normalize_repo_stub(repo):
     url = normalize(repo.get("url"))
     if not full_name or not url:
         return None
-    return dict(repo)
+    clean = dict(repo)
+    clean["full_name"] = full_name
+    clean["url"] = url
+    if "/" in full_name:
+        owner, name = full_name.split("/", 1)
+        clean.setdefault("owner", owner)
+        clean.setdefault("name", name)
+    return clean
 
 
-def build_runtime():
+def build_runtime(session=None, search_api_url: str = "https://example.invalid/search", token: str = ""):
     return make_github_runtime(
-        session=_DummySession(),
+        session=session or _DummySession(),
         api_timeout=(1, 1),
         trending_timeout=(1, 1),
-        search_api_url="https://example.invalid/search",
+        search_api_url=search_api_url,
         repo_api_url="https://example.invalid/repos",
-        settings={"github_token": ""},
+        settings={"github_token": token},
         periods=[{"key": "daily", "label": "Today", "days": 1}],
         state_lock=threading.RLock(),
         user_state={},
@@ -133,6 +162,36 @@ class DiscoveryRankingProfileTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.runtime = build_runtime()
+
+    def test_discover_repos_uses_injected_search_api_url_without_name_error(self):
+        search_api_url = "https://example.invalid/custom-search"
+        session = _RecordingSearchSession(
+            [
+                {
+                    "full_name": "octo/ui-kit",
+                    "html_url": "https://github.com/octo/ui-kit",
+                    "description": "UI toolkit",
+                    "language": "TypeScript",
+                    "stargazers_count": 1200,
+                    "forks_count": 88,
+                    "updated_at": "2026-04-01T00:00:00Z",
+                    "pushed_at": "2026-04-01T00:00:00Z",
+                    "topics": ["ui", "design-system"],
+                }
+            ]
+        )
+        runtime = build_runtime(session=session, search_api_url=search_api_url)
+
+        payload = runtime.discover_repos(query="UI", language="TypeScript", limit=5, auto_expand=False)
+
+        self.assertTrue(payload["results"])
+        self.assertEqual(payload["results"][0]["full_name"], "octo/ui-kit")
+        self.assertGreaterEqual(len(session.calls), 2)
+        self.assertTrue(all(url == search_api_url for url, _kwargs in session.calls))
+        for _url, kwargs in session.calls:
+            self.assertIn("params", kwargs)
+            self.assertEqual(kwargs["params"]["per_page"], 18)
+            self.assertIn("q", kwargs["params"])
 
     def test_ranking_profiles_reorder_candidates(self):
         recent_iso = (datetime.now(timezone.utc) - timedelta(days=70)).isoformat().replace("+00:00", "Z")

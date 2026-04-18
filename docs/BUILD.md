@@ -72,7 +72,7 @@ Python 依赖较少，核心包括：
 
 本项目源码和构建产物已经统一到 `GitSonar`：
 
-- 入口脚本：`src/GitSonar.pyw`
+- 入口脚本：`src/gitsonar/__main__.py`
 - 安装脚本：`packaging/GitSonar.iss`
 - 可执行文件：`GitSonar.exe`
 - 安装包：`GitSonarSetup.exe`

@@ -1,0 +1,243 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+JS = r"""const MENU_HOST_SELECTOR = ".card,.update-card,.workspace-bar,.panel,.batch-dock,.canvas-intro";
+const MENU_VIEWPORT_MARGIN = 12;
+
+function menuRoot(id){
+  return document.querySelector(`[data-menu-id="${id}"]`);
+}
+
+function menuPanel(root){
+  return root?.querySelector(".menu-panel") || null;
+}
+
+function customSelectRoot(selectId){
+  return document.querySelector(`[data-custom-select-for="${selectId}"]`);
+}
+
+function rememberMenuPanelDefaults(panel){
+  if(!panel) return;
+  if(!panel.dataset.defaultAlign){
+    panel.dataset.defaultAlign = panel.classList.contains("align-left") ? "left" : "right";
+  }
+  if(!panel.dataset.defaultUpward){
+    panel.dataset.defaultUpward = panel.classList.contains("upward") ? "true" : "false";
+  }
+}
+
+function resetMenuPanelPosition(root){
+  const panel = menuPanel(root);
+  if(!panel) return;
+  rememberMenuPanelDefaults(panel);
+  panel.classList.toggle("align-left", panel.dataset.defaultAlign === "left");
+  panel.classList.toggle("align-right", panel.dataset.defaultAlign === "right");
+  panel.classList.toggle("upward", panel.dataset.defaultUpward === "true");
+  panel.style.left = "";
+  panel.style.right = "";
+}
+
+function syncMenuRootState(root){
+  if(!root) return;
+  const expanded = root.classList.contains("open");
+  root.querySelectorAll("[aria-haspopup]").forEach(node => {
+    node.setAttribute("aria-expanded", expanded ? "true" : "false");
+  });
+  const host = root.closest(MENU_HOST_SELECTOR);
+  if(host) host.classList.toggle("menu-host-open", expanded);
+  if(!expanded) resetMenuPanelPosition(root);
+}
+
+function positionMenu(root){
+  const panel = menuPanel(root);
+  if(!root || !panel || !root.classList.contains("open")) return;
+  resetMenuPanelPosition(root);
+
+  let panelRect = panel.getBoundingClientRect();
+  const rootRect = root.getBoundingClientRect();
+
+  if(panelRect.bottom > window.innerHeight - MENU_VIEWPORT_MARGIN){
+    panel.classList.add("upward");
+    panelRect = panel.getBoundingClientRect();
+  }
+
+  const fitsLeft = rootRect.left + panelRect.width <= window.innerWidth - MENU_VIEWPORT_MARGIN;
+  const fitsRight = rootRect.right - panelRect.width >= MENU_VIEWPORT_MARGIN;
+  if(panelRect.right > window.innerWidth - MENU_VIEWPORT_MARGIN){
+    if(fitsRight){
+      panel.classList.remove("align-left");
+      panel.classList.add("align-right");
+      panel.style.left = "";
+      panel.style.right = "0px";
+    } else if(fitsLeft){
+      panel.classList.remove("align-right");
+      panel.classList.add("align-left");
+      panel.style.left = "0px";
+      panel.style.right = "auto";
+    }
+    panelRect = panel.getBoundingClientRect();
+  } else if(panelRect.left < MENU_VIEWPORT_MARGIN){
+    if(fitsLeft){
+      panel.classList.remove("align-right");
+      panel.classList.add("align-left");
+      panel.style.left = "0px";
+      panel.style.right = "auto";
+    } else if(fitsRight){
+      panel.classList.remove("align-left");
+      panel.classList.add("align-right");
+      panel.style.left = "";
+      panel.style.right = "0px";
+    }
+    panelRect = panel.getBoundingClientRect();
+  }
+
+  if(panelRect.right > window.innerWidth - MENU_VIEWPORT_MARGIN || panelRect.left < MENU_VIEWPORT_MARGIN){
+    const currentLeft = panel.classList.contains("align-left") ? 0 : (rootRect.width - panelRect.width);
+    const minLeft = MENU_VIEWPORT_MARGIN - rootRect.left;
+    const maxLeft = window.innerWidth - MENU_VIEWPORT_MARGIN - rootRect.left - panelRect.width;
+    const clampedLeft = Math.min(Math.max(currentLeft, minLeft), maxLeft);
+    panel.style.left = `${Math.round(clampedLeft)}px`;
+    panel.style.right = "auto";
+  }
+}
+
+function repositionOpenMenus(){
+  document.querySelectorAll("[data-menu-id].open").forEach(positionMenu);
+}
+
+function closeMenus(exceptId = ""){
+  document.querySelectorAll("[data-menu-id].open").forEach(root => {
+    if(root.dataset.menuId !== exceptId) root.classList.remove("open");
+    syncMenuRootState(root);
+  });
+}
+
+function toggleMenu(event, id){
+  if(event){
+    event.preventDefault();
+    event.stopPropagation();
+    if(event.currentTarget?.disabled) return;
+  }
+  const root = menuRoot(id);
+  if(!root) return;
+  const willOpen = !root.classList.contains("open");
+  closeMenus(willOpen ? id : "");
+  root.classList.toggle("open", willOpen);
+  syncMenuRootState(root);
+  if(willOpen) requestAnimationFrame(() => positionMenu(root));
+}
+
+function syncCustomSelect(selectId){
+  const select = document.getElementById(selectId);
+  const root = customSelectRoot(selectId);
+  if(!select || !root) return;
+  const trigger = root.querySelector(".select-trigger");
+  const textNode = root.querySelector(".select-trigger-text");
+  const panel = root.querySelector(".select-menu");
+  if(!trigger || !textNode || !panel) return;
+
+  const options = [...select.options];
+  const firstEnabled = options.find(option => !option.disabled) || options[0] || null;
+  if(!options.some(option => option.value === select.value) && firstEnabled){
+    select.value = firstEnabled.value;
+  }
+  const currentValue = String(select.value ?? "");
+  const currentOption = options.find(option => option.value === currentValue) || firstEnabled;
+
+  textNode.textContent = String(currentOption?.textContent || "").trim();
+  trigger.disabled = !!select.disabled;
+  if(select.disabled){
+    root.classList.remove("open");
+    syncMenuRootState(root);
+  }
+
+  panel.innerHTML = options.map(option => {
+    const value = String(option.value ?? "");
+    const label = String(option.textContent || "").trim() || value;
+    const activeClass = value === currentValue ? " active" : "";
+    const disabledAttr = option.disabled ? " disabled" : "";
+    const selectedAttr = value === currentValue ? "true" : "false";
+    return `<button class="menu-item${activeClass}" type="button" role="option" aria-selected="${selectedAttr}"${disabledAttr} onclick='setCustomSelectValue(${JSON.stringify(selectId)}, ${JSON.stringify(value)})'>${h(label)}</button>`;
+  }).join("");
+
+  syncMenuRootState(root);
+}
+
+function syncAllCustomSelects(){
+  document.querySelectorAll("[data-custom-select-for]").forEach(root => {
+    syncCustomSelect(root.dataset.customSelectFor || "");
+  });
+}
+
+function setCustomSelectValue(selectId, value){
+  const select = document.getElementById(selectId);
+  if(!select || select.disabled) return;
+  const nextValue = String(value ?? "");
+  select.value = nextValue;
+  if(select.value !== nextValue){
+    const firstEnabled = [...select.options].find(option => !option.disabled);
+    if(firstEnabled) select.value = firstEnabled.value;
+  }
+  select.dispatchEvent(new Event("change", {bubbles:true}));
+  syncCustomSelect(selectId);
+  closeMenus();
+}
+
+function setStateFilter(value){
+  stateFilter = normalizeStateFilter(value);
+  localStorage.setItem("gtr-state-filter", stateFilter);
+  render();
+}
+
+function setSortPrimary(value){
+  sortPrimary = normalizeSortKey(value);
+  localStorage.setItem("gtr-sort-primary", sortPrimary);
+  closeMenus();
+  render();
+}
+
+function toggleAiTarget(value){
+  if(!VALID_AI_TARGETS.has(value)) return;
+  if(value === "copy"){
+    aiTargets = new Set(["copy"]);
+  } else {
+    aiTargets.delete("copy");
+    if(aiTargets.has(value)){
+      if(aiTargets.size > 1) aiTargets.delete(value);
+    } else {
+      aiTargets.add(value);
+    }
+  }
+  localStorage.setItem("gtr-ai-targets", JSON.stringify([...aiTargets]));
+  closeMenus();
+  syncAiTargetUI();
+}
+
+function syncStateFilterUI(){
+  document.querySelectorAll("#state-filter-seg [data-value]").forEach(btn => {
+    btn.classList.toggle("active", (btn.dataset.value || "") === stateFilter);
+  });
+}
+
+function syncSortUI(){
+  document.querySelectorAll("#sort-primary-seg [data-sort-primary]").forEach(btn => {
+    btn.classList.toggle("active", btn.dataset.sortPrimary === sortPrimary);
+  });
+  const isMoreSort = !PRIMARY_SORT_KEYS.includes(sortPrimary);
+  const moreToggle = document.getElementById("sort-more-toggle");
+  moreToggle.classList.toggle("is-subactive", isMoreSort);
+  document.getElementById("sort-more-current").textContent = isMoreSort ? `· ${SORT_LABELS[sortPrimary] || ""}` : "";
+  document.querySelectorAll("[data-sort-more]").forEach(btn => {
+    btn.classList.toggle("active", btn.dataset.sortMore === sortPrimary);
+  });
+}
+
+function syncAiTargetUI(){
+  const label = currentDiscoveryAiTargetLabel();
+  document.querySelectorAll("[data-ai-target-label]").forEach(node => {
+    node.textContent = label;
+  });
+  document.querySelectorAll("[data-ai-target]").forEach(btn => {
+    btn.classList.toggle("active", aiTargets.has(btn.dataset.aiTarget));
+  });
+}"""

@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+"""Desktop window and tray integration for the local runtime."""
+
 import ctypes
 import logging
 import os
@@ -30,6 +32,7 @@ def make_shell_runtime(
     normalize,
     quote,
 ):
+    # The shell runtime owns browser-window lifecycle and tray-side shortcuts.
     create_no_window = getattr(subprocess, "CREATE_NO_WINDOW", 0)
     popen_flags: dict[str, object] = {"creationflags": create_no_window} if os.name == "nt" else {}
     max_chatgpt_url_chars = 3500

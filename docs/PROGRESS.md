@@ -30,14 +30,14 @@ GitHub Trending 页面 + GitHub API
 
 | 模块 | 职责 |
 |---|---|
-| `app_runtime.py` (1095 行) | 编排核心：配置、状态、刷新调度、单实例、HTML 生成 |
-| `runtime_github.py` | 数据层：Trending 抓取、API 请求、详情、收藏追踪 |
+| `app_runtime.py` | 编排核心：启动、装配、刷新调度、HTTP 服务 |
+| `runtime_github/` | 数据层：Trending 抓取、API 请求、详情、收藏追踪 |
 | `runtime_http.py` | HTTP API 层：前端服务、状态变更接口 |
 | `runtime_shell.py` | 桌面壳：托盘、窗口隐藏/唤醒、关闭行为 |
-| `runtime_ui.py` | 前端模板层：HTML/CSS/JS，列表、详情抽屉、对比抽屉 |
+| `runtime_ui/` | 前端模板层：HTML/CSS/JS，列表、详情抽屉、对比抽屉 |
 | `runtime_utils.py` | 工具层：文件读写、DPAPI 加密、代理检测、文本处理 |
 
-**入口：** `src/GitSonar.pyw` → `src/gitsonar/__main__.py`  
+**入口：** `src/gitsonar/__main__.py`  
 **打包：** Inno Setup (`packaging/GitSonar.iss`)  
 **数据目录：** `%LOCALAPPDATA%\GitSonar`
 
@@ -130,7 +130,7 @@ GitHub Trending 页面 + GitHub API
 
 **1. ~~用户状态导入~~ ✅ 已完成**  
 已支持从导出 JSON 导入用户状态，并提供“合并导入 / 覆盖导入”两种模式。  
-切入：`runtime_http.py` 新增 `POST /api/import`，`app_runtime.py` 处理合并逻辑，`runtime_ui.py` 新增导入入口。
+切入：`runtime_http.py` 新增 `POST /api/import`，`app_runtime.py` 处理合并逻辑，`runtime_ui/` 新增导入入口。
 
 **2. ~~收藏时同步 GitHub 星标~~ ✅ 已完成**
 **3. ~~从 GitHub 同步全部星标~~ ✅ 已完成**
@@ -138,35 +138,35 @@ GitHub Trending 页面 + GitHub API
 **4. 收藏更新角标 / 通知**  
 `track_favorite_updates()` 已在后台运行，但更新结果在 UI 中的曝光方式需要打磨。  
 明确：卡片上 Release 或 Star 变化的角标样式，以及托盘图标徽章。  
-切入：`runtime_ui.py`（卡片模板），`runtime_shell.py`（托盘徽章）。
+切入：`runtime_ui/`（卡片模板），`runtime_shell.py`（托盘徽章）。
 
 **3. 搜索 / 过滤栏**  
 当前只有状态分段过滤，没有关键词搜索。数据量大时找具体项目很慢。  
-切入：`runtime_ui.py` 前端过滤（本地 JS 即可，无需后端），不需要改 Python。
+切入：`runtime_ui/` 前端过滤（本地 JS 即可，无需后端），不需要改 Python。
 
 ### P1 — 分析与 AI 集成
 
 **4. AI 分析抽屉**  
 ChatGPT 入口目前是直接打开外部浏览器。可以在详情抽屉内嵌入 AI 分析结果（调用本地或远端 LLM API，结果缓存在本地）。  
-切入：`runtime_http.py` 新增 `POST /api/analyze`，`runtime_ui.py` 分析标签页。
+切入：`runtime_http.py` 新增 `POST /api/analyze`，`runtime_ui/` 分析标签页。
 
 **5. 自定义 AI Prompt 模板**  
 当前 ChatGPT Prompt 是固定模板。允许用户编辑 Prompt 模板，适配不同分析场景。  
-切入：`app_runtime.py`（设置扩展），`runtime_ui.py`（设置面板）。
+切入：`runtime_settings.py` / `app_runtime.py`（设置扩展），`runtime_ui/`（设置面板）。
 
 ### P2 — 数据与发现
 
 **6. 自定义追踪列表（非 Trending 来源）**  
 用户可以直接输入 `owner/repo` 加入追踪，不依赖 Trending 出现。  
-切入：`runtime_github.py` 扩展 `fetch_all()`，`runtime_http.py` 新增 `POST /api/watch`。
+切入：`runtime_github/` 扩展 `fetch_all()`，`runtime_http.py` 新增 `POST /api/watch`。
 
 **7. 历史趋势图**  
 展示某仓库在多次快照中的 Star 增长曲线。快照数据已经有了，差的是 UI 可视化层。  
-切入：`runtime_ui.py` 详情抽屉新增图表（Chart.js 或 D3，前端引入即可）。
+切入：`runtime_ui/` 详情抽屉新增图表（Chart.js 或 D3，前端引入即可）。
 
 **8. 标签 / 分组管理**  
 允许用户给收藏仓库打自定义标签，支持按标签分组浏览。  
-切入：`app_runtime.py`（用户状态结构扩展），`runtime_ui.py`（标签 UI）。
+切入：`runtime_state.py` / `app_runtime.py`（用户状态结构扩展），`runtime_ui/`（标签 UI）。
 
 ### P3 — 工程质量
 
@@ -279,18 +279,18 @@ ChatGPT 入口目前是直接打开外部浏览器。可以在详情抽屉内嵌
 - [x] 批量提示词升级：资深架构师角色 + 4 节精简输出（一句话 / 亮点 / 风险 / 决策建议）
 
 #### Next Up
-- [ ] discovery 模块继续拆分，降低 `runtime_github.py` / `runtime_ui.py` 复杂度
+- [x] discovery 与 UI 资源已经按包拆分，降低 `runtime_github/` / `runtime_ui/` 复杂度
 - [ ] 补更多 discovery 回归测试：真实 API 降级、warnings、cancel、saved query 轮询流程
 
 #### 2026-04-16 - 排名模式与自动化测试
 - [x] 关键词发现面板新增排序模式下拉：综合平衡 / 偏热门 / 偏新项目 / 偏工程可用 / 偏趋势
 - [x] 排序模式写入 discovery query、本地草稿、已保存搜索、job 状态与最终结果元数据
 - [x] 结果面板与已保存搜索展示当前排序模式，便于判断这次 discovery 的排序倾向
-- [x] `runtime_github.py` 暴露 discovery 评分 helper，便于独立测试不同 ranking profile
+- [x] `runtime_github/` 暴露 discovery 评分 helper，便于独立测试不同 ranking profile
 - [x] 新增 `tests/test_discovery_profiles.py`
 - [x] 覆盖 discovery query 归一化、query id、ETA 估算、ranking profile 排序差异与 profile-specific signal
 - [x] 本轮验证通过：
-  `python -m py_compile src/gitsonar/app_runtime.py src/gitsonar/runtime_github.py src/gitsonar/runtime_http.py src/gitsonar/runtime_ui.py tests/test_discovery_profiles.py`
+  `python -m py_compile src/gitsonar/runtime/app.py src/gitsonar/runtime/http.py src/gitsonar/runtime_github/__init__.py src/gitsonar/runtime_ui/__init__.py tests/test_discovery_profiles.py`
   `python -m unittest discover -s tests`
   `node -e "new Function(fs.readFileSync('artifacts/_runtime_ui_script.js','utf8'))"`
 
