@@ -174,7 +174,6 @@ function refreshSelectionUI(){
   if(panel === DISCOVER_PANEL_KEY){
     syncWorkspaceCanvas();
     syncAiTargetUI();
-    syncPromptProfileUI();
   }
 }
 
@@ -355,7 +354,6 @@ function render(){
   syncDiscoveryPanel();
   syncAllCustomSelects();
   syncWorkspaceCanvas();
-  syncPromptProfileUI();
   document.getElementById("analyze-visible-btn").querySelector(".split-main-title").textContent = isDiscoverPanel ? "分析这批结果" : "分析当前列表";
   refreshSelectionSummary();
 }

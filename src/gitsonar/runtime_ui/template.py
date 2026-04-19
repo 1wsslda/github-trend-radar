@@ -80,33 +80,6 @@ HTML_BODY = """</style>
               <span class="workspace-summary-line">已选 <span class="metric-number" id="selected-count">0</span> / 共 <span class="metric-number" id="visible-count">0</span><span id="visible-label"> 项</span></span>
             </div>
           </div>
-          <div class="menu-wrap" data-menu-id="prompt-profile-menu">
-            <button class="action-quiet menu-toggle" id="prompt-profile-trigger" type="button" aria-label="选择分析方式" aria-haspopup="menu" aria-expanded="false" onclick="toggleMenu(event,'prompt-profile-menu')">
-              分析方式
-              <span class="workspace-ai-target" id="workspace-prompt-profile" data-prompt-profile-label>适合我吗</span>
-              <span class="menu-caret"></span>
-            </button>
-            <div class="menu-panel align-right" id="prompt-profile-menu-panel">
-              <button class="menu-item menu-item--check" type="button" data-prompt-profile="fit" onclick="setPromptProfile('fit')">
-                <span class="menu-item-copy">
-                  <span>适合我吗</span>
-                  <span class="menu-item-meta">判断我能不能用，告诉我怎么开始</span>
-                </span>
-              </button>
-              <button class="menu-item menu-item--check" type="button" data-prompt-profile="understand" onclick="setPromptProfile('understand')">
-                <span class="menu-item-copy">
-                  <span>先看懂</span>
-                  <span class="menu-item-meta">先讲明白，再判断值不值得看</span>
-                </span>
-              </button>
-              <button class="menu-item menu-item--check" type="button" data-prompt-profile="adopt" onclick="setPromptProfile('adopt')">
-                <span class="menu-item-copy">
-                  <span>落地方案</span>
-                  <span class="menu-item-meta">按试用、PoC、正式使用给步骤</span>
-                </span>
-              </button>
-            </div>
-          </div>
           <span class="workspace-ai-target" id="workspace-ai-target" data-ai-target-label>ChatGPT 网页版</span>
           <div class="action-split menu-wrap" data-menu-id="ai-target-menu">
             <button class="action-primary split-main" id="analyze-visible-btn" type="button" onclick="analyzeVisible()">

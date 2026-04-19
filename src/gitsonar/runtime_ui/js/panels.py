@@ -299,7 +299,6 @@ function syncWorkspaceBarModes(){
   const actionGroup = document.querySelector(".workspace-action-group");
   const searchWrap = document.querySelector(".workspace-search-wrap");
   const summary = document.querySelector(".workspace-summary");
-  const promptProfileMenu = document.querySelector('[data-menu-id="prompt-profile-menu"]');
   const aiTarget = document.getElementById("workspace-ai-target");
   const analyzeSplit = document.querySelector('.action-split[data-menu-id="ai-target-menu"]');
   const discoverRow = document.getElementById("discover-query-row");
@@ -311,7 +310,6 @@ function syncWorkspaceBarModes(){
   if(actionGroup) actionGroup.hidden = isDiscoverPanel;
   if(searchWrap) searchWrap.hidden = isDiscoverPanel;
   if(summary) summary.hidden = isDiscoverPanel;
-  if(promptProfileMenu) promptProfileMenu.hidden = isDiscoverPanel || isUpdatePanel;
   if(aiTarget) aiTarget.hidden = isDiscoverPanel || isUpdatePanel;
   if(analyzeSplit) analyzeSplit.hidden = isDiscoverPanel || isUpdatePanel;
   if(discoverRow) discoverRow.hidden = !isDiscoverPanel;
@@ -338,7 +336,6 @@ function syncWorkspaceCanvas(){
   cardsNode.classList.toggle("cards--discover-empty", !discoveryResults().length);
   renderWorkspaceSummaryStrip();
   syncAiTargetUI();
-  syncPromptProfileUI();
 }
 
 function syncControlDrawer(){
@@ -384,7 +381,6 @@ function syncControlStates(){
   document.querySelectorAll("#state-filter-seg .seg-btn").forEach(btn => { btn.disabled = disableListControls; });
   document.querySelectorAll("#sort-primary-seg .seg-btn").forEach(btn => { btn.disabled = disableListControls; });
   document.getElementById("analyze-visible-btn").disabled = isUpdatePanel || isDiscoverPanel;
-  document.getElementById("prompt-profile-trigger").disabled = isUpdatePanel || isDiscoverPanel;
   document.getElementById("ai-target-trigger").disabled = isUpdatePanel || isDiscoverPanel;
   const stateFilterGroup = document.getElementById("state-filter-group");
   stateFilterGroup.classList.toggle("is-disabled", disableListControls);

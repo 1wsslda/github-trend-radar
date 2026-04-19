@@ -35,21 +35,6 @@ class RuntimeUIJSContractTests(unittest.TestCase):
             with self.subTest(token=token):
                 self.assertIn(token, JS)
 
-    def test_prompt_profile_contract_uses_global_profile_state(self):
-        for token in (
-            'function normalizePromptProfile(value){',
-            'function currentPromptProfileLabel(){',
-            'function setPromptProfile(value){',
-            'function syncPromptProfileUI(){',
-            'function buildRepoPrompt(repo, profile){',
-            'function buildBatchPrompt(repos, title, batchIndex, batchCount, profile){',
-            'function splitRepoPrompts(repos, title, maxEncodedLength = 2600, maxItemsPerBatch = null, profile = promptProfile){',
-            'function buildComparePrompt(a, b, detailA, detailB, profile){',
-            'document.querySelectorAll("[data-prompt-profile-label]").forEach(node => {',
-        ):
-            with self.subTest(token=token):
-                self.assertIn(token, JS)
-
     def test_aggregate_js_passes_node_syntax_check_when_available(self):
         node = shutil.which("node")
         if not node:

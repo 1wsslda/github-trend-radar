@@ -199,42 +199,10 @@ class RuntimeUILayoutSmokeTests(unittest.TestCase):
         self.assertIn(".workspace-action-group{", CSS)
         self.assertIn('.workspace-action-group > .action-split[data-menu-id="ai-target-menu"] .split-main,', CSS)
 
-    def test_prompt_profile_menu_and_copy_are_present(self):
-        html = build_fixture_html()
-
-        for token in (
-            'data-menu-id="prompt-profile-menu"',
-            'id="prompt-profile-trigger"',
-            'data-prompt-profile-label',
-            'data-prompt-profile="fit"',
-            'data-prompt-profile="understand"',
-            'data-prompt-profile="adopt"',
-            "分析方式",
-            "适合我吗",
-            "先看懂",
-            "落地方案",
-            "判断我能不能用，告诉我怎么开始",
-            "先讲明白，再判断值不值得看",
-            "按试用、PoC、正式使用给步骤",
-        ):
-            with self.subTest(token=token):
-                self.assertIn(token, html)
-
-        for token in (
-            'data-menu-id="discover-result-prompt-menu"',
-            'data-prompt-profile-label>${h(currentPromptProfileLabel())}</span>',
-            "onclick=\"setPromptProfile('fit')\"",
-            "onclick=\"setPromptProfile('understand')\"",
-            "onclick=\"setPromptProfile('adopt')\"",
-        ):
-            with self.subTest(js=token):
-                self.assertIn(token, JS)
-
     def test_settings_markup_includes_sensitive_setting_controls(self):
         html = build_fixture_html(control_token="test-control-token")
         for token in (
             'data-menu-id="app-more-menu"',
-            'data-menu-id="prompt-profile-menu"',
             'data-menu-id="ai-target-menu"',
             'data-menu-id="language-select-menu"',
             'data-menu-id="sort-more-menu"',
