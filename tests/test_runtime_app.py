@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sys
+import threading
 import unittest
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -74,6 +75,34 @@ class RuntimeAppTests(unittest.TestCase):
 
         self.assertEqual(starred_calls, [])
         self.assertEqual(sync_calls, [])
+
+    def test_detail_cache_helpers_use_current_globals_and_update_dirty_state(self):
+        writes: list[tuple[str, dict[str, object]]] = []
+        runtime_paths = SimpleNamespace(detail_cache_path=str(ROOT / "artifacts" / "_detail_cache.json"))
+
+        with (
+            patch.object(runtime_app, "runtime_paths", lambda: runtime_paths),
+            patch.object(runtime_app, "DETAIL_CACHE", {}),
+            patch.object(runtime_app, "DETAIL_CACHE_LOCK", threading.RLock()),
+            patch.object(runtime_app, "DETAIL_FETCH_LOCKS", {}),
+            patch.object(runtime_app, "DETAIL_CACHE_DIRTY", False),
+            patch.object(runtime_app, "atomic_write_json", lambda path, payload: writes.append((str(path), dict(payload)))),
+            patch.object(runtime_app, "load_json_file", lambda _path, default: {"first": default}),
+        ):
+            first = runtime_app.load_detail_cache()
+
+            with patch.object(runtime_app, "load_json_file", lambda _path, default: {"second": default}):
+                second = runtime_app.load_detail_cache()
+
+            runtime_app.save_repo_details("octo/demo", {"full_name": "octo/demo"})
+            flushed = runtime_app.flush_repo_details_cache()
+            dirty_after_flush = runtime_app.DETAIL_CACHE_DIRTY
+
+        self.assertEqual(first, {"first": {}})
+        self.assertEqual(second, {"second": {}})
+        self.assertTrue(flushed)
+        self.assertEqual(writes[0][1]["octo/demo"]["data"]["full_name"], "octo/demo")
+        self.assertFalse(dirty_after_flush)
 
 
 if __name__ == "__main__":

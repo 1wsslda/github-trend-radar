@@ -21,6 +21,7 @@ from bs4 import BeautifulSoup
 
 from ..runtime_github import make_github_runtime
 from ..runtime_ui import build_html as build_runtime_html
+from .detail_cache import make_detail_cache_runtime
 from .discovery_jobs import make_discovery_job_runtime
 from .http import make_app_handler
 from .paths import (
@@ -367,84 +368,55 @@ def hide_console_window_if_needed() -> None:
         pass
 
 
+def _get_detail_cache_dirty() -> bool:
+    return bool(DETAIL_CACHE_DIRTY)
+
+
+def _set_detail_cache_dirty(value: bool) -> None:
+    global DETAIL_CACHE_DIRTY
+    DETAIL_CACHE_DIRTY = bool(value)
+
+
+def _build_detail_cache_runtime():
+    return make_detail_cache_runtime(
+        cache_path=runtime_paths().detail_cache_path,
+        detail_cache=DETAIL_CACHE,
+        detail_cache_lock=DETAIL_CACHE_LOCK,
+        detail_fetch_locks=DETAIL_FETCH_LOCKS,
+        load_json_file=load_json_file,
+        atomic_write_json=atomic_write_json,
+        clamp_int=clamp_int,
+        detail_cache_seconds=DETAIL_CACHE_SECONDS,
+        max_detail_cache_size=_MAX_DETAIL_CACHE_SIZE,
+        max_detail_fetch_locks=_MAX_DETAIL_FETCH_LOCKS,
+        dirty=DETAIL_CACHE_DIRTY,
+        dirty_getter=_get_detail_cache_dirty,
+        dirty_setter=_set_detail_cache_dirty,
+    )
+
+
+def _get_detail_cache_runtime():
+    return _build_detail_cache_runtime()
+
+
 def load_detail_cache() -> dict[str, object]:
-    raw = load_json_file(runtime_paths().detail_cache_path, {})
-    return raw if isinstance(raw, dict) else {}
+    return _get_detail_cache_runtime().load_detail_cache()
 
 
 def cached_repo_details(cache_key: str) -> dict[str, object] | None:
-    now = int(time.time())
-    with DETAIL_CACHE_LOCK:
-        cached = DETAIL_CACHE.get(cache_key, {})
-        if (
-            isinstance(cached, dict)
-            and clamp_int(cached.get("expires_at"), 0, 0) > now
-            and isinstance(cached.get("data"), dict)
-        ):
-            return dict(cached["data"])
-    return None
+    return _get_detail_cache_runtime().cached_repo_details(cache_key)
 
 
 def detail_fetch_lock(cache_key: str) -> threading.Lock:
-    with DETAIL_CACHE_LOCK:
-        lock = DETAIL_FETCH_LOCKS.get(cache_key)
-        if lock is None:
-            if len(DETAIL_FETCH_LOCKS) >= _MAX_DETAIL_FETCH_LOCKS:
-                stale = [key for key in DETAIL_FETCH_LOCKS if key not in DETAIL_CACHE]
-                for key in stale[:500]:
-                    del DETAIL_FETCH_LOCKS[key]
-                if len(DETAIL_FETCH_LOCKS) >= _MAX_DETAIL_FETCH_LOCKS:
-                    for key in list(DETAIL_FETCH_LOCKS)[:500]:
-                        del DETAIL_FETCH_LOCKS[key]
-            lock = threading.Lock()
-            DETAIL_FETCH_LOCKS[cache_key] = lock
-        return lock
+    return _get_detail_cache_runtime().detail_fetch_lock(cache_key)
 
 
 def save_repo_details(cache_key: str, details: dict[str, object]) -> None:
-    global DETAIL_CACHE_DIRTY
-    now = int(time.time())
-    with DETAIL_CACHE_LOCK:
-        changed = False
-        next_entry = {
-            "expires_at": now + DETAIL_CACHE_SECONDS,
-            "data": dict(details),
-        }
-        if DETAIL_CACHE.get(cache_key) != next_entry:
-            DETAIL_CACHE[cache_key] = next_entry
-            changed = True
-        expired = [
-            key
-            for key, value in DETAIL_CACHE.items()
-            if isinstance(value, dict) and clamp_int(value.get("expires_at"), 0, 0) <= now
-        ]
-        for key in expired:
-            del DETAIL_CACHE[key]
-            changed = True
-        if len(DETAIL_CACHE) > _MAX_DETAIL_CACHE_SIZE:
-            oldest = sorted(
-                DETAIL_CACHE,
-                key=lambda key: clamp_int(
-                    DETAIL_CACHE[key].get("expires_at") if isinstance(DETAIL_CACHE[key], dict) else 0,
-                    0,
-                    0,
-                ),
-            )
-            for key in oldest[: len(DETAIL_CACHE) - _MAX_DETAIL_CACHE_SIZE]:
-                del DETAIL_CACHE[key]
-                changed = True
-        if changed:
-            DETAIL_CACHE_DIRTY = True
+    _get_detail_cache_runtime().save_repo_details(cache_key, details)
 
 
 def flush_repo_details_cache() -> bool:
-    global DETAIL_CACHE_DIRTY
-    with DETAIL_CACHE_LOCK:
-        if not DETAIL_CACHE_DIRTY:
-            return False
-        atomic_write_json(runtime_paths().detail_cache_path, DETAIL_CACHE)
-        DETAIL_CACHE_DIRTY = False
-        return True
+    return _get_detail_cache_runtime().flush_repo_details_cache()
 
 
 def current_port() -> int:
@@ -940,10 +912,7 @@ def main() -> None:
     try:
         TRANSLATION_CACHE.clear()
         TRANSLATION_CACHE.update(load_translation_cache())
-        with DETAIL_CACHE_LOCK:
-            DETAIL_CACHE.clear()
-            DETAIL_CACHE.update(load_detail_cache())
-            DETAIL_CACHE_DIRTY = False
+        _get_detail_cache_runtime().reload_detail_cache()
         CONTROL_TOKEN = secrets.token_urlsafe(32)
         AUTO_SYNC_USER_STARS_DONE = False
         SETTINGS.clear()
