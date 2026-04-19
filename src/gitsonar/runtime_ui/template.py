@@ -20,14 +20,7 @@ HTML_BODY = """</style>
 <div class="page">
   <header class="workspace-header">
     <div class="workspace-brand">
-      <span class="hero-kicker">GitHub Intelligence Desk</span>
-      <div class="workspace-title-row">
-        <h1 class="workspace-title">__APP_NAME__</h1>
-        <div class="workspace-panel-meta">
-          <span class="workspace-badge">Reading-first Workspace</span>
-          <span class="workspace-panel-summary" id="panel-summary">今日趋势 · 0 个仓库</span>
-        </div>
-      </div>
+      <h1 class="workspace-title">__APP_NAME__</h1>
     </div>
     <div class="workspace-status">
       <div class="status-card">
@@ -55,43 +48,47 @@ HTML_BODY = """</style>
   <section class="workspace-bar">
     <div class="workspace-bar-shell">
       <div class="tabs" id="tabs"></div>
+      <div class="workspace-subnav" id="workspace-subnav" hidden></div>
       <div class="workspace-bar-main">
-        <div class="workspace-search-wrap">
-          <label class="field search-field">
-            <span class="field-label">搜索</span>
-            <span class="field-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="11" cy="11" r="7"></circle>
-                <line x1="20" y1="20" x2="16.65" y2="16.65"></line>
-              </svg>
-            </span>
-            <input id="search" class="field-input" type="search" placeholder="搜索仓库 / 描述 / 语言 / 更新内容" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false">
-          </label>
-        </div>
-
-        <div class="workspace-summary">
-          <div class="workspace-summary-copy">
-            <div class="summary">可见 <span class="metric-number" id="visible-count">0</span><span id="visible-label"> 个仓库</span></div>
-            <div class="sub">已选 <span class="metric-number" id="selected-count">0</span> 项</div>
+        <div class="workspace-filter-group">
+          <div class="workspace-search-wrap">
+            <label class="field search-field">
+              <span class="field-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="11" cy="11" r="7"></circle>
+                  <line x1="20" y1="20" x2="16.65" y2="16.65"></line>
+                </svg>
+              </span>
+              <input id="search" class="field-input" type="search" placeholder="搜索仓库 / 描述 / 语言 / 更新内容" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" aria-label="搜索仓库、描述、语言或更新内容">
+            </label>
           </div>
-        </div>
-
-        <div class="action-split menu-wrap" data-menu-id="ai-target-menu">
-          <button class="action-primary split-main" id="analyze-visible-btn" type="button" onclick="analyzeVisible()">
-            <span class="split-main-label">
-              <span class="split-main-title">分析当前列表</span>
-              <span class="split-main-note" id="ai-target-label" data-ai-target-label>ChatGPT 网页版</span>
-            </span>
-          </button>
-          <button class="action-primary split-trigger" id="ai-target-trigger" type="button" aria-label="选择分析目标" aria-haspopup="menu" aria-expanded="false" onclick="toggleMenu(event,'ai-target-menu')">
+          <button class="action-quiet workspace-drawer-trigger" id="control-drawer-trigger" type="button" aria-haspopup="dialog" aria-expanded="false" onclick="toggleControlDrawer()">
+            <span id="control-drawer-label">筛选</span>
             <span class="menu-caret"></span>
           </button>
-          <div class="menu-panel" id="ai-target-menu-panel">
-            <button class="menu-item menu-item--check" type="button" data-ai-target="web" onclick="toggleAiTarget('web')">ChatGPT 网页版</button>
-            <button class="menu-item menu-item--check" type="button" data-ai-target="desktop" onclick="toggleAiTarget('desktop')">ChatGPT 桌面版</button>
-            <button class="menu-item menu-item--check" type="button" data-ai-target="gemini_web" onclick="toggleAiTarget('gemini_web')">Gemini 网页版</button>
-            <div class="menu-divider"></div>
-            <button class="menu-item menu-item--check" type="button" data-ai-target="copy" onclick="toggleAiTarget('copy')">仅复制提示词</button>
+        </div>
+
+        <div class="workspace-action-group">
+          <div class="workspace-summary">
+            <div class="workspace-summary-copy">
+              <span class="workspace-summary-line">已选 <span class="metric-number" id="selected-count">0</span> / 共 <span class="metric-number" id="visible-count">0</span><span id="visible-label"> 项</span></span>
+            </div>
+          </div>
+          <span class="workspace-ai-target" id="workspace-ai-target" data-ai-target-label>ChatGPT 网页版</span>
+          <div class="action-split menu-wrap" data-menu-id="ai-target-menu">
+            <button class="action-primary split-main" id="analyze-visible-btn" type="button" onclick="analyzeVisible()">
+              <span class="split-main-title">分析当前列表</span>
+            </button>
+            <button class="action-primary split-trigger" id="ai-target-trigger" type="button" aria-label="选择分析目标" aria-haspopup="menu" aria-expanded="false" onclick="toggleMenu(event,'ai-target-menu')">
+              <span class="menu-caret"></span>
+            </button>
+            <div class="menu-panel" id="ai-target-menu-panel">
+              <button class="menu-item menu-item--check" type="button" data-ai-target="web" onclick="toggleAiTarget('web')">ChatGPT 网页版</button>
+              <button class="menu-item menu-item--check" type="button" data-ai-target="desktop" onclick="toggleAiTarget('desktop')">ChatGPT 桌面版</button>
+              <button class="menu-item menu-item--check" type="button" data-ai-target="gemini_web" onclick="toggleAiTarget('gemini_web')">Gemini 网页版</button>
+              <div class="menu-divider"></div>
+              <button class="menu-item menu-item--check" type="button" data-ai-target="copy" onclick="toggleAiTarget('copy')">仅复制提示词</button>
+            </div>
           </div>
         </div>
 
@@ -153,11 +150,6 @@ HTML_BODY = """</style>
             </div>
           </div>
         </div>
-
-        <button class="action-quiet workspace-drawer-trigger" id="control-drawer-trigger" type="button" aria-haspopup="dialog" aria-expanded="false" onclick="toggleControlDrawer()">
-          <span id="control-drawer-label">筛选</span>
-          <span class="menu-caret"></span>
-        </button>
       </div>
     </div>
 

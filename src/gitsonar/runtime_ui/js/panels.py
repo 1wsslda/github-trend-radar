@@ -84,6 +84,7 @@ function ensureValidPanel(){
     panel = "daily";
     localStorage.setItem("gtr-tab", panel);
   }
+  rememberPanelPreference(panel);
 }
 
 function panelMeta(key = panel){
@@ -94,6 +95,70 @@ function panelFamily(key = panel){
   return panelMeta(key)?.family || "trend";
 }
 
+function rememberPanelPreference(key = panel){
+  const normalized = normalizePanelKey(key);
+  const family = panelFamily(normalized);
+  if(family === "trend") localStorage.setItem("gtr-tab-trend", normalized);
+  if(family === "library") localStorage.setItem("gtr-tab-library", normalized);
+}
+
+function preferredFamilyPanel(family){
+  if(family === "trend"){
+    const stored = normalizePanelKey(localStorage.getItem("gtr-tab-trend") || "");
+    if(panelFamily(stored) === "trend") return stored;
+    return periodDefs()[0]?.key || "daily";
+  }
+  if(family === "library"){
+    const stored = normalizePanelKey(localStorage.getItem("gtr-tab-library") || "");
+    if(panelFamily(stored) === "library") return stored;
+    const fallback = stateDefs()[0]?.key || "favorites";
+    return `saved:${fallback}`;
+  }
+  return family === "discover" ? DISCOVER_PANEL_KEY : UPDATE_PANEL_KEY;
+}
+
+function setPrimaryPanel(family){
+  if(family === "trend" || family === "library"){
+    setPanel(preferredFamilyPanel(family));
+    return;
+  }
+  setPanel(family === "discover" ? DISCOVER_PANEL_KEY : UPDATE_PANEL_KEY);
+}
+
+function renderWorkspaceSubnav(activeFamily, trendTabs, libraryTabs, activeTrendKey, activeLibraryKey){
+  const subnav = document.getElementById("workspace-subnav");
+  if(!subnav) return;
+
+  if(activeFamily === "trend"){
+    subnav.hidden = false;
+    subnav.innerHTML = `<div class="workspace-subnav-row" aria-label="趋势时间范围">
+      ${trendTabs.map(tab => `
+        <button class="workspace-subnav-pill ${tab.key === activeTrendKey ? "active" : ""}" type="button" onclick='setPanel(${JSON.stringify(tab.key)})'>
+          <span>${h(tab.label)}</span>
+          <span class="workspace-subnav-count">${tab.count}</span>
+        </button>
+      `).join("")}
+    </div>`;
+    return;
+  }
+
+  if(activeFamily === "library"){
+    subnav.hidden = false;
+    subnav.innerHTML = `<div class="workspace-subnav-row" aria-label="我的库状态">
+      ${libraryTabs.map(tab => `
+        <button class="workspace-subnav-pill ${tab.key === activeLibraryKey ? "active" : ""}" type="button" onclick='setPanel(${JSON.stringify(tab.key)})'>
+          <span>${h(tab.label)}</span>
+          <span class="workspace-subnav-count">${tab.count}</span>
+        </button>
+      `).join("")}
+    </div>`;
+    return;
+  }
+
+  subnav.hidden = true;
+  subnav.innerHTML = "";
+}
+
 function renderTabs(){
   const tabs = tabsData();
   const activeFamily = panelFamily();
@@ -101,58 +166,31 @@ function renderTabs(){
   const libraryTabs = tabs.filter(tab => tab.family === "library");
   const discoverTab = tabs.find(tab => tab.family === "discover");
   const updatesTab = tabs.find(tab => tab.family === "updates");
-  const activeTrend = trendTabs.find(tab => tab.key === panel) || trendTabs[0];
-  const activeLibrary = libraryTabs.find(tab => tab.key === panel) || libraryTabs[0];
-  const activeTrendSortLabel = currentSortLabel();
-  const trendTriggerSummary = activeTrend
-    ? activeFamily === "trend"
-      ? `<span class="nav-pill-label">${h(activeTrendSortLabel)}</span><span class="nav-count">${activeTrend.count}</span>`
-      : `趋势<span class="nav-pill-note">${h(activeTrend.label)}</span><span class="nav-count">${activeTrend.count}</span>`
-    : "趋势";
+  const activeTrendKey = activeFamily === "trend" ? panel : preferredFamilyPanel("trend");
+  const activeLibraryKey = activeFamily === "library" ? panel : preferredFamilyPanel("library");
+  const activeTrend = trendTabs.find(tab => tab.key === activeTrendKey) || trendTabs[0];
+  const activeLibrary = libraryTabs.find(tab => tab.key === activeLibraryKey) || libraryTabs[0];
   const libraryCount = libraryTabs.reduce((sum, tab) => sum + (tab.count || 0), 0);
-  const trendMenu = trendTabs.map(tab => `
-    <button class="menu-item ${tab.key === panel ? "active" : ""}" type="button" onclick='setPanel(${JSON.stringify(tab.key)});closeMenus();'>
-      <span>${h(tab.label)}</span>
-      <span class="nav-count">${tab.count}</span>
-    </button>
-  `).join("");
-  const libraryMenu = libraryTabs.map(tab => `
-    <button class="menu-item ${tab.key === panel ? "active" : ""}" type="button" onclick='setPanel(${JSON.stringify(tab.key)});closeMenus();'>
-      <span>${h(tab.label)}</span>
-      <span class="nav-count">${tab.count}</span>
-    </button>
-  `).join("");
 
   document.getElementById("tabs").innerHTML = `<div class="nav-main">
-    <div class="menu-wrap" data-menu-id="nav-trend-menu">
-      <button class="nav-pill menu-toggle ${activeFamily === "trend" ? "active" : ""}" type="button" aria-haspopup="menu" aria-expanded="false" onclick='toggleMenu(event, "nav-trend-menu")'>
-        ${trendTriggerSummary}
-        <span class="menu-caret"></span>
-      </button>
-      <div class="menu-panel align-left nav-menu-panel" id="nav-trend-menu-panel">
-        ${trendMenu}
-      </div>
-    </div>
-    <button class="nav-pill ${panel === DISCOVER_PANEL_KEY ? "active" : ""}" type="button" onclick='setPanel(${JSON.stringify(DISCOVER_PANEL_KEY)})'>
+    <button class="nav-pill ${activeFamily === "trend" ? "active" : ""}" type="button" onclick='setPrimaryPanel("trend")'>
+      趋势
+      ${activeTrend ? `<span class="nav-count">${activeTrend.count}</span>` : ""}
+    </button>
+    <button class="nav-pill ${panel === DISCOVER_PANEL_KEY ? "active" : ""}" type="button" onclick='setPrimaryPanel("discover")'>
       发现
       ${discoverTab ? `<span class="nav-count">${discoverTab.count}</span>` : ""}
     </button>
-    <div class="menu-wrap" data-menu-id="nav-library-menu">
-      <button class="nav-pill menu-toggle ${activeFamily === "library" ? "active" : ""}" type="button" aria-haspopup="menu" aria-expanded="false" onclick='toggleMenu(event, "nav-library-menu")'>
-        我的库
-        ${activeLibrary ? `<span class="nav-pill-note">${h(activeLibrary.label)}</span>` : ""}
-        <span class="nav-count">${libraryCount}</span>
-        <span class="menu-caret"></span>
-      </button>
-      <div class="menu-panel align-left nav-menu-panel" id="nav-library-menu-panel">
-        ${libraryMenu}
-      </div>
-    </div>
-    <button class="nav-pill ${panel === UPDATE_PANEL_KEY ? "active" : ""}" type="button" onclick='setPanel(${JSON.stringify(UPDATE_PANEL_KEY)})'>
+    <button class="nav-pill ${activeFamily === "library" ? "active" : ""}" type="button" onclick='setPrimaryPanel("library")'>
+      我的库
+      <span class="nav-count">${libraryCount}</span>
+    </button>
+    <button class="nav-pill ${panel === UPDATE_PANEL_KEY ? "active" : ""}" type="button" onclick='setPrimaryPanel("updates")'>
       更新
       ${updatesTab ? `<span class="nav-count">${updatesTab.count}</span>` : ""}
     </button>
   </div>`;
+  renderWorkspaceSubnav(activeFamily, trendTabs, libraryTabs, activeTrend?.key || "", activeLibrary?.key || "");
 }
 
 function currentStateFilterLabel(){
@@ -162,14 +200,6 @@ function currentStateFilterLabel(){
 
 function currentSortLabel(){
   return SORT_LABELS[sortPrimary] || "总星标";
-}
-
-function panelSummaryText(key = panel){
-  const meta = panelMeta(key);
-  if(!meta) return "今日趋势 · 0 个仓库";
-  if(key === DISCOVER_PANEL_KEY) return `${meta.label} · ${meta.count || 0} 个候选项目`;
-  if(key === UPDATE_PANEL_KEY) return `${meta.label} · ${meta.count || 0} 条更新`;
-  return `${meta.label} · ${meta.count || 0} 个仓库`;
 }
 
 function renderWorkspaceSummaryStrip(){
@@ -220,25 +250,27 @@ function renderWorkspaceSummaryStrip(){
 
 function syncWorkspaceBarModes(){
   const isDiscoverPanel = panel === DISCOVER_PANEL_KEY;
+  const isUpdatePanel = panel === UPDATE_PANEL_KEY;
+  const filterGroup = document.querySelector(".workspace-filter-group");
+  const actionGroup = document.querySelector(".workspace-action-group");
   const searchWrap = document.querySelector(".workspace-search-wrap");
   const summary = document.querySelector(".workspace-summary");
+  const aiTarget = document.getElementById("workspace-ai-target");
   const analyzeSplit = document.querySelector('.action-split[data-menu-id="ai-target-menu"]');
   const discoverRow = document.getElementById("discover-query-row");
   const discoverContext = document.getElementById("discover-context");
   const drawerTrigger = document.getElementById("control-drawer-trigger");
   const barMain = document.querySelector(".workspace-bar-main");
+  if(filterGroup) filterGroup.hidden = isDiscoverPanel;
+  if(actionGroup) actionGroup.hidden = isDiscoverPanel;
   if(searchWrap) searchWrap.hidden = isDiscoverPanel;
   if(summary) summary.hidden = isDiscoverPanel;
-  if(analyzeSplit) analyzeSplit.hidden = isDiscoverPanel;
+  if(aiTarget) aiTarget.hidden = isDiscoverPanel || isUpdatePanel;
+  if(analyzeSplit) analyzeSplit.hidden = isDiscoverPanel || isUpdatePanel;
   if(discoverRow) discoverRow.hidden = !isDiscoverPanel;
   if(discoverContext) discoverContext.hidden = !isDiscoverPanel;
   if(drawerTrigger) drawerTrigger.hidden = isDiscoverPanel;
   if(barMain) barMain.classList.toggle("workspace-bar-main--discover", isDiscoverPanel);
-}
-
-function syncWorkspaceHeader(){
-  const summaryNode = document.getElementById("panel-summary");
-  if(summaryNode) summaryNode.textContent = panelSummaryText();
 }
 
 function syncWorkspaceCanvas(){

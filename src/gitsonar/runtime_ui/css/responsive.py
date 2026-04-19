@@ -5,34 +5,28 @@ CSS = r"""@media (min-width:1600px){
   .cards{grid-template-columns:repeat(3,minmax(0,1fr))}
 }
 @media (max-width:1439px){
-  .workspace-bar-main{
-    grid-template-columns:minmax(220px,1fr) auto auto;
-  }
-  .workspace-bar-main--discover{
-    grid-template-columns:minmax(0,1fr);
-  }
   .workspace-drawer #control-drawer-list{
     grid-template-columns:1fr 1fr;
   }
-  .workspace-summary{
-    grid-column:1 / -1;
-    min-width:0;
+  .workspace-action-group{
+    gap:10px;
   }
 }
 @media (max-width:1199px){
   .workspace-bar-main{
-    grid-template-columns:1fr 1fr;
+    grid-template-columns:1fr;
     align-items:stretch;
   }
   .workspace-bar-main--discover{
     grid-template-columns:1fr;
   }
-  .workspace-search-wrap{
-    grid-column:1 / -1;
+  .workspace-filter-group,
+  .workspace-action-group{
+    width:100%;
   }
-  .workspace-summary{
-    grid-column:auto;
-    min-width:0;
+  .workspace-action-group{
+    justify-content:space-between;
+    flex-wrap:wrap;
   }
   .discover-query-row{
     grid-template-columns:1fr;
@@ -81,11 +75,34 @@ CSS = r"""@media (min-width:1600px){
   .workspace-bar-main--discover{
     grid-template-columns:1fr;
   }
-  .workspace-summary{
+  .workspace-filter-group,
+  .workspace-action-group{
+    display:grid;
+    grid-template-columns:1fr;
+    justify-content:stretch;
+  }
+  .workspace-summary,
+  .workspace-ai-target,
+  .workspace-drawer-trigger,
+  .action-split{
     width:100%;
+  }
+  .workspace-summary{
+    justify-content:flex-start;
+  }
+  .workspace-ai-target{
+    max-width:none;
   }
   .workspace-drawer-head{
     grid-template-columns:1fr;
+  }
+  .workspace-subnav-row{
+    flex-wrap:nowrap;
+    overflow-x:auto;
+    padding-bottom:2px;
+  }
+  .workspace-subnav-pill{
+    flex:0 0 auto;
   }
   .discover-top-grid,
   .settings-inline{
@@ -122,15 +139,8 @@ CSS = r"""@media (min-width:1600px){
   .compare-card{
     border-radius:20px;
   }
-  .workspace-title-row{
-    align-items:flex-start;
-    flex-direction:column;
-  }
   .workspace-title{
     font-size:clamp(1.55rem,8vw,2.2rem);
-  }
-  .workspace-panel-meta{
-    width:100%;
   }
   .nav-main{
     flex-wrap:nowrap;
@@ -139,9 +149,6 @@ CSS = r"""@media (min-width:1600px){
   }
   .nav-pill{
     flex:0 0 auto;
-  }
-  .workspace-summary{
-    width:100%;
   }
   .discover-query-row{
     grid-template-columns:1fr;

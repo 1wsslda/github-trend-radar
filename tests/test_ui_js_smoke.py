@@ -62,7 +62,6 @@ class UIJSSmokeTests(unittest.TestCase):
 
     def test_render_pipeline_updates_shell_and_canvas(self):
         body = function_body(JS, "render")
-        self.assertIn("syncWorkspaceHeader();", body)
         self.assertIn("syncWorkspaceCanvas();", body)
         self.assertIn("syncControlStates();", body)
 

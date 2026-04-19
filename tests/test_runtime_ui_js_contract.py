@@ -24,6 +24,17 @@ class RuntimeUIJSContractTests(unittest.TestCase):
         duplicates = sorted(name for name, count in Counter(names).items() if count > 1)
         self.assertEqual(duplicates, [], f"duplicate function definitions found: {duplicates}")
 
+    def test_primary_nav_contract_uses_subnav_and_shared_ai_target_sync(self):
+        for token in (
+            'function preferredFamilyPanel(family){',
+            'function setPrimaryPanel(family){',
+            'function renderWorkspaceSubnav(activeFamily, trendTabs, libraryTabs, activeTrendKey, activeLibraryKey){',
+            'onclick=\'setPanel(${JSON.stringify(tab.key)})\'',
+            'document.querySelectorAll("[data-ai-target-label]").forEach(node => {',
+        ):
+            with self.subTest(token=token):
+                self.assertIn(token, JS)
+
     def test_aggregate_js_passes_node_syntax_check_when_available(self):
         node = shutil.which("node")
         if not node:

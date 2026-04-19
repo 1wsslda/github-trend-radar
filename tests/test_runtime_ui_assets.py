@@ -46,7 +46,14 @@ class RuntimeUILayoutSmokeTests(unittest.TestCase):
         html = build_fixture_html()
 
         self.assertIn('"controlToken": ""', html)
-        self.assertIn('id="panel-summary"', html)
+
+    def test_workspace_header_omits_legacy_auxiliary_copy(self):
+        html = build_fixture_html()
+
+        self.assertIn('<h1 class="workspace-title">GitSonar</h1>', html)
+        self.assertNotIn("GitHub Intelligence Desk", html)
+        self.assertNotIn("Reading-first Workspace", html)
+        self.assertNotIn('id="panel-summary"', html)
 
     def test_compact_workspace_shell_is_present(self):
         html = build_fixture_html(control_token="test-control-token")
@@ -54,6 +61,9 @@ class RuntimeUILayoutSmokeTests(unittest.TestCase):
             'class="workspace-header"',
             'class="workspace-bar"',
             'class="workspace-bar-shell"',
+            'id="workspace-subnav"',
+            'class="workspace-filter-group"',
+            'class="workspace-action-group"',
             'class="workspace-context"',
             'id="workspace-summary-strip"',
             'class="workspace-drawer" id="control-drawer"',
@@ -101,22 +111,27 @@ class RuntimeUILayoutSmokeTests(unittest.TestCase):
             with self.subTest(css=token):
                 self.assertIn(token, CSS)
 
-    def test_trend_nav_summary_uses_current_sort_label_and_summary_wrapper(self):
+    def test_primary_nav_and_subnav_use_current_family_switching_contract(self):
         html = build_fixture_html()
-        summary_section = html.split('<div class="workspace-summary"', 1)[1].split('<div class="action-split menu-wrap" data-menu-id="ai-target-menu">', 1)[0]
+        summary_section = html.split('<div class="workspace-summary"', 1)[1].split('<span class="workspace-ai-target"', 1)[0]
+        analyze_section = html.split('id="analyze-visible-btn"', 1)[1].split('id="ai-target-trigger"', 1)[0]
 
         self.assertIn('class="workspace-summary">', html)
         self.assertIn('class="workspace-summary-copy"', html)
+        self.assertIn('class="workspace-summary-line">已选', html)
+        self.assertIn('class="workspace-ai-target"', html)
+        self.assertNotIn('split-main-note', analyze_section)
+        self.assertNotIn('data-ai-target-label', analyze_section)
         self.assertNotIn('aria-live="polite"', summary_section)
         self.assertNotIn('role="status"', summary_section)
-        self.assertIn('const activeTrendSortLabel = currentSortLabel();', JS)
-        self.assertIn('const trendTriggerSummary = activeTrend', JS)
-        self.assertIn('activeFamily === "trend"', JS)
-        self.assertIn('nav-pill-label">${h(activeTrendSortLabel)}</span><span class="nav-count">${activeTrend.count}</span>', JS)
-        self.assertIn('趋势<span class="nav-pill-note">${h(activeTrend.label)}</span><span class="nav-count">${activeTrend.count}</span>', JS)
-        self.assertIn(".nav-pill-label{", CSS)
-        self.assertIn(".workspace-summary-copy{", CSS)
-        self.assertIn('[data-menu-id="ai-target-menu"] .split-main,', CSS)
+        self.assertIn('function renderWorkspaceSubnav(activeFamily, trendTabs, libraryTabs, activeTrendKey, activeLibraryKey){', JS)
+        self.assertIn("onclick='setPrimaryPanel(\"trend\")'", JS)
+        self.assertIn("onclick='setPrimaryPanel(\"library\")'", JS)
+        self.assertNotIn('data-menu-id="nav-trend-menu"', JS)
+        self.assertNotIn('data-menu-id="nav-library-menu"', JS)
+        self.assertIn(".workspace-subnav-row{", CSS)
+        self.assertIn(".workspace-action-group{", CSS)
+        self.assertIn('.workspace-action-group > .action-split[data-menu-id="ai-target-menu"] .split-main,', CSS)
 
     def test_settings_markup_includes_sensitive_setting_controls(self):
         html = build_fixture_html(control_token="test-control-token")

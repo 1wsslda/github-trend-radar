@@ -24,14 +24,8 @@ CSS = r""".page{
 }
 .workspace-brand{
   display:grid;
-  gap:8px;
+  align-content:center;
   min-width:0;
-}
-.workspace-title-row{
-  display:flex;
-  flex-wrap:wrap;
-  align-items:flex-end;
-  gap:10px 14px;
 }
 .workspace-title{
   margin:0;
@@ -39,36 +33,6 @@ CSS = r""".page{
   line-height:.94;
   letter-spacing:-.06em;
   font-weight:720;
-}
-.workspace-panel-meta{
-  display:flex;
-  flex-wrap:wrap;
-  gap:8px;
-  align-items:center;
-  min-width:0;
-}
-.workspace-badge{
-  display:inline-flex;
-  align-items:center;
-  min-height:26px;
-  padding:0 10px;
-  border-radius:999px;
-  border:1px solid rgba(233,201,143,.14);
-  background:rgba(233,201,143,.08);
-  color:var(--accent-strong);
-  font-family:var(--font-mono);
-  font-size:.68rem;
-  letter-spacing:.08em;
-  text-transform:uppercase;
-}
-.workspace-panel-summary{
-  min-width:0;
-  color:var(--text-soft);
-  font-size:.9rem;
-  line-height:1.5;
-  white-space:nowrap;
-  overflow:hidden;
-  text-overflow:ellipsis;
 }
 .workspace-status{
   display:grid;
@@ -101,8 +65,8 @@ CSS = r""".page{
   top:12px;
   z-index:18;
   display:grid;
-  gap:12px;
-  padding:12px 14px 14px;
+  gap:10px;
+  padding:10px 14px 14px;
   border:1px solid var(--border);
   border-radius:22px;
   background:rgba(20,18,14,.9);
@@ -187,11 +151,55 @@ CSS = r""".page{
 .nav-menu-panel{
   min-width:220px;
 }
+.workspace-subnav{
+  display:grid;
+  gap:8px;
+}
+.workspace-subnav-row{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  align-items:center;
+}
+.workspace-subnav-pill{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  min-height:30px;
+  padding:0 10px;
+  border:1px solid rgba(232,214,184,.08);
+  border-radius:999px;
+  background:rgba(12,10,8,.18);
+  color:var(--muted);
+  font-size:.8rem;
+  white-space:nowrap;
+  cursor:pointer;
+  transition:
+    border-color .25s var(--ease-smooth),
+    background .25s var(--ease-smooth),
+    color .25s var(--ease-smooth),
+    transform .25s var(--ease-smooth);
+}
+.workspace-subnav-pill:hover{
+  border-color:rgba(233,201,143,.16);
+  background:rgba(233,201,143,.06);
+  color:var(--text-soft);
+}
+.workspace-subnav-pill.active{
+  border-color:rgba(233,201,143,.18);
+  background:rgba(233,201,143,.12);
+  color:var(--text);
+}
+.workspace-subnav-count{
+  color:var(--accent);
+  font-family:var(--font-mono);
+  font-size:.72rem;
+}
 .workspace-bar-main{
   display:grid;
-  grid-template-columns:minmax(280px,1.2fr) auto auto auto;
-  gap:10px;
-  align-items:end;
+  grid-template-columns:minmax(0,1fr) auto;
+  gap:14px;
+  align-items:center;
   position:relative;
   z-index:10;
 }
@@ -199,37 +207,60 @@ CSS = r""".page{
   grid-template-columns:minmax(0,1fr);
   align-items:end;
 }
-.workspace-search-wrap{
+.workspace-filter-group,
+.workspace-action-group{
+  display:flex;
+  align-items:center;
+  gap:10px;
   min-width:0;
+}
+.workspace-filter-group{
+  justify-content:flex-start;
+}
+.workspace-action-group{
+  justify-content:flex-end;
+}
+.workspace-search-wrap{
+  flex:1 1 auto;
+  min-width:0;
+}
+.workspace-filter-group .workspace-drawer-trigger{
+  min-height:48px;
+  padding:0 14px;
+  border-radius:16px;
 }
 .workspace-summary{
   display:flex;
   align-items:center;
-  justify-content:center;
-  min-height:var(--workspace-bar-emphasis-height);
-  min-width:168px;
-  padding:8px 15px;
-  border:1px solid rgba(232,214,184,.12);
-  border-radius:16px;
-  background:linear-gradient(180deg, rgba(37,32,25,.72), rgba(19,17,13,.88));
-  box-shadow:
-    inset 0 1px 0 rgba(255,255,255,.03),
-    0 1px 0 rgba(0,0,0,.18);
+  justify-content:flex-end;
+  min-width:0;
+  padding:0;
+  border:none;
+  background:none;
+  box-shadow:none;
 }
 .workspace-summary-copy{
-  display:grid;
-  align-content:center;
-  gap:3px;
-  width:100%;
+  display:flex;
+  align-items:center;
   min-width:0;
 }
-.workspace-summary .summary{
-  font-size:.92rem;
-  line-height:1.22;
+.workspace-summary-line{
+  color:var(--text-soft);
+  font-size:.84rem;
+  line-height:1.25;
+  white-space:nowrap;
 }
-.workspace-summary .sub{
+.workspace-summary-line .metric-number{
+  color:var(--text);
+}
+.workspace-ai-target{
+  max-width:18ch;
+  color:var(--muted);
   font-size:.76rem;
   line-height:1.2;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
 }
 .workspace-drawer-trigger{
   min-width:90px;

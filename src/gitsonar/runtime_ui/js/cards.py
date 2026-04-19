@@ -101,12 +101,11 @@ function syncExpandableDescriptions(scope = document){
 
 function refreshSelectionSummary(){
   const isUpdatePanel = panel === UPDATE_PANEL_KEY;
-  const isDiscoverPanel = panel === DISCOVER_PANEL_KEY;
   const repos = visibleRepos();
   const updates = visibleUpdates();
   const selected = selectedCount();
   document.getElementById("visible-count").textContent = isUpdatePanel ? updates.length : repos.length;
-  document.getElementById("visible-label").textContent = isUpdatePanel ? " 条更新" : (isDiscoverPanel ? " 个候选项目" : " 个仓库");
+  document.getElementById("visible-label").textContent = isUpdatePanel ? " 条更新" : " 项";
   document.getElementById("selected-count").textContent = selected;
   const batchDockCount = document.getElementById("batch-dock-count");
   const compareSelectedBtn = document.getElementById("compare-selected-btn");
@@ -325,7 +324,6 @@ function render(){
   syncControlStates();
   syncDiscoveryPanel();
   syncAllCustomSelects();
-  syncWorkspaceHeader();
   syncWorkspaceCanvas();
   document.getElementById("analyze-visible-btn").querySelector(".split-main-title").textContent = isDiscoverPanel ? "分析这批结果" : "分析当前列表";
   refreshSelectionSummary();
@@ -334,6 +332,7 @@ function render(){
 function setPanel(nextPanel){
   panel = normalizePanelKey(nextPanel || "daily");
   localStorage.setItem("gtr-tab", panel);
+  rememberPanelPreference(panel);
   closeMenus();
   closeControlDrawer();
   render();

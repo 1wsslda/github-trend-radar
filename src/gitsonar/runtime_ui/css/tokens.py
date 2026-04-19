@@ -165,7 +165,6 @@ body.overlay-open{
   justify-content:flex-end;
 }
 
-.hero-kicker,
 .field-label,
 .group-label,
 .status-label,
@@ -176,15 +175,6 @@ body.overlay-open{
 .detail-item strong{
   font-family:var(--font-mono);
   font-variant-numeric:tabular-nums;
-}
-.hero-kicker{
-  display:inline-flex;
-  align-items:center;
-  gap:10px;
-  color:var(--accent-strong);
-  font-size:10px;
-  letter-spacing:.18em;
-  text-transform:uppercase;
 }
 .status-label{
   color:var(--text-soft);
