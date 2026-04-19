@@ -342,6 +342,33 @@ function renderDiscoveryResultsToolbar(){
     </div>
     <div class="discover-results-toolbar-actions">
       <button class="action-primary" type="button" onclick="analyzeVisible()">分析这批结果</button>
+      <div class="menu-wrap" data-menu-id="discover-result-prompt-menu">
+        <button class="action-quiet menu-toggle" type="button" aria-haspopup="menu" aria-expanded="false" onclick="toggleMenu(event,'discover-result-prompt-menu')">
+          分析方式
+          <span class="discover-toolbar-ai" data-prompt-profile-label>${h(currentPromptProfileLabel())}</span>
+          <span class="menu-caret"></span>
+        </button>
+        <div class="menu-panel align-right" id="discover-result-prompt-menu-panel">
+          <button class="menu-item menu-item--check" type="button" data-prompt-profile="fit" onclick="setPromptProfile('fit')">
+            <span class="menu-item-copy">
+              <span>适合我吗</span>
+              <span class="menu-item-meta">判断我能不能用，告诉我怎么开始</span>
+            </span>
+          </button>
+          <button class="menu-item menu-item--check" type="button" data-prompt-profile="understand" onclick="setPromptProfile('understand')">
+            <span class="menu-item-copy">
+              <span>先看懂</span>
+              <span class="menu-item-meta">先讲明白，再判断值不值得看</span>
+            </span>
+          </button>
+          <button class="menu-item menu-item--check" type="button" data-prompt-profile="adopt" onclick="setPromptProfile('adopt')">
+            <span class="menu-item-copy">
+              <span>落地方案</span>
+              <span class="menu-item-meta">按试用、PoC、正式使用给步骤</span>
+            </span>
+          </button>
+        </div>
+      </div>
       <div class="menu-wrap" data-menu-id="discover-result-ai-menu">
         <button class="action-quiet menu-toggle" type="button" aria-haspopup="menu" aria-expanded="false" onclick="toggleMenu(event,'discover-result-ai-menu')">
           AI 目标选择

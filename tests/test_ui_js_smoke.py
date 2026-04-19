@@ -13,8 +13,12 @@ from gitsonar.runtime_ui.assets import JS
 
 
 def function_body(source: str, name: str) -> str:
-    marker = f"function {name}("
-    start = source.find(marker)
+    markers = [f"function {name}(", f"async function {name}("]
+    start = -1
+    for marker in markers:
+        start = source.find(marker)
+        if start != -1:
+            break
     if start == -1:
         raise AssertionError(f"missing function {name}")
     brace_start = source.find("{", start)
@@ -120,6 +124,46 @@ class UIJSSmokeTests(unittest.TestCase):
         self.assertIn("new Headers(next.headers || {})", body)
         self.assertIn("headers.set(CONTROL_TOKEN_HEADER, controlToken);", body)
         self.assertIn("next.headers = headers;", body)
+
+    def test_prompt_profile_selection_is_persisted_and_rebuilds_compare_prompt(self):
+        body = function_body(JS, "setPromptProfile")
+        self.assertIn('promptProfile = normalizePromptProfile(value);', body)
+        self.assertIn('localStorage.setItem("gtr-prompt-profile", promptProfile);', body)
+        self.assertIn("if(compareContext){", body)
+        self.assertIn("comparePrompt = buildComparePrompt(", body)
+        self.assertIn("syncPromptProfileUI();", body)
+
+    def test_close_compare_clears_cached_compare_prompt_state(self):
+        body = function_body(JS, "closeCompare")
+        self.assertIn('comparePrompt = "";', body)
+        self.assertIn("compareContext = null;", body)
+        self.assertIn('setOverlayVisible("compare-modal", false);', body)
+
+    def test_batch_prompt_profiles_define_expected_limits(self):
+        body = function_body(JS, "promptProfileBatchLimit")
+        self.assertIn('if(activeProfile === "adopt") return 2;', body)
+        self.assertIn('if(activeProfile === "understand") return 4;', body)
+        self.assertIn("return 3;", body)
+
+    def test_split_repo_prompts_uses_profile_aware_batching_and_length_draft(self):
+        body = function_body(JS, "splitRepoPrompts")
+        self.assertIn("const lengthLimit = Number.isFinite(Number(maxEncodedLength)) && Number(maxEncodedLength) > 0 ? Number(maxEncodedLength) : 2600;", body)
+        self.assertIn("const batchLimit = Number.isFinite(Number(maxItemsPerBatch)) && Number(maxItemsPerBatch) > 0", body)
+        self.assertIn(": promptProfileBatchLimit(activeProfile);", body)
+        self.assertIn("const buildDraft = candidate => buildBatchPrompt(candidate, title, 1, 2, activeProfile);", body)
+        self.assertIn("encodedLength > lengthLimit || candidate.length > batchLimit", body)
+
+    def test_analysis_entrypoints_pass_current_prompt_profile(self):
+        analyze_repo = function_body(JS, "analyzeRepo")
+        analyze_visible = function_body(JS, "analyzeVisible")
+        analyze_selected = function_body(JS, "analyzeSelected")
+        open_compare = function_body(JS, "openCompareSelected")
+
+        self.assertIn("buildRepoPrompt(repo, promptProfile)", analyze_repo)
+        self.assertIn("splitRepoPrompts(", analyze_visible)
+        self.assertIn("promptProfile,", analyze_visible)
+        self.assertIn('splitRepoPrompts(repos, "已选仓库", undefined, undefined, promptProfile)', analyze_selected)
+        self.assertIn("buildComparePrompt(repoA, repoB, detailA, detailB, promptProfile);", open_compare)
 
 
 if __name__ == "__main__":

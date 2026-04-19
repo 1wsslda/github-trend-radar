@@ -248,6 +248,22 @@ function toggleAiTarget(value){
   syncAiTargetUI();
 }
 
+function setPromptProfile(value){
+  promptProfile = normalizePromptProfile(value);
+  localStorage.setItem("gtr-prompt-profile", promptProfile);
+  if(compareContext){
+    comparePrompt = buildComparePrompt(
+      compareContext.repoA,
+      compareContext.repoB,
+      compareContext.detailA,
+      compareContext.detailB,
+      promptProfile,
+    );
+  }
+  closeMenus();
+  syncPromptProfileUI();
+}
+
 function syncStateFilterUI(){
   document.querySelectorAll("#state-filter-seg [data-value]").forEach(btn => {
     btn.classList.toggle("active", (btn.dataset.value || "") === stateFilter);
@@ -274,5 +290,15 @@ function syncAiTargetUI(){
   });
   document.querySelectorAll("[data-ai-target]").forEach(btn => {
     btn.classList.toggle("active", aiTargets.has(btn.dataset.aiTarget));
+  });
+}
+
+function syncPromptProfileUI(){
+  const label = currentPromptProfileLabel();
+  document.querySelectorAll("[data-prompt-profile-label]").forEach(node => {
+    node.textContent = label;
+  });
+  document.querySelectorAll("[data-prompt-profile]").forEach(btn => {
+    btn.classList.toggle("active", btn.dataset.promptProfile === promptProfile);
   });
 }"""

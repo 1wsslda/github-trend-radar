@@ -122,7 +122,7 @@ async function analyzeRepo(url){
     toast("未找到仓库信息");
     return;
   }
-  await openAiPrompts([buildRepoPrompt(repo)]);
+  await openAiPrompts([buildRepoPrompt(repo, promptProfile)]);
 }
 
 async function analyzeVisible(){
@@ -135,7 +135,13 @@ async function analyzeVisible(){
     toast("当前列表没有可分析的仓库");
     return;
   }
-  await openAiPrompts(splitRepoPrompts(repos, panel === DISCOVER_PANEL_KEY ? "当前这批候选项目" : "当前 GitHub 趋势列表"));
+  await openAiPrompts(splitRepoPrompts(
+    repos,
+    panel === DISCOVER_PANEL_KEY ? "当前这批候选项目" : "当前 GitHub 趋势列表",
+    undefined,
+    undefined,
+    promptProfile,
+  ));
 }
 
 async function analyzeSelected(){
@@ -144,7 +150,7 @@ async function analyzeSelected(){
     toast("请先选中仓库");
     return;
   }
-  await openAiPrompts(splitRepoPrompts(repos, "已选仓库"));
+  await openAiPrompts(splitRepoPrompts(repos, "已选仓库", undefined, undefined, promptProfile));
 }
 
 async function fetchRepoDetails(repo){
@@ -153,33 +159,66 @@ async function fetchRepoDetails(repo){
   return data.details;
 }
 
-function buildComparePrompt(a, b, detailA, detailB){
-  return `请用中文对比下面两个 GitHub 仓库，并输出：
-1. 两个项目分别解决什么问题
-2. 功能定位和差异化对比
-3. 社区热度与活跃度对比
-4. 各自更适合哪些用户和场景
-5. 如果只能长期关注一个，更建议关注哪一个，为什么
+function compareRepoFacts(repo, detail){
+  return `名称：${repo.full_name}
+链接：${repo.url}
+语言：${repo.language || "未知语言"}
+星标：${detail.stars || repo.stars || 0}
+派生：${detail.forks || repo.forks || 0}
+开放议题：${detail.open_issues || 0}
+最近推送：${detail.pushed_at || "未知"}
+许可证：${detail.license || "未标注"}
+简介：${detail.description || detail.description_raw || repo.description || repo.description_raw || "暂无描述"}
+README 摘要：${detail.readme_summary || detail.readme_summary_raw || "暂无"}`;
+}
 
-项目 A
-名称: ${a.full_name}
-链接: ${a.url}
-语言: ${a.language || "未知语言"}
-Stars: ${detailA.stars || a.stars || 0}
-Forks: ${detailA.forks || a.forks || 0}
-最近推送: ${detailA.pushed_at || "未知"}
-简介: ${detailA.description || detailA.description_raw || a.description || a.description_raw || "暂无描述"}
-README 摘要: ${detailA.readme_summary || detailA.readme_summary_raw || "暂无"}
+function comparePromptFocus(profile){
+  const activeProfile = normalizePromptProfile(profile);
+  if(activeProfile === "understand"){
+    return "先把两个项目各自讲清楚，再判断它们分别值不值得继续看。";
+  }
+  if(activeProfile === "adopt"){
+    return "先判断两个项目各自能不能落地，再给出试用、选型和失败备用方案。";
+  }
+  return "先判断两个项目分别适合谁、我现在该先试哪一个、为什么。";
+}
 
-项目 B
-名称: ${b.full_name}
-链接: ${b.url}
-语言: ${b.language || "未知语言"}
-Stars: ${detailB.stars || b.stars || 0}
-Forks: ${detailB.forks || b.forks || 0}
-最近推送: ${detailB.pushed_at || "未知"}
-简介: ${detailB.description || detailB.description_raw || b.description || b.description_raw || "暂无描述"}
-README 摘要: ${detailB.readme_summary || detailB.readme_summary_raw || "暂无"}`;
+function buildComparePrompt(a, b, detailA, detailB, profile){
+  const activeProfile = normalizePromptProfile(profile);
+  return `你是一位会给初学者讲清楚开源项目的技术顾问。请用中文对比下面两个 GitHub 仓库，并给出详细、直白、可执行的判断。
+
+【当前分析方式】
+${promptProfileLabel(activeProfile)}：${promptProfileDescription(activeProfile)}
+
+${promptSharedRules()}
+
+【这次对比的重点】
+${comparePromptFocus(activeProfile)}
+
+【必须覆盖的对比点】
+1. 两边分别解决什么问题
+2. 谁更适合新手
+3. 谁更适合个人开发者
+4. 谁更适合团队 / 生产环境
+5. 两边各自最不适合的场景
+6. 如果今天只能试一个，先试哪个
+7. 下一步试用建议
+${activeProfile === "adopt" ? "8. 选型清单\n9. 失败备用方案" : ""}
+
+【输出要求】
+- 先分别说明 A 和 B，再做正面对比。
+- 不要只说“功能更强”“生态更好”，必须说明理由。
+- 如果证据不足，必须明确写出“信息不够，下面是基于现有信息的判断”。
+
+【项目 A】
+${compareRepoFacts(a, detailA)}
+
+【项目 B】
+${compareRepoFacts(b, detailB)}
+
+【最后必须追加两个小节】
+- 一句话结论
+- 下一步怎么做`;
 }
 
 const pendingStateRequests = new Set();

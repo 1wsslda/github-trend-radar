@@ -28,6 +28,17 @@ const AI_TARGET_LABELS = {
   copy:"仅复制提示词",
 };
 const VALID_AI_TARGETS = new Set(["web","desktop","gemini_web","copy"]);
+const PROMPT_PROFILE_LABELS = {
+  fit:"适合我吗",
+  understand:"先看懂",
+  adopt:"落地方案",
+};
+const PROMPT_PROFILE_DESCRIPTIONS = {
+  fit:"判断我能不能用，告诉我怎么开始",
+  understand:"先讲明白，再判断值不值得看",
+  adopt:"按试用、PoC、正式使用给步骤",
+};
+const VALID_PROMPT_PROFILES = new Set(["fit","understand","adopt"]);
 const LEGACY_DISCOVER_DRAFT_KEYS = [
   "gtr-discover-query",
   "gtr-discover-language",
@@ -60,7 +71,9 @@ let panel = normalizePanelKey(localStorage.getItem("gtr-tab") || "daily");
 let stateFilter = normalizeStateFilter(localStorage.getItem("gtr-state-filter") || "");
 let sortPrimary = normalizeSortKey(localStorage.getItem("gtr-sort-primary") || settings.default_sort || "stars");
 let aiTargets = normalizeAiTargets(localStorage.getItem("gtr-ai-targets") || localStorage.getItem("gtr-ai-target") || "");
+let promptProfile = normalizePromptProfile(localStorage.getItem("gtr-prompt-profile") || "fit");
 let comparePrompt = "";
+let compareContext = null;
 let selectedUrls = loadSelectedUrls();
 let languageFilter = localStorage.getItem("gtr-language") || "";
 let discoverDraft = loadDiscoverDraft();
@@ -93,6 +106,29 @@ function normalizeAiTargets(raw){
   // 兼容旧版单值格式
   const single = String(raw || "").trim();
   return VALID_AI_TARGETS.has(single) ? new Set([single]) : new Set(["web"]);
+}
+
+function normalizePromptProfile(value){
+  const key = String(value || "").trim();
+  return VALID_PROMPT_PROFILES.has(key) ? key : "fit";
+}
+
+function promptProfileLabel(value){
+  const key = normalizePromptProfile(value);
+  return PROMPT_PROFILE_LABELS[key] || PROMPT_PROFILE_LABELS.fit;
+}
+
+function promptProfileDescription(value){
+  const key = normalizePromptProfile(value);
+  return PROMPT_PROFILE_DESCRIPTIONS[key] || PROMPT_PROFILE_DESCRIPTIONS.fit;
+}
+
+function currentPromptProfileLabel(){
+  return promptProfileLabel(promptProfile);
+}
+
+function currentPromptProfileDescription(){
+  return promptProfileDescription(promptProfile);
 }
 
 function normalizeDiscoveryRankingProfile(value){

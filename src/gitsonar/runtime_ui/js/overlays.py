@@ -71,10 +71,12 @@ async function openCompareSelected(){
   try{
     const [repoA, repoB] = repos;
     const [detailA, detailB] = await Promise.all([fetchRepoDetails(repoA), fetchRepoDetails(repoB)]);
-    comparePrompt = buildComparePrompt(repoA, repoB, detailA, detailB);
+    compareContext = {repoA, repoB, detailA, detailB};
+    comparePrompt = buildComparePrompt(repoA, repoB, detailA, detailB, promptProfile);
     document.getElementById("compare-body").innerHTML = `<div class="notice">对比视图会把两个仓库按同一组维度并排展开，方便从语言、活跃度、README 摘要和项目定位几个层面做快速判断。</div><div class="panel-actions"><button class="action-primary" type="button" onclick="analyzeCompare()">ChatGPT 对比</button></div><div class="compare-grid">${renderCompareCard(repoA, detailA)}${renderCompareCard(repoB, detailB)}</div>`;
   }catch(error){
     comparePrompt = "";
+    compareContext = null;
     document.getElementById("compare-body").innerHTML = `<div class="empty">${emptyIcon}<span>${h(error.message || "对比数据加载失败")}</span></div>`;
   }
 }
@@ -315,5 +317,7 @@ function closeDetail(){
 }
 
 function closeCompare(){
+  comparePrompt = "";
+  compareContext = null;
   setOverlayVisible("compare-modal", false);
 }"""
