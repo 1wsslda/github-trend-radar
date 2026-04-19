@@ -165,7 +165,35 @@ document.addEventListener("scroll", event => {
   repositionOpenMenus();
 }, true);
 
+function isEditableSelectionShortcutTarget(target){
+  return target instanceof Element && !!target.closest('input,textarea,select,[contenteditable=""],[contenteditable="true"],[role="textbox"],.custom-select,.discover-query-field');
+}
+
+function isPrioritySelectionShortcutSurface(target){
+  return target instanceof Element && !!target.closest(".menu-panel,[data-menu-id].open,.overlay.show,.panel");
+}
+
+function shouldHandleVisibleSelectionShortcut(event){
+  if(event.defaultPrevented) return false;
+  if(!(event.ctrlKey || event.metaKey) || event.altKey) return false;
+  if(String(event.key || "").toLowerCase() !== "a") return false;
+  if(OVERLAY_IDS.some(isOverlayVisible)) return false;
+  if(isEditableSelectionShortcutTarget(event.target) || isPrioritySelectionShortcutSurface(event.target)) return false;
+  const visibleUrls = visibleLinkList();
+  if(!visibleUrls.length) return false;
+  return event.shiftKey ? visibleSelectedCount(visibleUrls) > 0 : !allVisibleSelected(visibleUrls);
+}
+
+function handleVisibleSelectionShortcut(event){
+  if(!shouldHandleVisibleSelectionShortcut(event)) return false;
+  event.preventDefault();
+  if(event.shiftKey) deselectVisible();
+  else selectVisible();
+  return true;
+}
+
 window.addEventListener("keydown", event => {
+  if(handleVisibleSelectionShortcut(event)) return;
   if(event.key !== "Escape") return;
   closeDiscoverySuggestions();
   closeMenus();

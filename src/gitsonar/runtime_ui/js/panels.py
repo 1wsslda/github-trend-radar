@@ -335,6 +335,7 @@ function syncWorkspaceCanvas(){
   introNode.innerHTML = introMarkup;
   cardsNode.classList.toggle("cards--discover-empty", !discoveryResults().length);
   renderWorkspaceSummaryStrip();
+  syncSelectionActionStates();
   syncAiTargetUI();
 }
 

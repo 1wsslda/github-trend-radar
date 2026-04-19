@@ -367,27 +367,37 @@ function renderDiscoveryResultsToolbar(){
 }
 
 function renderDiscoverySelectionBar(){
+  const visibleUrls = visibleLinkList();
+  if(panel !== DISCOVER_PANEL_KEY || !visibleUrls.length) return "";
   const selected = selectedCount();
-  if(panel !== DISCOVER_PANEL_KEY || !selected) return "";
+  const visibleSelected = visibleSelectedCount(visibleUrls);
+  const allVisible = allVisibleSelected(visibleUrls);
+  const batchDisabledAttr = selected ? "" : " disabled";
   const compareDisabledAttr = selectedRepos().length === 2 ? "" : " disabled";
+  const selectDisabledAttr = allVisible ? " disabled" : "";
+  const deselectDisabledAttr = visibleSelected ? "" : " disabled";
   return `<section class="discover-selection-bar">
     <div class="discover-selection-meta">
-      <span class="summary-strip-item">已选 <strong>${selected}</strong> 项</span>
+      <span class="summary-strip-item">本页已选 <strong>${visibleSelected}</strong> / <strong>${visibleUrls.length}</strong> 项</span>
+      <span class="summary-strip-item">总已选 <strong>${selected}</strong> 项</span>
     </div>
     <div class="discover-selection-actions">
-      <button class="action-primary" type="button" onclick="analyzeSelected()">批量分析</button>
+      <button class="action-quiet" type="button" data-selection-action="select-visible" onclick="selectVisible()"${selectDisabledAttr}>全选本页</button>
+      <button class="action-quiet" type="button" data-selection-action="deselect-visible" onclick="deselectVisible()"${deselectDisabledAttr}>取消本页全选</button>
+      <button class="action-primary" type="button" onclick="analyzeSelected()"${batchDisabledAttr}>批量分析</button>
       <div class="menu-wrap" data-menu-id="discover-selection-more-menu">
         <button class="action-quiet menu-toggle" type="button" aria-haspopup="menu" aria-expanded="false" onclick="toggleMenu(event,'discover-selection-more-menu')">更多<span class="menu-caret"></span></button>
         <div class="menu-panel align-right" id="discover-selection-more-menu-panel">
           <button class="menu-item" type="button" onclick="openCompareSelected();closeMenus();"${compareDisabledAttr}>对比</button>
           <div class="menu-divider"></div>
-          <button class="menu-item" type="button" onclick="batchSetState('favorites');closeMenus();">收藏</button>
-          <button class="menu-item" type="button" onclick="batchSetState('watch_later');closeMenus();">稍后看</button>
-          <button class="menu-item" type="button" onclick="batchSetState('read');closeMenus();">已读</button>
-          <button class="menu-item" type="button" onclick="batchSetState('ignored');closeMenus();">忽略</button>
+          <button class="menu-item" type="button" onclick="batchSetState('favorites');closeMenus();"${batchDisabledAttr}>收藏</button>
+          <button class="menu-item" type="button" onclick="batchSetState('watch_later');closeMenus();"${batchDisabledAttr}>稍后看</button>
+          <button class="menu-item" type="button" onclick="batchSetState('read');closeMenus();"${batchDisabledAttr}>已读</button>
+          <button class="menu-item" type="button" onclick="batchSetState('ignored');closeMenus();"${batchDisabledAttr}>忽略</button>
           <div class="menu-divider"></div>
-          <button class="menu-item" type="button" onclick="selectVisible();closeMenus();">重新全选本页</button>
-          <button class="menu-item" type="button" onclick="clearSelected();closeMenus();">清空选择</button>
+          <button class="menu-item" type="button" data-selection-action="select-visible" onclick="selectVisible();closeMenus();"${selectDisabledAttr}>全选本页</button>
+          <button class="menu-item" type="button" data-selection-action="deselect-visible" onclick="deselectVisible();closeMenus();"${deselectDisabledAttr}>取消本页全选</button>
+          <button class="menu-item" type="button" data-selection-action="clear-all" onclick="clearSelected();closeMenus();"${batchDisabledAttr}>清空全部选择</button>
         </div>
       </div>
     </div>

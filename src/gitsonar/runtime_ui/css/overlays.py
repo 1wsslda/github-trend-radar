@@ -51,9 +51,10 @@ CSS = r""".toast{
   transform:translate(-50%,0);
 }
 .batch-dock-meta{
-  display:flex;
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,auto));
   align-items:center;
-  gap:10px;
+  gap:10px 16px;
   min-height:46px;
   padding:0 12px 0 4px;
   border-right:1px solid rgba(232,214,184,.08);
@@ -61,6 +62,7 @@ CSS = r""".toast{
 .batch-dock-count{
   display:grid;
   gap:2px;
+  min-width:0;
 }
 .batch-dock-actions{
   display:flex;
@@ -82,12 +84,12 @@ CSS = r""".toast{
   text-transform:uppercase;
   line-height:1;
 }
-    .batch-dock-value{
-      color:var(--text);
-      font-size:.94rem;
-      line-height:1.2;
-    }
-    
+.batch-dock-value{
+  color:var(--text);
+  font-size:.94rem;
+  line-height:1.2;
+}
+
 .overlay{
   position:fixed;
   inset:0;

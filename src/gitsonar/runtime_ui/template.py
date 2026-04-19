@@ -38,7 +38,7 @@ HTML_BODY = """</style>
             <button class="menu-item" type="button" onclick="syncGitHubStars();closeMenus();">从 GitHub 同步星标</button>
             <button class="menu-item" type="button" id="clear-updates-menu-item" onclick="clearFavoriteUpdates();closeMenus();" hidden>清空关注更新</button>
             <div class="menu-divider"></div>
-            <div class="menu-note">快捷键：↑ / ↓ 浏览，空格键选中，Shift + 1~4 批量收纳。</div>
+            <div class="menu-note">快捷键：↑ / ↓ 浏览，空格键选中，Ctrl / Cmd + A 全选本页，Ctrl / Cmd + Shift + A 取消本页全选，Shift + 1~4 批量收纳。</div>
           </div>
         </div>
       </div>
@@ -77,8 +77,13 @@ HTML_BODY = """</style>
         <div class="workspace-action-group">
           <div class="workspace-summary">
             <div class="workspace-summary-copy">
-              <span class="workspace-summary-line">已选 <span class="metric-number" id="selected-count">0</span> / 共 <span class="metric-number" id="visible-count">0</span><span id="visible-label"> 项</span></span>
+              <span class="workspace-summary-line">本页已选 <span class="metric-number" id="visible-selected-count">0</span> / 当前 <span class="metric-number" id="visible-count">0</span><span id="visible-label"> 项</span></span>
+              <span class="workspace-summary-line workspace-summary-line--subtle">总已选 <span class="metric-number" id="selected-count">0</span> 项</span>
             </div>
+          </div>
+          <div class="workspace-selection-actions">
+            <button class="action-quiet" type="button" data-selection-action="select-visible" onclick="selectVisible()">全选本页</button>
+            <button class="action-quiet" type="button" data-selection-action="deselect-visible" onclick="deselectVisible()">取消本页全选</button>
           </div>
           <span class="workspace-ai-target" id="workspace-ai-target" data-ai-target-label>ChatGPT 网页版</span>
           <div class="action-split menu-wrap" data-menu-id="ai-target-menu">
@@ -248,7 +253,11 @@ HTML_BODY = """</style>
 <div class="batch-dock" id="batch-dock">
   <div class="batch-dock-meta">
     <div class="batch-dock-count">
-      <span class="batch-dock-label">已选条目</span>
+      <span class="batch-dock-label">本页已选</span>
+      <span class="batch-dock-value"><span class="metric-number" id="batch-dock-visible-count">0</span> / <span class="metric-number" id="batch-dock-visible-total">0</span><span id="batch-dock-visible-label"> 项</span></span>
+    </div>
+    <div class="batch-dock-count">
+      <span class="batch-dock-label">总已选</span>
       <span class="batch-dock-value"><span class="metric-number" id="batch-dock-count">0</span> 项</span>
     </div>
   </div>
@@ -263,8 +272,9 @@ HTML_BODY = """</style>
     <div class="menu-wrap" data-menu-id="batch-more-menu">
       <button class="action-quiet menu-toggle" type="button" aria-haspopup="menu" aria-expanded="false" onclick="toggleMenu(event,'batch-more-menu')">更多<span class="menu-caret"></span></button>
       <div class="menu-panel upward align-left" id="batch-more-menu-panel">
-        <button class="menu-item" type="button" onclick="selectVisible();closeMenus();">重新全选本页</button>
-        <button class="menu-item" type="button" onclick="clearSelected();closeMenus();">清空选择</button>
+        <button class="menu-item" type="button" data-selection-action="select-visible" onclick="selectVisible();closeMenus();">全选本页</button>
+        <button class="menu-item" type="button" data-selection-action="deselect-visible" onclick="deselectVisible();closeMenus();">取消本页全选</button>
+        <button class="menu-item" type="button" data-selection-action="clear-all" onclick="clearSelected();closeMenus();">清空全部选择</button>
       </div>
     </div>
   </div>

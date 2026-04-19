@@ -28,6 +28,9 @@ CSS = r"""@media (min-width:1600px){
     justify-content:space-between;
     flex-wrap:wrap;
   }
+  .workspace-selection-actions{
+    justify-content:flex-start;
+  }
   .discover-query-row{
     grid-template-columns:1fr;
   }
@@ -84,12 +87,16 @@ CSS = r"""@media (min-width:1600px){
     justify-content:stretch;
   }
   .workspace-summary,
+  .workspace-selection-actions,
   .workspace-ai-target,
   .workspace-drawer-trigger,
   .action-split{
     width:100%;
   }
   .workspace-summary{
+    justify-content:flex-start;
+  }
+  .workspace-selection-actions{
     justify-content:flex-start;
   }
   .workspace-ai-target{
@@ -174,8 +181,14 @@ CSS = r"""@media (min-width:1600px){
   .discover-selection-actions{
     width:100%;
   }
+  .workspace-selection-actions{
+    width:100%;
+  }
   .discover-inline-hint-actions{
     width:100%;
+  }
+  .workspace-selection-actions > *{
+    flex:1 1 auto;
   }
   .discover-results-toolbar-actions > *,
   .discover-selection-actions > *,
@@ -208,6 +221,7 @@ CSS = r"""@media (min-width:1600px){
   .batch-dock.show{transform:translateY(0)}
   .batch-dock-meta{
     width:100%;
+    grid-template-columns:repeat(2,minmax(0,1fr));
     padding:0 0 10px;
     border-right:none;
     border-bottom:1px solid rgba(232,214,184,.08);

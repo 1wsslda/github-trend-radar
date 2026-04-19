@@ -286,8 +286,8 @@ CSS = r""".page{
   box-shadow:none;
 }
 .workspace-summary-copy{
-  display:flex;
-  align-items:center;
+  display:grid;
+  gap:2px;
   min-width:0;
 }
 .workspace-summary-line{
@@ -296,8 +296,19 @@ CSS = r""".page{
   line-height:1.25;
   white-space:nowrap;
 }
+.workspace-summary-line--subtle{
+  color:var(--muted);
+  font-size:.76rem;
+}
 .workspace-summary-line .metric-number{
   color:var(--text);
+}
+.workspace-selection-actions{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  align-items:center;
+  justify-content:flex-end;
 }
 .workspace-ai-target{
   max-width:18ch;

@@ -384,6 +384,10 @@ CSS = r""".toolbar-filters{
 .discover-results-toolbar-main,
 .discover-selection-meta{
   min-width:0;
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  align-items:center;
 }
 .discover-progress-copy{
   display:flex;

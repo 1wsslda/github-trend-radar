@@ -8,6 +8,14 @@ function selectedBadgeMarkup(index){
   return `<span class="badge badge-selection">#${index + 1} 已选</span>`;
 }
 
+function visibleSelectedCount(urls = visibleLinkList()){
+  return urls.filter(url => selectedUrls.has(url)).length;
+}
+
+function allVisibleSelected(urls = visibleLinkList()){
+  return !!urls.length && visibleSelectedCount(urls) === urls.length;
+}
+
 function repoInState(stateKey, url){
   return !!((userState[stateKey] || []).includes(url));
 }
@@ -123,20 +131,43 @@ function syncExpandableDescriptions(scope = document){
   });
 }
 
+function syncSelectionActionStates(visibleUrls = visibleLinkList(), visibleSelected = visibleSelectedCount(visibleUrls), selected = selectedCount()){
+  const hasVisible = visibleUrls.length > 0;
+  const allVisible = hasVisible && visibleSelected === visibleUrls.length;
+  document.querySelectorAll('[data-selection-action="select-visible"]').forEach(button => {
+    button.disabled = !hasVisible || allVisible;
+  });
+  document.querySelectorAll('[data-selection-action="deselect-visible"]').forEach(button => {
+    button.disabled = !visibleSelected;
+  });
+  document.querySelectorAll('[data-selection-action="clear-all"]').forEach(button => {
+    button.disabled = !selected;
+  });
+}
+
 function refreshSelectionSummary(){
   const isUpdatePanel = panel === UPDATE_PANEL_KEY;
   const isDiscoverPanel = panel === DISCOVER_PANEL_KEY;
-  const repos = visibleRepos();
-  const updates = visibleUpdates();
+  const visibleUrls = visibleLinkList();
+  const visibleSelected = visibleSelectedCount(visibleUrls);
   const selected = selectedCount();
-  document.getElementById("visible-count").textContent = isUpdatePanel ? updates.length : repos.length;
-  document.getElementById("visible-label").textContent = isUpdatePanel ? " 条更新" : " 项";
+  const visibleLabel = isUpdatePanel ? " 条更新" : " 项";
+  document.getElementById("visible-selected-count").textContent = visibleSelected;
+  document.getElementById("visible-count").textContent = visibleUrls.length;
+  document.getElementById("visible-label").textContent = visibleLabel;
   document.getElementById("selected-count").textContent = selected;
   const batchDockCount = document.getElementById("batch-dock-count");
+  const batchDockVisibleCount = document.getElementById("batch-dock-visible-count");
+  const batchDockVisibleTotal = document.getElementById("batch-dock-visible-total");
+  const batchDockVisibleLabel = document.getElementById("batch-dock-visible-label");
   const compareSelectedBtn = document.getElementById("compare-selected-btn");
   const batchDock = document.getElementById("batch-dock");
   if(batchDockCount) batchDockCount.textContent = selected;
+  if(batchDockVisibleCount) batchDockVisibleCount.textContent = visibleSelected;
+  if(batchDockVisibleTotal) batchDockVisibleTotal.textContent = visibleUrls.length;
+  if(batchDockVisibleLabel) batchDockVisibleLabel.textContent = visibleLabel;
   if(compareSelectedBtn) compareSelectedBtn.disabled = selectedRepos().length !== 2;
+  syncSelectionActionStates(visibleUrls, visibleSelected, selected);
   const showBatchDock = !isDiscoverPanel && selected > 0;
   if(batchDock) batchDock.classList.toggle("show", showBatchDock);
   document.body.classList.toggle("has-batch-dock", showBatchDock);
@@ -173,6 +204,7 @@ function refreshSelectionUI(){
   syncCardSelectionState();
   if(panel === DISCOVER_PANEL_KEY){
     syncWorkspaceCanvas();
+    syncSelectionActionStates();
     syncAiTargetUI();
   }
 }
@@ -382,17 +414,39 @@ function clearSelected(){
   selectedUrls.clear();
   saveSelectedUrls();
   refreshSelectionUI();
-  toast("已清空选择");
+  toast("已清空全部选择");
+}
+
+function deselectVisible(){
+  const urls = visibleLinkList();
+  if(!urls.length){
+    toast("当前页面没有可取消的条目");
+    return;
+  }
+  const removable = urls.filter(url => selectedUrls.has(url));
+  if(!removable.length){
+    toast("本页当前没有已选条目");
+    return;
+  }
+  removable.forEach(url => selectedUrls.delete(url));
+  saveSelectedUrls();
+  refreshSelectionUI();
+  toast(`已取消本页 ${removable.length} 项`);
 }
 
 function selectVisible(){
   const urls = visibleLinkList();
   if(!urls.length){
-    toast(panel === UPDATE_PANEL_KEY ? "当前面板没有可选中的更新" : "当前面板没有可选中的仓库");
+    toast("当前页面没有可选条目");
     return;
   }
-  urls.forEach(url => selectedUrls.add(url));
+  const additions = urls.filter(url => !selectedUrls.has(url));
+  if(!additions.length){
+    toast("本页已全部选中");
+    return;
+  }
+  additions.forEach(url => selectedUrls.add(url));
   saveSelectedUrls();
   refreshSelectionUI();
-  toast(`已选中 ${urls.length} 项`);
+  toast(`已选中本页 ${additions.length} 项`);
 }"""
