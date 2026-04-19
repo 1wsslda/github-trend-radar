@@ -27,6 +27,7 @@ CSS = r""":root{
 }
 *{box-sizing:border-box}
 html,body{height:100%}
+[hidden]{display:none !important}
 body{
   margin:0;
   color:var(--text);
@@ -180,13 +181,13 @@ body.overlay-open{
   display:inline-flex;
   align-items:center;
   gap:10px;
-  color:var(--accent);
+  color:var(--accent-strong);
   font-size:10px;
   letter-spacing:.18em;
   text-transform:uppercase;
 }
 .status-label{
-  color:var(--muted);
+  color:var(--text-soft);
   font-size:10px;
   letter-spacing:.14em;
   text-transform:uppercase;

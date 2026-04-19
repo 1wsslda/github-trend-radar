@@ -53,7 +53,7 @@ CSS = r""".tabs{
   border:none;
   border-radius:999px;
   background:transparent;
-  color:var(--muted);
+  color:var(--text-soft);
   cursor:pointer;
   font-weight:560;
   transition:background .25s var(--ease-smooth),color .25s var(--ease-smooth),transform .25s var(--ease-smooth);
@@ -257,45 +257,28 @@ CSS = r""".tabs{
   color:rgba(233,201,143,.64);
   white-space:nowrap;
 }
-.desc-wrap{position:relative;min-width:0}
+.desc-wrap{
+  min-width:0;
+  --desc-lines:4;
+  --desc-line-height:1.68;
+}
 .desc{
   margin:0;
   color:var(--text-soft);
   font-size:.91rem;
-  line-height:1.68;
+  line-height:var(--desc-line-height);
+  min-height:calc(1em * var(--desc-line-height) * var(--desc-lines));
   display:-webkit-box;
   -webkit-line-clamp:4;
   -webkit-box-orient:vertical;
   overflow:hidden;
 }
 .desc.muted{color:var(--muted)}
-.desc-popover{
-  position:absolute;
-  left:-10px;
-  right:-10px;
-  bottom:calc(100% + 6px);
-  padding:14px 16px;
-  border:1px solid rgba(232,214,184,.14);
-  border-radius:16px;
-  background:rgba(16,14,11,.98);
-  color:var(--text-soft);
-  box-shadow:0 12px 32px rgba(0,0,0,.42);
-  opacity:0;
-  visibility:hidden;
-  transform:translateY(6px);
-  transition:opacity .2s var(--ease-smooth),transform .2s cubic-bezier(0.34, 1.56, 0.64, 1),visibility .2s var(--ease-smooth);
-  pointer-events:none;
-  z-index:26;
-  max-height:min(260px,42vh);
-  overflow:auto;
-}
-.desc-popover.muted{color:var(--muted)}
-.desc-wrap:hover .desc-popover,
-.desc-wrap:focus-within .desc-popover{
-  opacity:1;
-  visibility:visible;
-  transform:translateY(0);
-  pointer-events:auto;
+.desc-wrap.is-expandable.is-expanded .desc,
+.desc-wrap.is-expandable:hover .desc{
+  display:block;
+  -webkit-line-clamp:unset;
+  overflow:visible;
 }
 .meta-line{
   gap:10px;

@@ -27,7 +27,7 @@ CSS = r""".toast{
   position:fixed;
   left:50%;
   bottom:18px;
-  z-index:45;
+  z-index:49;
   display:grid;
   grid-template-columns:auto minmax(0,1fr);
   align-items:center;

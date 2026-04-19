@@ -228,31 +228,41 @@ async function toggleState(key, url){
 async function batchSetState(stateKey){
   const repos = selectedRepos();
   if(!repos.length){
-    toast("请先选中仓库再批量操作");
+    toast("璇峰厛閫変腑浠撳簱鍐嶆壒閲忔搷浣?");
     return;
   }
-  let lastState = null;
-  for(const repo of repos){
-    const {resp, data} = await requestJson(
-      "/api/state",
+  let resp, data;
+  try{
+    ({resp, data} = await requestJson(
+      "/api/state/batch",
       {
         method:"POST",
         headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({state:stateKey, enabled:true, repo}),
+        body:JSON.stringify({state:stateKey, enabled:true, repos}),
       },
-      "批量操作失败",
-    );
-    if(!resp.ok || !data.ok){
-      toast(data.error || "批量操作失败");
+      "鎵归噺鎿嶄綔澶辫触",
+    ));
+  }catch(error){
+    toast(error.message || "鎵归噺鎿嶄綔澶辫触");
+    return;
+  }
+  const label = stateDefs().find(state => state.key === stateKey)?.label || stateKey;
+  const processedCount = Number(data.processed_count || 0);
+  if(data.user_state){
+    userState = data.user_state;
+    render();
+  }
+  if(!resp.ok || !data.ok){
+    if(processedCount > 0){
+      toast(`宸插畬鎴?${processedCount} 涓粨搴撳悗鍋滄锛?${data.error || "鎵归噺鎿嶄綔澶辫触"}`);
       return;
     }
-    if(data.user_state) lastState = data.user_state;
+    toast(data.error || "鎵归噺鎿嶄綔澶辫触");
+    return;
   }
-  if(lastState) userState = lastState;
-  const label = stateDefs().find(state => state.key === stateKey)?.label || stateKey;
-  render();
-  toast(`已将 ${repos.length} 个仓库加入“${label}”`);
+  toast(`宸插皢 ${processedCount} 涓粨搴撳姞鍏モ€?${label}鈥?`);
 }
+
 
 async function syncGitHubStars(){
   toast("正在拉取 GitHub 星标，请稍候...");

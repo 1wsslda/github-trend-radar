@@ -65,7 +65,38 @@ function syncStateActionsForUrl(url){
 
 function descBlockMarkup(text, muted = false){
   const safe = h(text || "暂无描述");
-  return `<div class="desc-wrap"><div class="desc${muted ? " muted" : ""}">${safe}</div><div class="desc-popover${muted ? " muted" : ""}">${safe}</div></div>`;
+  return `<div class="desc-wrap"><div class="desc${muted ? " muted" : ""}">${safe}</div></div>`;
+}
+
+function descHost(node){
+  return node?.closest(".card, .update-card") || null;
+}
+
+function setDescExpanded(wrap, expanded){
+  if(!wrap) return;
+  const nextExpanded = wrap.classList.contains("is-expandable") && expanded;
+  wrap.classList.toggle("is-expanded", nextExpanded);
+  const host = descHost(wrap);
+  if(host) host.classList.toggle("desc-host-open", nextExpanded);
+}
+
+function syncExpandableDescriptions(scope = document){
+  scope.querySelectorAll(".desc-wrap").forEach(wrap => {
+    const desc = wrap.querySelector(".desc");
+    if(!desc) return;
+    if(!wrap.dataset.descExpandableBound){
+      wrap.dataset.descExpandableBound = "true";
+      wrap.addEventListener("mouseenter", () => {
+        setDescExpanded(wrap, true);
+      });
+      wrap.addEventListener("mouseleave", () => {
+        setDescExpanded(wrap, false);
+      });
+    }
+    setDescExpanded(wrap, false);
+    const expandable = desc.scrollHeight > desc.clientHeight + 1;
+    wrap.classList.toggle("is-expandable", expandable);
+  });
 }
 
 function refreshSelectionSummary(){
@@ -234,6 +265,7 @@ function refreshVisibleCards(){
 
   const container = document.getElementById("cards");
   container.innerHTML = isDiscoverPanel && !data.length ? "" : renderFn(data.slice(0, window.__lazyIndex));
+  requestAnimationFrame(() => syncExpandableDescriptions(container));
   if(window.__lazyObserver){
     window.__lazyObserver.disconnect();
   }
@@ -250,6 +282,7 @@ function refreshVisibleCards(){
 
         if(nextChunk.length) {
           container.insertAdjacentHTML("beforeend", window.__lazyRenderFn(nextChunk, true));
+          requestAnimationFrame(() => syncExpandableDescriptions(container));
         }
         if(window.__lazyData.length > window.__lazyIndex) {
           container.insertAdjacentHTML("beforeend", '<div id="lazy-sentinel" style="height:40px;"></div>');
