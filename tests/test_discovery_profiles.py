@@ -523,6 +523,59 @@ class DiscoveryRankingProfileTests(unittest.TestCase):
         self.assertNotEqual(builder["ranking_signal_score"], hot["ranking_signal_score"])
         self.assertNotEqual(fresh["ranking_signal_score"], hot["ranking_signal_score"])
 
+    def test_rank_discovery_results_reuses_translated_descriptions_without_changing_preview_copy(self):
+        translate_calls: list[str] = []
+        translation_cache: dict[str, str] = {}
+
+        def translate_text(text: str) -> str:
+            raw = normalize(text)
+            if raw in translation_cache:
+                return translation_cache[raw]
+            translate_calls.append(raw)
+            translation_cache[raw] = f"ZH::{raw}"
+            return translation_cache[raw]
+
+        runtime = build_runtime(translate_text=translate_text)
+        repos = [
+            {
+                "full_name": "alpha/agent-a",
+                "name": "agent-a",
+                "url": "https://github.com/alpha/agent-a",
+                "description": "Agent toolkit",
+                "description_raw": "Agent toolkit",
+                "language": "Python",
+                "stars": 120,
+                "forks": 12,
+            },
+            {
+                "full_name": "beta/agent-b",
+                "name": "agent-b",
+                "url": "https://github.com/beta/agent-b",
+                "description": "Agent toolkit",
+                "description_raw": "Agent toolkit",
+                "language": "Python",
+                "stars": 118,
+                "forks": 11,
+            },
+        ]
+        common = {
+            "repos": repos,
+            "details_map": {},
+            "base_terms": ["agent"],
+            "search_variants": ["agent"],
+            "query_variants": ["agent"],
+            "related_terms": [],
+            "trending_names": set(),
+            "limit": 2,
+        }
+
+        preview = runtime.rank_discovery_results(allow_description_translation=False, **common)
+        ranked = runtime.rank_discovery_results(allow_description_translation=True, **common)
+
+        self.assertEqual(translate_calls, ["Agent toolkit"])
+        self.assertTrue(all(repo["description"] == "ZH::Agent toolkit" for repo in preview))
+        self.assertTrue(all(repo["description"] == "ZH::Agent toolkit" for repo in ranked))
+
 
 class DiscoveryDetailPersistenceTests(unittest.TestCase):
     def test_discover_repos_flushes_translation_and_detail_caches_once(self):

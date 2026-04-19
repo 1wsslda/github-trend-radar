@@ -281,6 +281,55 @@ def build_discovery_api(*, deps, state, github_get, fetch_repo_details):
         clean = normalize(value).lower()
         return clean if clean in ranking_profiles else "balanced"
 
+    def build_discovery_description_map(
+        repos: list[dict[str, object]],
+        details_map: dict[str, dict[str, object]],
+    ) -> dict[str, str]:
+        description_map: dict[str, str] = {}
+        pending_translations: dict[str, str] = {}
+
+        for repo in repos:
+            full_name = normalize(repo.get("full_name")).lower()
+            if not full_name:
+                continue
+            details = details_map.get(full_name, {})
+            desc_raw = normalize(details.get("description_raw") or repo.get("description_raw"))
+
+            details_description = normalize(details.get("description"))
+            if details_description:
+                description_map[full_name] = details_description
+                continue
+
+            repo_description = normalize(repo.get("description"))
+            if repo_description and repo_description != desc_raw:
+                description_map[full_name] = repo_description
+                continue
+            if desc_raw:
+                pending_translations.setdefault(full_name, desc_raw)
+            else:
+                description_map[full_name] = repo_description
+
+        if pending_translations:
+            translated_by_raw_key: dict[str, str] = {}
+            unique_pending = {raw_text.lower(): raw_text for raw_text in pending_translations.values()}
+            with thread_pool_executor_cls(max_workers=min(4, len(unique_pending))) as executor:
+                future_map = {
+                    executor.submit(translate_text, raw_text): raw_key
+                    for raw_key, raw_text in unique_pending.items()
+                }
+                for future in as_completed(future_map):
+                    raw_key = future_map[future]
+                    raw_text = unique_pending[raw_key]
+                    try:
+                        translated_by_raw_key[raw_key] = normalize(future.result()) or raw_text
+                    except Exception as exc:
+                        logger.warning("discovery_description_translate_failed text=%s error=%s", raw_text, exc)
+                        translated_by_raw_key[raw_key] = raw_text
+            for full_name, desc_raw in pending_translations.items():
+                description_map[full_name] = translated_by_raw_key.get(desc_raw.lower(), desc_raw)
+
+        return description_map
+
     def score_discovery_repo(
         repo: dict[str, object],
         details: dict[str, object],
@@ -291,15 +340,17 @@ def build_discovery_api(*, deps, state, github_get, fetch_repo_details):
         trending_names: set[str],
         allow_description_translation: bool = True,
         ranking_profile: str = "balanced",
+        translated_description: str | None = None,
     ) -> dict[str, object]:
         ranking_profile = normalize_ranking_profile(ranking_profile)
         full_name = normalize(repo.get("full_name"))
         name_text = f"{full_name} {normalize(repo.get('name'))}".lower()
         desc_raw = normalize(details.get("description_raw") or repo.get("description_raw"))
+        cached_description = normalize(translated_description)
         desc_text = normalize(
             details.get("description")
             or repo.get("description")
-            or (translate_text(desc_raw) if allow_description_translation else desc_raw)
+            or ((cached_description or translate_text(desc_raw)) if allow_description_translation else desc_raw)
         ).lower()
         readme_raw = normalize(details.get("readme_summary_raw"))
         readme_text = normalize(details.get("readme_summary")).lower()
@@ -389,7 +440,7 @@ def build_discovery_api(*, deps, state, github_get, fetch_repo_details):
         result = dict(repo)
         result.update({
             "description_raw": desc_raw,
-            "description": normalize(details.get("description")) or translate_text(desc_raw),
+            "description": normalize(details.get("description")) or cached_description or translate_text(desc_raw),
             "language": normalize(repo.get("language")),
             "stars": stars,
             "forks": forks,
@@ -426,6 +477,10 @@ def build_discovery_api(*, deps, state, github_get, fetch_repo_details):
         allow_description_translation: bool = True,
         ranking_profile: str = "balanced",
     ) -> list[dict[str, object]]:
+        description_map = build_discovery_description_map(
+            repos,
+            details_map,
+        )
         scored = [
             score_discovery_repo(
                 repo,
@@ -436,6 +491,7 @@ def build_discovery_api(*, deps, state, github_get, fetch_repo_details):
                 trending_names=trending_names,
                 allow_description_translation=allow_description_translation,
                 ranking_profile=ranking_profile,
+                translated_description=description_map.get(repo["full_name"].lower()),
             )
             for repo in repos
         ]
