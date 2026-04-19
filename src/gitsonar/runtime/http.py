@@ -49,6 +49,67 @@ class InvalidJsonBodyError(LocalAPIError):
         super().__init__(message, status=400, code="invalid_json_body")
 
 
+@dataclass(frozen=True, slots=True)
+class SettingsService:
+    settings: dict[str, object]
+    settings_lock: object
+    sanitize_settings: object
+    normalize_settings: object
+    save_settings: object
+    apply_runtime_settings: object
+    update_auto_start: object
+    clamp_int: object
+    current_port: object
+    validate_github_token: object
+    merge_settings: object | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class UserStateService:
+    set_repo_state: object
+    export_user_state: object
+    import_user_state: object
+    clear_favorite_updates: object
+    sync_favorite_repo: object
+    fetch_user_starred: object
+    sync_local_favorites_with_starred: object
+    set_repo_state_batch: object | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class DiscoveryService:
+    start_discovery_job: object
+    get_discovery_job: object
+    cancel_discovery_job: object
+    clear_discovery_results: object
+    export_discovery_state: object
+    export_active_discovery_job: object
+
+
+@dataclass(frozen=True, slots=True)
+class ShellActions:
+    open_chatgpt_target: object
+    open_external_url: object
+    open_main_window: object
+    exit_app: object
+
+
+@dataclass(frozen=True, slots=True)
+class AppHandlerDeps:
+    runtime_root: str
+    status_path: str
+    settings_service: SettingsService
+    user_state_service: UserStateService
+    discovery_service: DiscoveryService
+    shell_actions: ShellActions
+    load_json_file: object
+    fetch_repo_details: object
+    normalize: object
+    as_bool: object
+    start_refresh_async: object
+    control_token_getter: object | None = None
+
+
 def make_app_handler(
     *,
     runtime_root: str,
@@ -61,6 +122,7 @@ def make_app_handler(
     normalize,
     as_bool,
     set_repo_state,
+    set_repo_state_batch=None,
     export_user_state,
     import_user_state,
     normalize_settings,
@@ -88,13 +150,127 @@ def make_app_handler(
     merge_settings=None,
     control_token_getter=None,
 ):
-    merge_settings = merge_settings or (lambda payload, _current=None: normalize_settings(payload))
-    control_token_getter = control_token_getter or (lambda: "")
+    deps = AppHandlerDeps(
+        runtime_root=runtime_root,
+        status_path=status_path,
+        settings_service=SettingsService(
+            settings=settings,
+            settings_lock=settings_lock,
+            sanitize_settings=sanitize_settings,
+            normalize_settings=normalize_settings,
+            save_settings=save_settings,
+            apply_runtime_settings=apply_runtime_settings,
+            update_auto_start=update_auto_start,
+            clamp_int=clamp_int,
+            current_port=current_port,
+            validate_github_token=validate_github_token,
+            merge_settings=merge_settings,
+        ),
+        user_state_service=UserStateService(
+            set_repo_state=set_repo_state,
+            set_repo_state_batch=set_repo_state_batch,
+            export_user_state=export_user_state,
+            import_user_state=import_user_state,
+            clear_favorite_updates=clear_favorite_updates,
+            sync_favorite_repo=sync_favorite_repo,
+            fetch_user_starred=fetch_user_starred,
+            sync_local_favorites_with_starred=sync_local_favorites_with_starred,
+        ),
+        discovery_service=DiscoveryService(
+            start_discovery_job=start_discovery_job,
+            get_discovery_job=get_discovery_job,
+            cancel_discovery_job=cancel_discovery_job,
+            clear_discovery_results=clear_discovery_results,
+            export_discovery_state=export_discovery_state,
+            export_active_discovery_job=export_active_discovery_job,
+        ),
+        shell_actions=ShellActions(
+            open_chatgpt_target=open_chatgpt_target,
+            open_external_url=open_external_url,
+            open_main_window=open_main_window,
+            exit_app=exit_app,
+        ),
+        load_json_file=load_json_file,
+        fetch_repo_details=fetch_repo_details,
+        normalize=normalize,
+        as_bool=as_bool,
+        start_refresh_async=start_refresh_async,
+        control_token_getter=control_token_getter,
+    )
+    return build_app_handler(deps)
+
+
+def build_app_handler(deps: AppHandlerDeps):
+    runtime_root = deps.runtime_root
+    status_path = deps.status_path
+    settings = deps.settings_service.settings
+    settings_lock = deps.settings_service.settings_lock
+    sanitize_settings = deps.settings_service.sanitize_settings
+    normalize_settings = deps.settings_service.normalize_settings
+    save_settings = deps.settings_service.save_settings
+    apply_runtime_settings = deps.settings_service.apply_runtime_settings
+    update_auto_start = deps.settings_service.update_auto_start
+    clamp_int = deps.settings_service.clamp_int
+    current_port = deps.settings_service.current_port
+    validate_github_token = deps.settings_service.validate_github_token
+    merge_settings = deps.settings_service.merge_settings or (lambda payload, _current=None: normalize_settings(payload))
+    set_repo_state = deps.user_state_service.set_repo_state
+    set_repo_state_batch = deps.user_state_service.set_repo_state_batch
+    export_user_state = deps.user_state_service.export_user_state
+    import_user_state = deps.user_state_service.import_user_state
+    clear_favorite_updates = deps.user_state_service.clear_favorite_updates
+    sync_favorite_repo = deps.user_state_service.sync_favorite_repo
+    fetch_user_starred = deps.user_state_service.fetch_user_starred
+    sync_local_favorites_with_starred = deps.user_state_service.sync_local_favorites_with_starred
+    start_discovery_job = deps.discovery_service.start_discovery_job
+    get_discovery_job = deps.discovery_service.get_discovery_job
+    cancel_discovery_job = deps.discovery_service.cancel_discovery_job
+    clear_discovery_results = deps.discovery_service.clear_discovery_results
+    export_discovery_state = deps.discovery_service.export_discovery_state
+    export_active_discovery_job = deps.discovery_service.export_active_discovery_job
+    open_chatgpt_target = deps.shell_actions.open_chatgpt_target
+    open_external_url = deps.shell_actions.open_external_url
+    open_main_window = deps.shell_actions.open_main_window
+    exit_app = deps.shell_actions.exit_app
+    load_json_file = deps.load_json_file
+    fetch_repo_details = deps.fetch_repo_details
+    normalize = deps.normalize
+    as_bool = deps.as_bool
+    start_refresh_async = deps.start_refresh_async
+    control_token_getter = deps.control_token_getter or (lambda: "")
+
+    if set_repo_state_batch is None:
+        def set_repo_state_batch(state_key: str, enabled: bool, repos: object):
+            if not isinstance(repos, list):
+                raise ValueError("missing repos")
+            processed = []
+            for repo in repos:
+                set_repo_state(state_key, enabled, repo)
+                processed.append(repo)
+            return processed
 
     def error_payload(message: str, code: str | None = None) -> dict[str, object]:
         payload: dict[str, object] = {"ok": False, "error": message}
         if code:
             payload["code"] = code
+        return payload
+
+    def github_star_sync_ok(result: object) -> bool:
+        return isinstance(result, dict) and (
+            result.get("ok")
+            or result.get("already_starred")
+            or result.get("already_unstarred")
+        )
+
+    def github_star_sync_record(repo: object, result: object) -> dict[str, object]:
+        payload = dict(result if isinstance(result, dict) else {})
+        if isinstance(repo, dict):
+            full_name = normalize(repo.get("full_name"))
+            url = normalize(repo.get("url"))
+            if full_name:
+                payload["full_name"] = full_name
+            if url:
+                payload["url"] = url
         return payload
 
     def json_error(message: str, status: int, code: str | None = None) -> JsonResult:
@@ -175,6 +351,72 @@ def make_app_handler(
             "ok": True,
             "user_state": export_user_state(),
             "github_star_sync": github_star_sync,
+        }
+
+    def handle_post_state_batch(_handler, _parsed, payload):
+        state_key = normalize(payload.get("state"))
+        enabled = as_bool(payload.get("enabled"), True)
+        repos = payload.get("repos")
+        if not isinstance(repos, list):
+            raise LocalAPIError("missing repos")
+
+        github_star_syncs: list[dict[str, object]] = []
+        processed_repos = repos
+        if state_key == "favorites":
+            processed_repos = []
+            for repo in repos:
+                try:
+                    github_star_sync = sync_favorite_repo(repo, enabled)
+                except ValueError as exc:
+                    error = normalize(str(exc)) or "Request could not be processed."
+                    if processed_repos:
+                        set_repo_state_batch(state_key, enabled, processed_repos)
+                    return JsonResult(
+                        {
+                            "ok": False,
+                            "processed_count": len(processed_repos),
+                            "user_state": export_user_state(),
+                            "github_star_syncs": github_star_syncs,
+                            "error": error,
+                        },
+                        400,
+                    )
+                if github_star_sync is not None:
+                    if not github_star_sync_ok(github_star_sync):
+                        if processed_repos:
+                            set_repo_state_batch(state_key, enabled, processed_repos)
+                        return JsonResult(
+                            {
+                                "ok": False,
+                                "processed_count": len(processed_repos),
+                                "user_state": export_user_state(),
+                                "github_star_syncs": github_star_syncs,
+                                "error": normalize(github_star_sync.get("error")) or "Request could not be processed.",
+                            },
+                            400,
+                        )
+                    github_star_syncs.append(github_star_sync_record(repo, github_star_sync))
+                processed_repos.append(repo)
+
+        try:
+            processed = set_repo_state_batch(state_key, enabled, processed_repos)
+        except ValueError as exc:
+            return JsonResult(
+                {
+                    "ok": False,
+                    "processed_count": int(getattr(exc, "processed_count", 0) or 0),
+                    "user_state": export_user_state(),
+                    "github_star_syncs": github_star_syncs,
+                    "error": normalize(str(exc)) or "Request could not be processed.",
+                },
+                400,
+            )
+
+        return {
+            "ok": True,
+            "processed_count": len(processed),
+            "user_state": export_user_state(),
+            "github_star_syncs": github_star_syncs,
         }
 
     def handle_post_import(_handler, _parsed, payload):
@@ -290,6 +532,7 @@ def make_app_handler(
 
     POST_ROUTES = {
         "/api/state": Route(handle_post_state, loopback_only=True, control_only=True, json_body=True),
+        "/api/state/batch": Route(handle_post_state_batch, loopback_only=True, control_only=True, json_body=True),
         "/api/import": Route(handle_post_import, loopback_only=True, control_only=True, json_body=True),
         "/api/settings": Route(handle_post_settings, loopback_only=True, control_only=True, json_body=True),
         "/api/settings/token-status": Route(handle_post_token_status, loopback_only=True, control_only=True, json_body=True),

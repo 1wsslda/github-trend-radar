@@ -11,6 +11,7 @@ import sys
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from http.server import ThreadingHTTPServer
 from urllib.parse import quote
@@ -25,25 +26,15 @@ from .http import make_app_handler
 from .paths import (
     APP_NAME,
     APP_SLUG,
-    CACHE_PATH,
-    DATA_DIR,
-    DESKTOP_SHELL_DIR,
-    DETAIL_CACHE_PATH,
+    DEFAULT_RUNTIME_PATHS,
     DEV_ENTRY_SCRIPT,
-    DISCOVERY_STATE_PATH,
     EXEC_DIR,
-    HTML_PATH,
     LEGACY_APP_NAME,
     LEGACY_APP_SLUG,
-    LEGACY_RUNTIME_STATE_PATH,
-    LATEST_SNAPSHOT_PATH,
     LOCAL_HOST,
-    RUNTIME_ROOT,
-    RUNTIME_STATE_PATH,
     SERVER_HOST,
-    SETTINGS_PATH,
-    STATUS_PATH,
-    USER_STATE_PATH,
+    RuntimePaths,
+    ensure_runtime_paths,
 )
 from .settings import DEFAULT_SETTINGS, make_settings_runtime
 from .shell import make_shell_runtime
@@ -117,23 +108,45 @@ STATE_DEFS = [
 
 HAN_RE = re.compile(r"[\u3400-\u9fff]")
 
-SESSION = requests.Session()
-SESSION.headers.update(HEADERS)
+@dataclass(slots=True)
+class RuntimeAppContext:
+    paths: RuntimePaths
+    session: requests.Session
+    local_control: requests.Session
+    translate_session: requests.Session
+    settings_lock: threading.RLock
+    state_lock: threading.RLock
+    discovery_lock: threading.RLock
+    discovery_job_lock: threading.RLock
+    refresh_lock: threading.Lock
+    translation_lock: threading.RLock
+    detail_cache_lock: threading.RLock
+    settings: dict[str, object]
+    user_state: dict[str, object]
+    discovery_state: dict[str, object]
+    current_snapshot: dict[str, object]
+    app_exit_event: threading.Event
+    browser_lock: threading.RLock
+    detail_fetch_semaphore: threading.Semaphore
+    translation_cache: dict[str, str]
+    detail_cache: dict[str, object]
+    detail_fetch_locks: dict[str, threading.Lock]
+    detail_cache_dirty: bool = False
 
-LOCAL_CONTROL = requests.Session()
-LOCAL_CONTROL.trust_env = False
 
-TRANSLATE_SESSION = requests.Session()
-TRANSLATE_SESSION.trust_env = False
-TRANSLATE_SESSION.headers.update(HEADERS)
+_RUNTIME_CONTEXT: RuntimeAppContext | None = None
 
-SETTINGS_LOCK = threading.RLock()
-STATE_LOCK = threading.RLock()
-DISCOVERY_LOCK = threading.RLock()
-DISCOVERY_JOB_LOCK = threading.RLock()
-REFRESH_LOCK = threading.Lock()
-TRANSLATION_LOCK = threading.RLock()
-DETAIL_CACHE_LOCK = threading.RLock()
+SESSION: requests.Session | None = None
+LOCAL_CONTROL: requests.Session | None = None
+TRANSLATE_SESSION: requests.Session | None = None
+
+SETTINGS_LOCK: threading.RLock | None = None
+STATE_LOCK: threading.RLock | None = None
+DISCOVERY_LOCK: threading.RLock | None = None
+DISCOVERY_JOB_LOCK: threading.RLock | None = None
+REFRESH_LOCK: threading.Lock | None = None
+TRANSLATION_LOCK: threading.RLock | None = None
+DETAIL_CACHE_LOCK: threading.RLock | None = None
 
 SETTINGS: dict[str, object] = {}
 USER_STATE: dict[str, object] = {}
@@ -143,12 +156,92 @@ RUNTIME_PORT: int | None = None
 CONTROL_TOKEN = ""
 AUTO_SYNC_USER_STARS_DONE = False
 
-APP_EXIT_EVENT = threading.Event()
-BROWSER_LOCK = threading.RLock()
-DETAIL_FETCH_SEMAPHORE = threading.Semaphore(3)
+APP_EXIT_EVENT: threading.Event | None = None
+BROWSER_LOCK: threading.RLock | None = None
+DETAIL_FETCH_SEMAPHORE: threading.Semaphore | None = None
 TRANSLATION_CACHE: dict[str, str] = {}
 DETAIL_CACHE: dict[str, object] = {}
 DETAIL_FETCH_LOCKS: dict[str, threading.Lock] = {}
+DETAIL_CACHE_DIRTY = False
+
+translation_runtime = None
+settings_runtime = None
+state_runtime = None
+startup_runtime = None
+shell_runtime = None
+github_runtime = None
+discovery_job_runtime = None
+ServerAppHandler = None
+
+load_translation_cache = None
+save_translation_cache = None
+flush_translation_cache = None
+translate_text = None
+translate_query_to_en = None
+apply_repo_translation = None
+translate_snapshot = None
+
+normalize_settings = None
+sanitize_settings = None
+save_settings = None
+load_settings = None
+merge_settings = None
+apply_runtime_settings = None
+
+default_user_state = None
+default_discovery_state = None
+normalize_discovery_ranking_profile = None
+discovery_query_id = None
+normalize_discovery_query = None
+normalize_repo = None
+repo_from_url = None
+normalize_watch_entry = None
+normalize_favorite_update = None
+normalize_discovery_state = None
+normalize_user_state = None
+load_user_state = None
+save_user_state = None
+set_repo_state_batch = None
+export_user_state = None
+import_user_state = None
+load_discovery_state = None
+save_discovery_state = None
+export_discovery_state = None
+clear_discovery_results = None
+apply_discovery_result = None
+discovery_warning_list = None
+empty_snapshot = None
+load_snapshot = None
+save_snapshot = None
+state_counts = None
+ordered_unique_urls = None
+merge_favorite_updates = None
+
+startup_dir = None
+startup_launcher_path = None
+startup_cmd_path = None
+startup_launch_command = None
+startup_launcher_script = None
+update_auto_start = None
+write_runtime_state = None
+get_main_url = None
+get_browser_process = None
+set_browser_process = None
+set_browser_hidden = None
+clear_runtime_state = None
+acquire_single_instance = None
+release_single_instance = None
+request_existing_instance_open = None
+show_message_box = None
+set_main_url = None
+
+estimate_discovery_eta = None
+update_discovery_job = None
+run_discovery_search = None
+start_discovery_job = None
+get_discovery_job = None
+cancel_discovery_job = None
+export_active_discovery_job = None
 
 if os.name == "nt":
     TH32CS_SNAPPROCESS = 0x00000002
@@ -168,9 +261,55 @@ if os.name == "nt":
         ]
 
 
+def runtime_paths() -> RuntimePaths:
+    context = _RUNTIME_CONTEXT
+    return context.paths if context is not None else DEFAULT_RUNTIME_PATHS
+
+
+def _new_session(*, trust_env: bool = True, with_headers: bool = True) -> requests.Session:
+    session = requests.Session()
+    session.trust_env = trust_env
+    if with_headers:
+        session.headers.update(HEADERS)
+    return session
+
+
+def _install_runtime_context(context: RuntimeAppContext) -> None:
+    global _RUNTIME_CONTEXT
+    global SESSION, LOCAL_CONTROL, TRANSLATE_SESSION
+    global SETTINGS_LOCK, STATE_LOCK, DISCOVERY_LOCK, DISCOVERY_JOB_LOCK, REFRESH_LOCK, TRANSLATION_LOCK, DETAIL_CACHE_LOCK
+    global SETTINGS, USER_STATE, DISCOVERY_STATE, CURRENT_SNAPSHOT
+    global APP_EXIT_EVENT, BROWSER_LOCK, DETAIL_FETCH_SEMAPHORE, TRANSLATION_CACHE, DETAIL_CACHE, DETAIL_FETCH_LOCKS
+    global DETAIL_CACHE_DIRTY
+
+    _RUNTIME_CONTEXT = context
+    SESSION = context.session
+    LOCAL_CONTROL = context.local_control
+    TRANSLATE_SESSION = context.translate_session
+    SETTINGS_LOCK = context.settings_lock
+    STATE_LOCK = context.state_lock
+    DISCOVERY_LOCK = context.discovery_lock
+    DISCOVERY_JOB_LOCK = context.discovery_job_lock
+    REFRESH_LOCK = context.refresh_lock
+    TRANSLATION_LOCK = context.translation_lock
+    DETAIL_CACHE_LOCK = context.detail_cache_lock
+    SETTINGS = context.settings
+    USER_STATE = context.user_state
+    DISCOVERY_STATE = context.discovery_state
+    CURRENT_SNAPSHOT = context.current_snapshot
+    APP_EXIT_EVENT = context.app_exit_event
+    BROWSER_LOCK = context.browser_lock
+    DETAIL_FETCH_SEMAPHORE = context.detail_fetch_semaphore
+    TRANSLATION_CACHE = context.translation_cache
+    DETAIL_CACHE = context.detail_cache
+    DETAIL_FETCH_LOCKS = context.detail_fetch_locks
+    DETAIL_CACHE_DIRTY = bool(context.detail_cache_dirty)
+
+
 def ensure_runtime_layout() -> None:
-    os.makedirs(RUNTIME_ROOT, exist_ok=True)
-    os.makedirs(DATA_DIR, exist_ok=True)
+    paths = runtime_paths()
+    os.makedirs(paths.runtime_root, exist_ok=True)
+    os.makedirs(paths.data_dir, exist_ok=True)
 
 
 def configure_console() -> None:
@@ -229,7 +368,7 @@ def hide_console_window_if_needed() -> None:
 
 
 def load_detail_cache() -> dict[str, object]:
-    raw = load_json_file(DETAIL_CACHE_PATH, {})
+    raw = load_json_file(runtime_paths().detail_cache_path, {})
     return raw if isinstance(raw, dict) else {}
 
 
@@ -263,12 +402,17 @@ def detail_fetch_lock(cache_key: str) -> threading.Lock:
 
 
 def save_repo_details(cache_key: str, details: dict[str, object]) -> None:
+    global DETAIL_CACHE_DIRTY
     now = int(time.time())
     with DETAIL_CACHE_LOCK:
-        DETAIL_CACHE[cache_key] = {
+        changed = False
+        next_entry = {
             "expires_at": now + DETAIL_CACHE_SECONDS,
             "data": dict(details),
         }
+        if DETAIL_CACHE.get(cache_key) != next_entry:
+            DETAIL_CACHE[cache_key] = next_entry
+            changed = True
         expired = [
             key
             for key, value in DETAIL_CACHE.items()
@@ -276,6 +420,7 @@ def save_repo_details(cache_key: str, details: dict[str, object]) -> None:
         ]
         for key in expired:
             del DETAIL_CACHE[key]
+            changed = True
         if len(DETAIL_CACHE) > _MAX_DETAIL_CACHE_SIZE:
             oldest = sorted(
                 DETAIL_CACHE,
@@ -287,168 +432,231 @@ def save_repo_details(cache_key: str, details: dict[str, object]) -> None:
             )
             for key in oldest[: len(DETAIL_CACHE) - _MAX_DETAIL_CACHE_SIZE]:
                 del DETAIL_CACHE[key]
-        atomic_write_json(DETAIL_CACHE_PATH, DETAIL_CACHE)
+                changed = True
+        if changed:
+            DETAIL_CACHE_DIRTY = True
 
 
-translation_runtime = make_translation_runtime(
-    cache_path=CACHE_PATH,
-    translation_cache=TRANSLATION_CACHE,
-    translation_lock=TRANSLATION_LOCK,
-    translate_session=TRANSLATE_SESSION,
-    normalize=normalize,
-    load_json_file=load_json_file,
-    atomic_write_json=atomic_write_json,
-    translate_timeout=TRANSLATE_TIMEOUT,
-    translate_retries=TRANSLATE_RETRIES,
-    max_translation_cache_size=_MAX_TRANSLATION_CACHE_SIZE,
-    han_re=HAN_RE,
-    thread_pool_executor_cls=ThreadPoolExecutor,
-    as_completed=as_completed,
-    periods=PERIODS,
-)
-load_translation_cache = translation_runtime.load_translation_cache
-save_translation_cache = translation_runtime.save_translation_cache
-has_han = translation_runtime.has_han
-translate_text = translation_runtime.translate_text
-translate_query_to_en = translation_runtime.translate_query_to_en
-apply_repo_translation = translation_runtime.apply_repo_translation
-translate_repo_list = translation_runtime.translate_repo_list
-translate_snapshot = translation_runtime.translate_snapshot
+def flush_repo_details_cache() -> bool:
+    global DETAIL_CACHE_DIRTY
+    with DETAIL_CACHE_LOCK:
+        if not DETAIL_CACHE_DIRTY:
+            return False
+        atomic_write_json(runtime_paths().detail_cache_path, DETAIL_CACHE)
+        DETAIL_CACHE_DIRTY = False
+        return True
 
 
 def current_port() -> int:
     return RUNTIME_PORT or clamp_int(SETTINGS.get("port", 8080), 8080, 1, 65535)
 
+def build_runtime_context(*, rebuild: bool = False) -> RuntimeAppContext:
+    global translation_runtime, settings_runtime, state_runtime, startup_runtime
+    global shell_runtime, github_runtime, discovery_job_runtime, ServerAppHandler
+    global load_translation_cache, save_translation_cache, flush_translation_cache, translate_text, translate_query_to_en, apply_repo_translation, translate_snapshot
+    global normalize_settings, sanitize_settings, save_settings, load_settings, merge_settings, apply_runtime_settings
+    global default_user_state, default_discovery_state, normalize_discovery_ranking_profile, discovery_query_id, normalize_discovery_query
+    global normalize_repo, repo_from_url, normalize_watch_entry, normalize_favorite_update, normalize_discovery_state, normalize_user_state
+    global load_user_state, save_user_state, set_repo_state_batch, export_user_state, import_user_state, load_discovery_state, save_discovery_state
+    global export_discovery_state, clear_discovery_results, apply_discovery_result, discovery_warning_list, empty_snapshot, load_snapshot
+    global save_snapshot, state_counts, ordered_unique_urls, merge_favorite_updates
+    global startup_dir, startup_launcher_path, startup_cmd_path, startup_launch_command, startup_launcher_script
+    global update_auto_start, write_runtime_state, get_main_url, get_browser_process, set_browser_process, set_browser_hidden
+    global clear_runtime_state, acquire_single_instance, release_single_instance, request_existing_instance_open, show_message_box, set_main_url
+    global estimate_discovery_eta, update_discovery_job, run_discovery_search, start_discovery_job, get_discovery_job, cancel_discovery_job
+    global export_active_discovery_job
 
-settings_runtime = make_settings_runtime(
-    settings=SETTINGS,
-    settings_path=SETTINGS_PATH,
-    runtime_root=RUNTIME_ROOT,
-    session=SESSION,
-    translate_session=TRANSLATE_SESSION,
-    current_port_getter=lambda: current_port(),
-    runtime_port_getter=lambda: RUNTIME_PORT,
-    normalize=normalize,
-    clamp_int=clamp_int,
-    as_bool=as_bool,
-    decrypt_secret=decrypt_secret,
-    encrypt_secret=encrypt_secret,
-    normalize_proxy_url=normalize_proxy_url,
-    parse_proxy_endpoint=parse_proxy_endpoint,
-    detect_local_proxy=detect_local_proxy,
-    tcp_port_open=tcp_port_open,
-    load_json_file=load_json_file,
-    atomic_write_json=atomic_write_json,
-    default_settings=DEFAULT_SETTINGS,
-)
-normalize_settings = settings_runtime.normalize_settings
-sanitize_settings = settings_runtime.sanitize_settings
-save_settings = settings_runtime.save_settings
-load_settings = settings_runtime.load_settings
-merge_settings = settings_runtime.merge_settings
-apply_runtime_settings = settings_runtime.apply_runtime_settings
+    if _RUNTIME_CONTEXT is not None and not rebuild:
+        return _RUNTIME_CONTEXT
+    if rebuild:
+        translation_runtime = None
+        settings_runtime = None
+        state_runtime = None
+        startup_runtime = None
+        shell_runtime = None
+        github_runtime = None
+        discovery_job_runtime = None
+        ServerAppHandler = None
 
-state_runtime = make_state_runtime(
-    settings=SETTINGS,
-    user_state=USER_STATE,
-    discovery_state=DISCOVERY_STATE,
-    state_lock=STATE_LOCK,
-    discovery_lock=DISCOVERY_LOCK,
-    current_snapshot_getter=lambda: CURRENT_SNAPSHOT,
-    sync_repo_records_callback=lambda snapshot: sync_repo_records(snapshot),
-    user_state_path=USER_STATE_PATH,
-    discovery_state_path=DISCOVERY_STATE_PATH,
-    latest_snapshot_path=LATEST_SNAPSHOT_PATH,
-    periods=PERIODS,
-    normalize=normalize,
-    clamp_int=clamp_int,
-    as_bool=as_bool,
-    iso_now=iso_now,
-    load_json_file=load_json_file,
-    atomic_write_json=atomic_write_json,
-    apply_repo_translation=apply_repo_translation,
-)
-default_user_state = state_runtime.default_user_state
-default_discovery_state = state_runtime.default_discovery_state
-normalize_discovery_ranking_profile = state_runtime.normalize_discovery_ranking_profile
-discovery_query_id = state_runtime.discovery_query_id
-normalize_discovery_query = state_runtime.normalize_discovery_query
-normalize_repo = state_runtime.normalize_repo
-repo_from_url = state_runtime.repo_from_url
-normalize_watch_entry = state_runtime.normalize_watch_entry
-normalize_favorite_update = state_runtime.normalize_favorite_update
-normalize_discovery_state = state_runtime.normalize_discovery_state
-normalize_user_state = state_runtime.normalize_user_state
-load_user_state = state_runtime.load_user_state
-save_user_state = state_runtime.save_user_state
-export_user_state = state_runtime.export_user_state
-import_user_state = state_runtime.import_user_state
-load_discovery_state = state_runtime.load_discovery_state
-save_discovery_state = state_runtime.save_discovery_state
-export_discovery_state = state_runtime.export_discovery_state
-clear_discovery_results = state_runtime.clear_discovery_results
-apply_discovery_result = state_runtime.apply_discovery_result
-discovery_warning_list = state_runtime.discovery_warning_list
-empty_snapshot = state_runtime.empty_snapshot
-load_snapshot = state_runtime.load_snapshot
-save_snapshot = state_runtime.save_snapshot
-state_counts = state_runtime.state_counts
-ordered_unique_urls = state_runtime.ordered_unique_urls
-merge_favorite_updates = state_runtime.merge_favorite_updates
+    paths = ensure_runtime_paths()
+    context = RuntimeAppContext(
+        paths=paths,
+        session=_new_session(),
+        local_control=_new_session(trust_env=False, with_headers=False),
+        translate_session=_new_session(trust_env=False),
+        settings_lock=threading.RLock(),
+        state_lock=threading.RLock(),
+        discovery_lock=threading.RLock(),
+        discovery_job_lock=threading.RLock(),
+        refresh_lock=threading.Lock(),
+        translation_lock=threading.RLock(),
+        detail_cache_lock=threading.RLock(),
+        settings={},
+        user_state={},
+        discovery_state={},
+        current_snapshot={},
+        app_exit_event=threading.Event(),
+        browser_lock=threading.RLock(),
+        detail_fetch_semaphore=threading.Semaphore(3),
+        translation_cache={},
+        detail_cache={},
+        detail_fetch_locks={},
+        detail_cache_dirty=False,
+    )
+    _install_runtime_context(context)
 
-startup_runtime = make_startup_runtime(
-    app_name=APP_NAME,
-    app_slug=APP_SLUG,
-    legacy_app_name=LEGACY_APP_NAME,
-    legacy_app_slug=LEGACY_APP_SLUG,
-    dev_entry_script=DEV_ENTRY_SCRIPT,
-    exec_dir=EXEC_DIR,
-    runtime_state_path=RUNTIME_STATE_PATH,
-    legacy_runtime_state_path=LEGACY_RUNTIME_STATE_PATH,
-    local_host=LOCAL_HOST,
-    local_control=LOCAL_CONTROL,
-    normalize=normalize,
-    clamp_int=clamp_int,
-    iso_now=iso_now,
-    load_json_file=load_json_file,
-    atomic_write_json=atomic_write_json,
-    current_port_getter=lambda: current_port(),
-    control_token_getter=lambda: CONTROL_TOKEN,
-)
-startup_dir = startup_runtime.startup_dir
-startup_launcher_path = startup_runtime.startup_launcher_path
-startup_cmd_path = startup_runtime.startup_cmd_path
-startup_launch_command = startup_runtime.startup_launch_command
-startup_launcher_script = startup_runtime.startup_launcher_script
-update_auto_start = startup_runtime.update_auto_start
-write_runtime_state = startup_runtime.write_runtime_state
-get_main_url = startup_runtime.get_main_url
-get_browser_process = startup_runtime.get_browser_process
-set_browser_process = startup_runtime.set_browser_process
-set_browser_hidden = startup_runtime.set_browser_hidden
-clear_runtime_state = startup_runtime.clear_runtime_state
-acquire_single_instance = startup_runtime.acquire_single_instance
-release_single_instance = startup_runtime.release_single_instance
-request_existing_instance_open = startup_runtime.request_existing_instance_open
-show_message_box = startup_runtime.show_message_box
-set_main_url = startup_runtime.set_main_url
+    translation_runtime = make_translation_runtime(
+        cache_path=paths.cache_path,
+        translation_cache=TRANSLATION_CACHE,
+        translation_lock=TRANSLATION_LOCK,
+        translate_session=TRANSLATE_SESSION,
+        normalize=normalize,
+        load_json_file=load_json_file,
+        atomic_write_json=atomic_write_json,
+        translate_timeout=TRANSLATE_TIMEOUT,
+        translate_retries=TRANSLATE_RETRIES,
+        max_translation_cache_size=_MAX_TRANSLATION_CACHE_SIZE,
+        han_re=HAN_RE,
+        thread_pool_executor_cls=ThreadPoolExecutor,
+        as_completed=as_completed,
+        periods=PERIODS,
+    )
+    load_translation_cache = translation_runtime.load_translation_cache
+    save_translation_cache = translation_runtime.save_translation_cache
+    flush_translation_cache = translation_runtime.flush_translation_cache
+    translate_text = translation_runtime.translate_text
+    translate_query_to_en = translation_runtime.translate_query_to_en
+    apply_repo_translation = translation_runtime.apply_repo_translation
+    translate_snapshot = translation_runtime.translate_snapshot
+
+    settings_runtime = make_settings_runtime(
+        settings=SETTINGS,
+        settings_path=paths.settings_path,
+        runtime_root=paths.runtime_root,
+        session=SESSION,
+        translate_session=TRANSLATE_SESSION,
+        current_port_getter=lambda: current_port(),
+        runtime_port_getter=lambda: RUNTIME_PORT,
+        normalize=normalize,
+        clamp_int=clamp_int,
+        as_bool=as_bool,
+        decrypt_secret=decrypt_secret,
+        encrypt_secret=encrypt_secret,
+        normalize_proxy_url=normalize_proxy_url,
+        parse_proxy_endpoint=parse_proxy_endpoint,
+        detect_local_proxy=detect_local_proxy,
+        tcp_port_open=tcp_port_open,
+        load_json_file=load_json_file,
+        atomic_write_json=atomic_write_json,
+        default_settings=DEFAULT_SETTINGS,
+    )
+    normalize_settings = settings_runtime.normalize_settings
+    sanitize_settings = settings_runtime.sanitize_settings
+    save_settings = settings_runtime.save_settings
+    load_settings = settings_runtime.load_settings
+    merge_settings = settings_runtime.merge_settings
+    apply_runtime_settings = settings_runtime.apply_runtime_settings
+
+    state_runtime = make_state_runtime(
+        settings=SETTINGS,
+        user_state=USER_STATE,
+        discovery_state=DISCOVERY_STATE,
+        state_lock=STATE_LOCK,
+        discovery_lock=DISCOVERY_LOCK,
+        current_snapshot_getter=lambda: CURRENT_SNAPSHOT,
+        sync_repo_records_callback=lambda snapshot: sync_repo_records(snapshot),
+        user_state_path=paths.user_state_path,
+        discovery_state_path=paths.discovery_state_path,
+        latest_snapshot_path=paths.latest_snapshot_path,
+        periods=PERIODS,
+        normalize=normalize,
+        clamp_int=clamp_int,
+        as_bool=as_bool,
+        iso_now=iso_now,
+        load_json_file=load_json_file,
+        atomic_write_json=atomic_write_json,
+        apply_repo_translation=apply_repo_translation,
+    )
+    default_user_state = state_runtime.default_user_state
+    default_discovery_state = state_runtime.default_discovery_state
+    normalize_discovery_ranking_profile = state_runtime.normalize_discovery_ranking_profile
+    discovery_query_id = state_runtime.discovery_query_id
+    normalize_discovery_query = state_runtime.normalize_discovery_query
+    normalize_repo = state_runtime.normalize_repo
+    repo_from_url = state_runtime.repo_from_url
+    normalize_watch_entry = state_runtime.normalize_watch_entry
+    normalize_favorite_update = state_runtime.normalize_favorite_update
+    normalize_discovery_state = state_runtime.normalize_discovery_state
+    normalize_user_state = state_runtime.normalize_user_state
+    load_user_state = state_runtime.load_user_state
+    save_user_state = state_runtime.save_user_state
+    set_repo_state_batch = state_runtime.set_repo_state_batch
+    export_user_state = state_runtime.export_user_state
+    import_user_state = state_runtime.import_user_state
+    load_discovery_state = state_runtime.load_discovery_state
+    save_discovery_state = state_runtime.save_discovery_state
+    export_discovery_state = state_runtime.export_discovery_state
+    clear_discovery_results = state_runtime.clear_discovery_results
+    apply_discovery_result = state_runtime.apply_discovery_result
+    discovery_warning_list = state_runtime.discovery_warning_list
+    empty_snapshot = state_runtime.empty_snapshot
+    load_snapshot = state_runtime.load_snapshot
+    save_snapshot = state_runtime.save_snapshot
+    state_counts = state_runtime.state_counts
+    ordered_unique_urls = state_runtime.ordered_unique_urls
+    merge_favorite_updates = state_runtime.merge_favorite_updates
+
+    startup_runtime = make_startup_runtime(
+        app_name=APP_NAME,
+        app_slug=APP_SLUG,
+        legacy_app_name=LEGACY_APP_NAME,
+        legacy_app_slug=LEGACY_APP_SLUG,
+        dev_entry_script=DEV_ENTRY_SCRIPT,
+        exec_dir=EXEC_DIR,
+        runtime_state_path=paths.runtime_state_path,
+        legacy_runtime_state_path=paths.legacy_runtime_state_path,
+        local_host=LOCAL_HOST,
+        local_control=LOCAL_CONTROL,
+        normalize=normalize,
+        clamp_int=clamp_int,
+        iso_now=iso_now,
+        load_json_file=load_json_file,
+        atomic_write_json=atomic_write_json,
+        current_port_getter=lambda: current_port(),
+        control_token_getter=lambda: CONTROL_TOKEN,
+        parse_iso_timestamp=parse_iso_timestamp,
+    )
+    startup_dir = startup_runtime.startup_dir
+    startup_launcher_path = startup_runtime.startup_launcher_path
+    startup_cmd_path = startup_runtime.startup_cmd_path
+    startup_launch_command = startup_runtime.startup_launch_command
+    startup_launcher_script = startup_runtime.startup_launcher_script
+    update_auto_start = startup_runtime.update_auto_start
+    write_runtime_state = startup_runtime.write_runtime_state
+    get_main_url = startup_runtime.get_main_url
+    get_browser_process = startup_runtime.get_browser_process
+    set_browser_process = startup_runtime.set_browser_process
+    set_browser_hidden = startup_runtime.set_browser_hidden
+    clear_runtime_state = startup_runtime.clear_runtime_state
+    acquire_single_instance = startup_runtime.acquire_single_instance
+    release_single_instance = startup_runtime.release_single_instance
+    request_existing_instance_open = startup_runtime.request_existing_instance_open
+    show_message_box = startup_runtime.show_message_box
+    set_main_url = startup_runtime.set_main_url
+    _build_runtime_services()
+    return context
 
 
 def set_repo_state(state_key: str, enabled: bool, repo: object) -> None:
-    if state_key not in {item["key"] for item in STATE_DEFS}:
-        raise ValueError("无效状态")
-    clean = normalize_repo(repo)
-    if not clean:
-        raise ValueError("缺少仓库信息")
-    url = clean["url"]
-    with STATE_LOCK:
-        USER_STATE["repo_records"][url] = clean
-        USER_STATE[state_key] = [item for item in USER_STATE.get(state_key, []) if item != url]
-        if enabled:
-            USER_STATE[state_key].insert(0, url)
-        elif state_key == "favorites":
-            USER_STATE.get("favorite_watch", {}).pop(url, None)
-        save_user_state()
+    if state_runtime is None:
+        raise RuntimeError("state runtime not initialized")
+    state_runtime.set_repo_state(state_key, enabled, repo)
+
+
+def set_repo_state_batch(state_key: str, enabled: bool, repos: object) -> list[dict[str, object]]:
+    if state_runtime is None:
+        raise RuntimeError("state runtime not initialized")
+    return state_runtime.set_repo_state_batch(state_key, enabled, repos)
 
 
 def sync_repo_records(snapshot: dict[str, object]) -> None:
@@ -480,7 +688,7 @@ def choose_runtime_port() -> int:
 
 def write_status(refreshing: bool, fetched_at: str = "", source: str = "", error: str = "") -> None:
     atomic_write_json(
-        STATUS_PATH,
+        runtime_paths().status_path,
         {
             "refreshing": refreshing,
             "fetched_at": fetched_at,
@@ -493,7 +701,7 @@ def write_status(refreshing: bool, fetched_at: str = "", source: str = "", error
 
 def write_html(snapshot: dict[str, object], note: str, pending: bool) -> None:
     atomic_write_text(
-        HTML_PATH,
+        runtime_paths().html_path,
         build_runtime_html(
             app_name=APP_NAME,
             snapshot=snapshot,
@@ -576,125 +784,134 @@ def start_refresh_async(source: str) -> bool:
         return False
 
 
-shell_runtime = make_shell_runtime(
-    app_name=APP_NAME,
-    app_slug=APP_SLUG,
-    desktop_shell_dir=DESKTOP_SHELL_DIR,
-    app_exit_event=APP_EXIT_EVENT,
-    browser_lock=BROWSER_LOCK,
-    start_refresh_async=start_refresh_async,
-    write_runtime_state=write_runtime_state,
-    get_main_url=get_main_url,
-    get_browser_process=get_browser_process,
-    set_browser_process=set_browser_process,
-    set_browser_hidden=set_browser_hidden,
-    normalize=normalize,
-    quote=quote,
-)
+def _build_runtime_services() -> None:
+    global shell_runtime, github_runtime, discovery_job_runtime, ServerAppHandler
+    global estimate_discovery_eta, update_discovery_job, run_discovery_search, start_discovery_job, get_discovery_job
+    global cancel_discovery_job, export_active_discovery_job
 
-github_runtime = make_github_runtime(
-    session=SESSION,
-    api_timeout=API_TIMEOUT,
-    trending_timeout=TRENDING_TIMEOUT,
-    search_api_url=SEARCH_API_URL,
-    repo_api_url=REPO_API_URL,
-    settings=SETTINGS,
-    periods=PERIODS,
-    state_lock=STATE_LOCK,
-    user_state=USER_STATE,
-    save_user_state=save_user_state,
-    requests_module=requests,
-    beautifulsoup_cls=BeautifulSoup,
-    thread_pool_executor_cls=ThreadPoolExecutor,
-    as_completed=as_completed,
-    datetime_cls=datetime,
-    timedelta_cls=timedelta,
-    normalize=normalize,
-    clamp_int=clamp_int,
-    extract_count=extract_count,
-    normalize_repo=normalize_repo,
-    repo_from_url=repo_from_url,
-    normalize_watch_entry=normalize_watch_entry,
-    normalize_favorite_update=normalize_favorite_update,
-    translate_snapshot=translate_snapshot,
-    load_snapshot=load_snapshot,
-    cached_repo_details=cached_repo_details,
-    detail_fetch_lock=detail_fetch_lock,
-    strip_markdown=strip_markdown,
-    translate_text=translate_text,
-    translate_query_to_en=translate_query_to_en,
-    save_translation_cache=save_translation_cache,
-    save_repo_details=save_repo_details,
-    parse_iso_timestamp=parse_iso_timestamp,
-    iso_now=iso_now,
-    fetch_semaphore=DETAIL_FETCH_SEMAPHORE,
-    favorite_watch_min_seconds_no_token=FAVORITE_WATCH_MIN_SECONDS_NO_TOKEN,
-    favorite_watch_min_seconds_with_token=FAVORITE_WATCH_MIN_SECONDS_WITH_TOKEN,
-    favorite_release_min_seconds_no_token=FAVORITE_RELEASE_MIN_SECONDS_NO_TOKEN,
-    favorite_release_min_seconds_with_token=FAVORITE_RELEASE_MIN_SECONDS_WITH_TOKEN,
-    favorite_watch_max_checks_no_token=FAVORITE_WATCH_MAX_CHECKS_NO_TOKEN,
-    favorite_watch_max_checks_with_token=FAVORITE_WATCH_MAX_CHECKS_WITH_TOKEN,
-)
-
-discovery_job_runtime = make_discovery_job_runtime(
-    settings=SETTINGS,
-    normalize=normalize,
-    clamp_int=clamp_int,
-    as_bool=as_bool,
-    iso_now=iso_now,
-    normalize_repo=normalize_repo,
-    normalize_discovery_query=normalize_discovery_query,
-    apply_discovery_result=apply_discovery_result,
-    discovery_warning_list=discovery_warning_list,
-    github_runtime=github_runtime,
-    job_lock=DISCOVERY_JOB_LOCK,
-)
-estimate_discovery_eta = discovery_job_runtime.estimate_discovery_eta
-update_discovery_job = discovery_job_runtime.update_discovery_job
-run_discovery_search = discovery_job_runtime.run_discovery_search
-start_discovery_job = discovery_job_runtime.start_discovery_job
-get_discovery_job = discovery_job_runtime.get_discovery_job
-cancel_discovery_job = discovery_job_runtime.cancel_discovery_job
-export_active_discovery_job = discovery_job_runtime.export_active_discovery_job
-
-ServerAppHandler = make_app_handler(
-    runtime_root=RUNTIME_ROOT,
-    status_path=STATUS_PATH,
-    settings=SETTINGS,
-    settings_lock=SETTINGS_LOCK,
-    sanitize_settings=sanitize_settings,
-    load_json_file=load_json_file,
-    fetch_repo_details=github_runtime.fetch_repo_details,
-    normalize=normalize,
-    as_bool=as_bool,
-    set_repo_state=set_repo_state,
-    export_user_state=export_user_state,
-    import_user_state=import_user_state,
-    normalize_settings=normalize_settings,
-    merge_settings=merge_settings,
-    save_settings=save_settings,
-    apply_runtime_settings=apply_runtime_settings,
-    update_auto_start=update_auto_start,
-    clamp_int=clamp_int,
-    current_port=current_port,
-    start_refresh_async=start_refresh_async,
-    open_chatgpt_target=shell_runtime.open_chatgpt_target,
-    open_external_url=shell_runtime.open_external_url,
-    clear_favorite_updates=github_runtime.clear_favorite_updates,
-    start_discovery_job=start_discovery_job,
-    get_discovery_job=get_discovery_job,
-    cancel_discovery_job=cancel_discovery_job,
-    clear_discovery_results=clear_discovery_results,
-    export_discovery_state=export_discovery_state,
-    export_active_discovery_job=export_active_discovery_job,
-    sync_favorite_repo=github_runtime.sync_favorite_repo,
-    fetch_user_starred=github_runtime.fetch_user_starred,
-    sync_local_favorites_with_starred=github_runtime.sync_local_favorites_with_starred,
-    validate_github_token=github_runtime.validate_github_token,
-    open_main_window=shell_runtime.open_main_window,
-    exit_app=shell_runtime.exit_app,
-    control_token_getter=lambda: CONTROL_TOKEN,
-)
+    if shell_runtime is None:
+        shell_runtime = make_shell_runtime(
+            app_name=APP_NAME,
+            app_slug=APP_SLUG,
+            desktop_shell_dir=runtime_paths().desktop_shell_dir,
+            app_exit_event=APP_EXIT_EVENT,
+            browser_lock=BROWSER_LOCK,
+            start_refresh_async=start_refresh_async,
+            write_runtime_state=write_runtime_state,
+            get_main_url=get_main_url,
+            get_browser_process=get_browser_process,
+            set_browser_process=set_browser_process,
+            set_browser_hidden=set_browser_hidden,
+            normalize=normalize,
+            quote=quote,
+        )
+    if github_runtime is None:
+        github_runtime = make_github_runtime(
+            session=SESSION,
+            api_timeout=API_TIMEOUT,
+            trending_timeout=TRENDING_TIMEOUT,
+            search_api_url=SEARCH_API_URL,
+            repo_api_url=REPO_API_URL,
+            settings=SETTINGS,
+            periods=PERIODS,
+            state_lock=STATE_LOCK,
+            user_state=USER_STATE,
+            save_user_state=save_user_state,
+            requests_module=requests,
+            beautifulsoup_cls=BeautifulSoup,
+            thread_pool_executor_cls=ThreadPoolExecutor,
+            as_completed=as_completed,
+            datetime_cls=datetime,
+            timedelta_cls=timedelta,
+            normalize=normalize,
+            clamp_int=clamp_int,
+            extract_count=extract_count,
+            normalize_repo=normalize_repo,
+            repo_from_url=repo_from_url,
+            normalize_watch_entry=normalize_watch_entry,
+            normalize_favorite_update=normalize_favorite_update,
+            translate_snapshot=translate_snapshot,
+            load_snapshot=load_snapshot,
+            cached_repo_details=cached_repo_details,
+            detail_fetch_lock=detail_fetch_lock,
+            strip_markdown=strip_markdown,
+            translate_text=translate_text,
+            translate_query_to_en=translate_query_to_en,
+            save_translation_cache=save_translation_cache,
+            flush_translation_cache=flush_translation_cache,
+            save_repo_details=save_repo_details,
+            flush_repo_details_cache=flush_repo_details_cache,
+            parse_iso_timestamp=parse_iso_timestamp,
+            iso_now=iso_now,
+            fetch_semaphore=DETAIL_FETCH_SEMAPHORE,
+            favorite_watch_min_seconds_no_token=FAVORITE_WATCH_MIN_SECONDS_NO_TOKEN,
+            favorite_watch_min_seconds_with_token=FAVORITE_WATCH_MIN_SECONDS_WITH_TOKEN,
+            favorite_release_min_seconds_no_token=FAVORITE_RELEASE_MIN_SECONDS_NO_TOKEN,
+            favorite_release_min_seconds_with_token=FAVORITE_RELEASE_MIN_SECONDS_WITH_TOKEN,
+            favorite_watch_max_checks_no_token=FAVORITE_WATCH_MAX_CHECKS_NO_TOKEN,
+            favorite_watch_max_checks_with_token=FAVORITE_WATCH_MAX_CHECKS_WITH_TOKEN,
+        )
+    if discovery_job_runtime is None:
+        discovery_job_runtime = make_discovery_job_runtime(
+            settings=SETTINGS,
+            normalize=normalize,
+            clamp_int=clamp_int,
+            as_bool=as_bool,
+            iso_now=iso_now,
+            normalize_repo=normalize_repo,
+            normalize_discovery_query=normalize_discovery_query,
+            apply_discovery_result=apply_discovery_result,
+            discovery_warning_list=discovery_warning_list,
+            github_runtime=github_runtime,
+            job_lock=DISCOVERY_JOB_LOCK,
+        )
+        estimate_discovery_eta = discovery_job_runtime.estimate_discovery_eta
+        update_discovery_job = discovery_job_runtime.update_discovery_job
+        run_discovery_search = discovery_job_runtime.run_discovery_search
+        start_discovery_job = discovery_job_runtime.start_discovery_job
+        get_discovery_job = discovery_job_runtime.get_discovery_job
+        cancel_discovery_job = discovery_job_runtime.cancel_discovery_job
+        export_active_discovery_job = discovery_job_runtime.export_active_discovery_job
+    if ServerAppHandler is None:
+        ServerAppHandler = make_app_handler(
+            runtime_root=runtime_paths().runtime_root,
+            status_path=runtime_paths().status_path,
+            settings=SETTINGS,
+            settings_lock=SETTINGS_LOCK,
+            sanitize_settings=sanitize_settings,
+            load_json_file=load_json_file,
+            fetch_repo_details=github_runtime.fetch_repo_details,
+            normalize=normalize,
+            as_bool=as_bool,
+            set_repo_state=set_repo_state,
+            set_repo_state_batch=set_repo_state_batch,
+            export_user_state=export_user_state,
+            import_user_state=import_user_state,
+            normalize_settings=normalize_settings,
+            merge_settings=merge_settings,
+            save_settings=save_settings,
+            apply_runtime_settings=apply_runtime_settings,
+            update_auto_start=update_auto_start,
+            clamp_int=clamp_int,
+            current_port=current_port,
+            start_refresh_async=start_refresh_async,
+            open_chatgpt_target=shell_runtime.open_chatgpt_target,
+            open_external_url=shell_runtime.open_external_url,
+            clear_favorite_updates=github_runtime.clear_favorite_updates,
+            start_discovery_job=start_discovery_job,
+            get_discovery_job=get_discovery_job,
+            cancel_discovery_job=cancel_discovery_job,
+            clear_discovery_results=clear_discovery_results,
+            export_discovery_state=export_discovery_state,
+            export_active_discovery_job=export_active_discovery_job,
+            sync_favorite_repo=github_runtime.sync_favorite_repo,
+            fetch_user_starred=github_runtime.fetch_user_starred,
+            sync_local_favorites_with_starred=github_runtime.sync_local_favorites_with_starred,
+            validate_github_token=github_runtime.validate_github_token,
+            open_main_window=shell_runtime.open_main_window,
+            exit_app=shell_runtime.exit_app,
+            control_token_getter=lambda: CONTROL_TOKEN,
+        )
 
 
 def refresh_loop(run_immediately: bool = False) -> None:
@@ -708,7 +925,8 @@ def refresh_loop(run_immediately: bool = False) -> None:
 
 
 def main() -> None:
-    global CURRENT_SNAPSHOT, RUNTIME_PORT, CONTROL_TOKEN, AUTO_SYNC_USER_STARS_DONE
+    global CURRENT_SNAPSHOT, RUNTIME_PORT, CONTROL_TOKEN, AUTO_SYNC_USER_STARS_DONE, DETAIL_CACHE_DIRTY
+    build_runtime_context(rebuild=True)
     configure_console()
     ensure_runtime_layout()
     if not acquire_single_instance():
@@ -725,6 +943,7 @@ def main() -> None:
         with DETAIL_CACHE_LOCK:
             DETAIL_CACHE.clear()
             DETAIL_CACHE.update(load_detail_cache())
+            DETAIL_CACHE_DIRTY = False
         CONTROL_TOKEN = secrets.token_urlsafe(32)
         AUTO_SYNC_USER_STARS_DONE = False
         SETTINGS.clear()

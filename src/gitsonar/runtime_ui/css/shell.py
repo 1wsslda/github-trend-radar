@@ -6,6 +6,7 @@ CSS = r""".page{
   padding:clamp(14px,1.9vw,24px) clamp(14px,1.6vw,24px) 140px;
 }
 .workspace-header{
+  position:relative;
   display:grid;
   grid-template-columns:minmax(0,1fr) auto;
   gap:14px;
@@ -88,12 +89,18 @@ CSS = r""".page{
   line-height:1.45;
 }
 .workspace-bar{
+  position:relative;
+  display:grid;
+  gap:12px;
+  margin-bottom:16px;
+  overflow:visible;
+}
+.workspace-bar-shell{
   position:sticky;
   top:12px;
   z-index:18;
   display:grid;
   gap:12px;
-  margin-bottom:16px;
   padding:12px 14px 14px;
   border:1px solid var(--border);
   border-radius:22px;
@@ -101,6 +108,11 @@ CSS = r""".page{
   backdrop-filter:blur(12px);
   box-shadow:var(--shadow-soft);
   overflow:visible;
+}
+.workspace-context{
+  position:relative;
+  display:grid;
+  gap:12px;
 }
 .tabs{
   position:relative;
@@ -173,6 +185,10 @@ CSS = r""".page{
   position:relative;
   z-index:10;
 }
+.workspace-bar-main--discover{
+  grid-template-columns:minmax(0,1fr);
+  align-items:end;
+}
 .workspace-search-wrap{
   min-width:0;
 }
@@ -199,17 +215,15 @@ CSS = r""".page{
   background:rgba(233,201,143,.1);
   color:var(--text);
 }
-.workspace-summary-strip[hidden],
-.workspace-drawer[hidden],
-.canvas-intro[hidden],
-.drawer-section[hidden]{
-  display:none !important;
-}
 .workspace-drawer{
+  position:relative;
   display:grid;
   gap:14px;
-  padding-top:14px;
-  border-top:1px solid rgba(232,214,184,.08);
+  padding:14px 16px;
+  border:1px solid rgba(232,214,184,.1);
+  border-radius:20px;
+  background:rgba(17,14,11,.56);
+  box-shadow:var(--shadow-soft);
 }
 .workspace-drawer-head{
   display:grid;
@@ -234,7 +248,7 @@ CSS = r""".page{
   align-items:end;
 }
 .workspace-summary-strip{
-  padding-top:2px;
+  padding:2px 2px 0;
 }
 .summary-strip-row{
   display:flex;
@@ -265,6 +279,8 @@ CSS = r""".page{
   font-weight:620;
 }
 .canvas-intro{
+  display:grid;
+  gap:12px;
   margin-bottom:14px;
 }
 .workspace-empty-card{
@@ -326,24 +342,12 @@ CSS = r""".page{
   font-size:.88rem;
   line-height:1.62;
 }
-.discover-grid{
-  grid-template-columns:repeat(2,minmax(0,1fr));
-}
-.discover-grid > :first-child{
-  grid-column:1 / -1;
-}
-.discover-actions{
-  gap:10px;
-}
-.discover-saved{
-  display:grid;
-  gap:10px;
-}
 .discover-chip{
   min-width:0;
 }
 .discover-top-grid{
-  grid-template-columns:1fr;
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
 }
 .discover-top-card{
   padding:12px 14px;

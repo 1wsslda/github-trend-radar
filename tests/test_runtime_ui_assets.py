@@ -54,6 +54,8 @@ class RuntimeUILayoutSmokeTests(unittest.TestCase):
         for token in (
             'class="workspace-header"',
             'class="workspace-bar"',
+            'class="workspace-bar-shell"',
+            'class="workspace-context"',
             'id="workspace-summary-strip"',
             'class="workspace-drawer" id="control-drawer"',
             'id="canvas-intro"',
@@ -61,6 +63,44 @@ class RuntimeUILayoutSmokeTests(unittest.TestCase):
         ):
             with self.subTest(token=token):
                 self.assertIn(token, html)
+
+    def test_discovery_markup_uses_split_search_and_context_support(self):
+        html = build_fixture_html()
+
+        for token in (
+            'data-menu-id="discover-ranking-menu"',
+            'id="discover-run-note"',
+            'id="discover-limit-copy"',
+            'id="discover-auto-expand-note"',
+            "开始搜索 · 综合排序",
+            "会基于首轮命中的仓库名、Topics 和 README 补充相关词，覆盖更广，但会更慢。",
+            "只按你输入的关键词直接搜索，返回更快、更可控，但可能漏掉相近项目。",
+        ):
+            with self.subTest(token=token):
+                self.assertIn(token, html)
+
+        self.assertNotIn('id="discover-limit"', html)
+        self.assertNotIn('id="discover-ranking-profile"', html)
+        self.assertNotIn('data-custom-select-for="discover-ranking-profile"', html)
+
+    def test_discovery_split_state_hooks_are_present_in_assets(self):
+        for token in (
+            'rankingRoot.classList.toggle("is-idle", !discoveryBusy && !hasQuery);',
+            'rankingRoot.classList.toggle("is-ready", !discoveryBusy && hasQuery);',
+            'rankingRoot.classList.toggle("is-busy", discoveryBusy);',
+        ):
+            with self.subTest(js=token):
+                self.assertIn(token, JS)
+
+        for token in (
+            ".discover-run-split.is-idle .split-main:disabled{",
+            ".discover-run-split.is-busy .split-trigger{",
+            "#discover-ranking-menu-panel{",
+            "#discover-ranking-menu-panel .menu-item{",
+            ".menu-item-copy{",
+        ):
+            with self.subTest(css=token):
+                self.assertIn(token, CSS)
 
     def test_settings_markup_includes_sensitive_setting_controls(self):
         html = build_fixture_html(control_token="test-control-token")

@@ -1,5 +1,10 @@
 """Runtime package for GitSonar."""
 
-from .app import main
+
+def main():
+    from .app import main as runtime_main
+
+    return runtime_main()
+
 
 __all__ = ["main"]

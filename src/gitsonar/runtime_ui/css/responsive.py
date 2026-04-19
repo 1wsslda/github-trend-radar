@@ -8,6 +8,9 @@ CSS = r"""@media (min-width:1600px){
   .workspace-bar-main{
     grid-template-columns:minmax(220px,1fr) auto auto;
   }
+  .workspace-bar-main--discover{
+    grid-template-columns:minmax(0,1fr);
+  }
   .workspace-drawer #control-drawer-list{
     grid-template-columns:1fr 1fr;
   }
@@ -22,6 +25,9 @@ CSS = r"""@media (min-width:1600px){
     grid-template-columns:1fr 1fr;
     align-items:stretch;
   }
+  .workspace-bar-main--discover{
+    grid-template-columns:1fr;
+  }
   .workspace-search-wrap{
     grid-column:1 / -1;
   }
@@ -29,7 +35,15 @@ CSS = r"""@media (min-width:1600px){
     grid-column:auto;
     grid-template-columns:1fr;
   }
-  .discover-grid,
+  .discover-query-row{
+    grid-template-columns:1fr;
+  }
+  .discover-query-main{
+    grid-template-columns:1fr;
+  }
+  .discover-context-grid{
+    grid-template-columns:1fr;
+  }
   .settings-inline{
     grid-template-columns:1fr;
   }
@@ -58,11 +72,14 @@ CSS = r"""@media (min-width:1600px){
   .nav-actions{
     justify-content:flex-start;
   }
-  .workspace-bar{
+  .workspace-bar-shell{
     top:8px;
     padding:10px 12px 12px;
   }
   .workspace-bar-main{
+    grid-template-columns:1fr;
+  }
+  .workspace-bar-main--discover{
     grid-template-columns:1fr;
   }
   .workspace-summary{
@@ -71,10 +88,25 @@ CSS = r"""@media (min-width:1600px){
   .workspace-drawer-head{
     grid-template-columns:1fr;
   }
-  .discover-grid,
   .discover-top-grid,
   .settings-inline{
     grid-template-columns:1fr;
+  }
+  .discover-progress-strip,
+  .discover-results-toolbar,
+  .discover-selection-bar{
+    flex-direction:column;
+    align-items:flex-start;
+  }
+  .discover-progress-actions,
+  .discover-results-toolbar-actions,
+  .discover-selection-actions{
+    width:100%;
+    justify-content:flex-start;
+  }
+  .discover-inline-hint-actions{
+    width:100%;
+    justify-content:flex-start;
   }
   .panel{
     width:100vw;
@@ -85,7 +117,7 @@ CSS = r"""@media (min-width:1600px){
     padding:14px 12px 146px;
   }
   .workspace-header,
-  .workspace-bar,
+  .workspace-bar-shell,
   .card,
   .update-card,
   .compare-card{
@@ -112,12 +144,30 @@ CSS = r"""@media (min-width:1600px){
   .workspace-summary{
     grid-template-columns:1fr;
   }
+  .discover-query-row{
+    grid-template-columns:1fr;
+  }
+  .discover-query-main{
+    grid-template-columns:1fr;
+  }
   .action-split{
     width:100%;
   }
   .action-split .split-main{
     min-width:0;
     flex:1;
+  }
+  .discover-results-toolbar-actions,
+  .discover-selection-actions{
+    width:100%;
+  }
+  .discover-inline-hint-actions{
+    width:100%;
+  }
+  .discover-results-toolbar-actions > *,
+  .discover-selection-actions > *,
+  .discover-inline-hint-actions > *{
+    flex:1 1 auto;
   }
   .cards{
     grid-template-columns:1fr;

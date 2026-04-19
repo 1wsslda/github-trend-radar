@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import os
 from types import SimpleNamespace
+from urllib.parse import urlparse
 
 DEFAULT_SETTINGS = {
     "port": 8080,
@@ -45,6 +46,13 @@ def make_settings_runtime(
     defaults = dict(default_settings or DEFAULT_SETTINGS)
     proxy_state = {"effective": "", "source": "none"}
 
+    def normalize_proxy_setting(value: object) -> str:
+        return normalize_proxy_url(decrypt_secret(normalize(value)))
+
+    def proxy_has_credentials(proxy_url: str) -> bool:
+        parsed = urlparse(normalize_proxy_url(proxy_url))
+        return bool(parsed.username or parsed.password)
+
     def normalize_settings(payload: object) -> dict[str, object]:
         raw = payload if isinstance(payload, dict) else {}
         normalized = dict(defaults)
@@ -52,7 +60,7 @@ def make_settings_runtime(
         normalized["refresh_hours"] = clamp_int(raw.get("refresh_hours"), defaults["refresh_hours"], 1, 24)
         normalized["result_limit"] = clamp_int(raw.get("result_limit"), defaults["result_limit"], 10, 100)
         normalized["github_token"] = decrypt_secret(normalize(raw.get("github_token", "")))
-        normalized["proxy"] = normalize_proxy_url(raw.get("proxy", ""))
+        normalized["proxy"] = normalize_proxy_setting(raw.get("proxy", ""))
         normalized["default_sort"] = normalize(raw.get("default_sort", defaults["default_sort"])) or defaults["default_sort"]
         normalized["auto_start"] = as_bool(raw.get("auto_start"), False)
         return normalized
@@ -77,7 +85,7 @@ def make_settings_runtime(
         if as_bool(raw.get("clear_proxy"), False):
             merged["proxy"] = ""
         elif "proxy" in raw:
-            proxy = normalize_proxy_url(raw.get("proxy", ""))
+            proxy = normalize_proxy_setting(raw.get("proxy", ""))
             if proxy:
                 merged["proxy"] = proxy
 
@@ -110,6 +118,11 @@ def make_settings_runtime(
         token = normalize(clean.get("github_token", ""))
         if token:
             clean["github_token"] = encrypt_secret(token)
+        elif "github_token" in clean:
+            clean["github_token"] = ""
+        if "proxy" in clean:
+            proxy = normalize_proxy_setting(clean.get("proxy", ""))
+            clean["proxy"] = encrypt_secret(proxy) if proxy and proxy_has_credentials(proxy) else proxy
         atomic_write_json(SETTINGS_PATH, clean)
 
     def load_settings() -> dict[str, object]:

@@ -7,6 +7,8 @@ import time
 from collections import Counter
 from datetime import timezone
 
+from ..runtime.repo_records import build_repo_record
+
 from .shared import DiscoveryCancelledError
 
 logger = logging.getLogger(__name__)
@@ -27,14 +29,17 @@ def build_discovery_api(*, deps, state, github_get, fetch_repo_details):
     parse_iso_timestamp = deps.parse_iso_timestamp
     datetime_cls = deps.datetime_cls
     timedelta_cls = deps.timedelta_cls
-    save_translation_cache = deps.save_translation_cache
+    flush_translation_cache = deps.flush_translation_cache
+    flush_repo_details_cache = deps.flush_repo_details_cache
     search_api_url = deps.search_api_url
+    as_bool = lambda value, default=False: default if value is None else bool(value)
     query_term_re = state.query_term_re
     stop_terms = state.stop_terms
     ranking_profiles = state.ranking_profiles
     discovery_cache = state.discovery_cache
     discovery_cache_lock = state.discovery_cache_lock
     discovery_cache_seconds = state.discovery_cache_seconds
+    discovery_cache_max_entries = state.discovery_cache_max_entries
 
     def clone_discovery_payload(payload: dict[str, object]) -> dict[str, object]:
         return {
@@ -77,8 +82,9 @@ def build_discovery_api(*, deps, state, github_get, fetch_repo_details):
     def build_discovery_repo(item: dict[str, object], spec: dict[str, object], index: int) -> dict[str, object]:
         full_name = normalize(item.get("full_name"))
         raw_description = normalize(item.get("description"))
-        return {
-            "full_name": full_name,
+        repo = build_repo_record(
+            {
+                "full_name": full_name,
             "url": normalize(item.get("html_url")) or f"https://github.com/{full_name}",
             "description": raw_description,
             "description_raw": raw_description,
@@ -98,13 +104,21 @@ def build_discovery_api(*, deps, state, github_get, fetch_repo_details):
             "trending_hit": False,
             "relevance_score": 0,
             "hot_score": 0,
-            "composite_score": 0,
-            "matched_terms": [],
-            "match_reasons": [],
-            "_query_hits": [normalize(spec.get("text")).lower()],
-            "_query_labels": [normalize(spec.get("label")) or "query"],
-            "_search_sorts": [normalize(spec.get("sort")) or "stars"],
-        }
+                "composite_score": 0,
+                "matched_terms": [],
+                "match_reasons": [],
+                "_query_hits": [normalize(spec.get("text")).lower()],
+                "_query_labels": [normalize(spec.get("label")) or "query"],
+                "_search_sorts": [normalize(spec.get("sort")) or "stars"],
+                "source_key": "discover",
+            },
+            normalize=normalize,
+            clamp_int=clamp_int,
+            as_bool=as_bool,
+            default_period_key="discover",
+            default_source_label="Keyword Discovery",
+        )
+        return repo or {}
 
     def merge_discovery_candidate(existing: dict[str, object], incoming: dict[str, object]) -> dict[str, object]:
         merged = dict(existing)
@@ -186,7 +200,7 @@ def build_discovery_api(*, deps, state, github_get, fetch_repo_details):
             return details_map
         with thread_pool_executor_cls(max_workers=min(4, len(selected))) as executor:
             future_map = {
-                executor.submit(fetch_repo_details, repo["owner"], repo["name"]): repo
+                executor.submit(fetch_repo_details, repo["owner"], repo["name"], persist_cache=False): repo
                 for repo in selected
             }
             for future in as_completed(future_map):
@@ -447,11 +461,39 @@ def build_discovery_api(*, deps, state, github_get, fetch_repo_details):
         except Exception as exc:
             logger.warning("关键词发现进度回调失败 %s: %s", stage, exc)
 
-    def ensure_discovery_not_cancelled(cancel_callback) -> None:
+    def flush_discovery_content_caches() -> None:
+        flush_translation_cache()
+        flush_repo_details_cache()
+
+    def ensure_discovery_not_cancelled(cancel_callback, *, flush_caches: bool = False) -> None:
         if not callable(cancel_callback):
             return
         if cancel_callback():
+            if flush_caches:
+                flush_discovery_content_caches()
             raise DiscoveryCancelledError("关键词发现已取消")
+
+    def store_discovery_cache(cache_key: str, payload: dict[str, object], saved_at: int) -> None:
+        with discovery_cache_lock:
+            discovery_cache[cache_key] = {"saved_at": saved_at, "payload": clone_discovery_payload(payload)}
+            expired = [
+                key
+                for key, item in discovery_cache.items()
+                if not isinstance(item, dict) or saved_at - clamp_int(item.get("saved_at"), 0, 0) >= discovery_cache_seconds
+            ]
+            for key in expired:
+                discovery_cache.pop(key, None)
+            if len(discovery_cache) > discovery_cache_max_entries:
+                oldest = sorted(
+                    discovery_cache,
+                    key=lambda key: clamp_int(
+                        discovery_cache[key].get("saved_at") if isinstance(discovery_cache[key], dict) else 0,
+                        0,
+                        0,
+                    ),
+                )
+                for key in oldest[: len(discovery_cache) - discovery_cache_max_entries]:
+                    discovery_cache.pop(key, None)
 
     def discover_repos(
         *,
@@ -463,10 +505,11 @@ def build_discovery_api(*, deps, state, github_get, fetch_repo_details):
         progress_callback=None,
         is_cancelled=None,
     ) -> dict[str, object]:
+        started_ts = time.perf_counter()
         query = normalize(query)
         language = normalize(language)
         ranking_profile = normalize_ranking_profile(ranking_profile)
-        limit = clamp_int(limit, 20, 5, 50)
+        limit = clamp_int(limit, 20, 5, 100)
         if not query:
             raise ValueError("请输入关键词")
 
@@ -479,6 +522,12 @@ def build_discovery_api(*, deps, state, github_get, fetch_repo_details):
         with discovery_cache_lock:
             cached = discovery_cache.get(cache_key)
             if isinstance(cached, dict) and now - clamp_int(cached.get("saved_at"), 0, 0) < discovery_cache_seconds:
+                logger.info(
+                    "discovery_cache_hit limit=%d auto_expand=%s ranking_profile=%s",
+                    limit,
+                    bool(auto_expand),
+                    ranking_profile,
+                )
                 return clone_discovery_payload(cached.get("payload", {}))
 
         translated_query = normalize(translate_query_to_en(query))
@@ -510,7 +559,7 @@ def build_discovery_api(*, deps, state, github_get, fetch_repo_details):
         ensure_discovery_not_cancelled(is_cancelled)
         for repo in search_discovery_specs(
             initial_specs,
-            per_page=min(max(limit * 3, 18), 50),
+            per_page=min(max(limit * 3, 18), 100),
             warnings=warnings,
         ):
             candidate_map[repo["full_name"].lower()] = repo
@@ -525,9 +574,14 @@ def build_discovery_api(*, deps, state, github_get, fetch_repo_details):
                 "run_at": iso_now(),
                 "results": [],
             }
-            with discovery_cache_lock:
-                discovery_cache[cache_key] = {"saved_at": now, "payload": clone_discovery_payload(payload)}
+            store_discovery_cache(cache_key, payload, now)
             emit_discovery_progress(progress_callback, "completed", payload)
+            logger.info(
+                "discovery_completed results=%d warnings=%d cache_store=true duration_ms=%d",
+                0,
+                len(payload["warnings"]),
+                int((time.perf_counter() - started_ts) * 1000),
+            )
             return payload
 
         initial_candidates = sorted(candidate_map.values(), key=lambda item: (-clamp_int(item.get("stars"), 0, 0), normalize(item.get("full_name"))))
@@ -568,7 +622,7 @@ def build_discovery_api(*, deps, state, github_get, fetch_repo_details):
             warnings=warnings,
         )
         related_terms = extract_related_terms_from_candidates(initial_candidates[:10], seed_details_map, base_terms) if auto_expand else []
-        ensure_discovery_not_cancelled(is_cancelled)
+        ensure_discovery_not_cancelled(is_cancelled, flush_caches=True)
 
         if auto_expand and related_terms:
             existing_queries = {item.lower() for item in generated_queries}
@@ -591,7 +645,7 @@ def build_discovery_api(*, deps, state, github_get, fetch_repo_details):
             try:
                 expansion_results = search_discovery_specs(
                     expansion_specs,
-                    per_page=min(max(limit * 2, 12), 40),
+                    per_page=min(max(limit * 2, 12), 100),
                     warnings=warnings,
                 )
             except Exception as exc:
@@ -601,7 +655,7 @@ def build_discovery_api(*, deps, state, github_get, fetch_repo_details):
             for repo in expansion_results:
                 key = repo["full_name"].lower()
                 candidate_map[key] = merge_discovery_candidate(candidate_map[key], repo) if key in candidate_map else repo
-            ensure_discovery_not_cancelled(is_cancelled)
+            ensure_discovery_not_cancelled(is_cancelled, flush_caches=True)
 
         candidates = sorted(
             candidate_map.values(),
@@ -623,7 +677,7 @@ def build_discovery_api(*, deps, state, github_get, fetch_repo_details):
                 warnings=warnings,
             )
         )
-        ensure_discovery_not_cancelled(is_cancelled)
+        ensure_discovery_not_cancelled(is_cancelled, flush_caches=True)
         ranked = rank_discovery_results(
             candidates,
             details_map,
@@ -635,7 +689,7 @@ def build_discovery_api(*, deps, state, github_get, fetch_repo_details):
             limit=limit,
             ranking_profile=ranking_profile,
         )
-        save_translation_cache()
+        flush_discovery_content_caches()
         payload = {
             "ranking_profile": ranking_profile,
             "translated_query": translated_query if translated_query.lower() != query.lower() else "",
@@ -645,9 +699,14 @@ def build_discovery_api(*, deps, state, github_get, fetch_repo_details):
             "run_at": iso_now(),
             "results": ranked[:limit],
         }
-        with discovery_cache_lock:
-            discovery_cache[cache_key] = {"saved_at": now, "payload": clone_discovery_payload(payload)}
+        store_discovery_cache(cache_key, payload, now)
         emit_discovery_progress(progress_callback, "completed", payload)
+        logger.info(
+            "discovery_completed results=%d warnings=%d cache_store=true duration_ms=%d",
+            len(payload["results"]),
+            len(payload["warnings"]),
+            int((time.perf_counter() - started_ts) * 1000),
+        )
         return payload
 
     return {

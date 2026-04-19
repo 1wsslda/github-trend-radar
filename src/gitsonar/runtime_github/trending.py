@@ -4,6 +4,8 @@ from __future__ import annotations
 import logging
 from datetime import timezone
 
+from ..runtime.repo_records import build_repo_record
+
 logger = logging.getLogger(__name__)
 
 
@@ -16,6 +18,7 @@ def build_trending_api(*, deps, github_get):
     periods = deps.periods
     normalize_repo = deps.normalize_repo
     clamp_int = deps.clamp_int
+    as_bool = lambda value, default=False: default if value is None else bool(value)
     settings = deps.settings
     datetime_cls = deps.datetime_cls
     timedelta_cls = deps.timedelta_cls
@@ -42,20 +45,30 @@ def build_trending_api(*, deps, github_get):
             desc_node = article.select_one("p")
             language_node = article.select_one('span[itemprop="programmingLanguage"]')
             gained_node = article.select_one("span.d-inline-block.float-sm-right")
-            mapping[full_name.lower()] = {
-                "full_name": full_name,
-                "url": f"https://github.com/{full_name}",
-                "description": normalize(desc_node.get_text(" ", strip=True) if desc_node else ""),
-                "language": normalize(language_node.get_text(" ", strip=True) if language_node else ""),
-                "stars": extract_count(anchors[0].get_text(" ", strip=True) if len(anchors) > 0 else 0),
-                "forks": extract_count(anchors[1].get_text(" ", strip=True) if len(anchors) > 1 else 0),
-                "gained": extract_count(gained_node.get_text(" ", strip=True) if gained_node else ""),
-                "gained_text": normalize(gained_node.get_text(" ", strip=True) if gained_node else ""),
-                "growth_source": "trending",
-                "rank": rank,
-                "period_key": period_key,
-                "source_label": "GitHub Trending",
-            }
+            repo = build_repo_record(
+                {
+                    "full_name": full_name,
+                    "url": f"https://github.com/{full_name}",
+                    "description": normalize(desc_node.get_text(" ", strip=True) if desc_node else ""),
+                    "language": normalize(language_node.get_text(" ", strip=True) if language_node else ""),
+                    "stars": extract_count(anchors[0].get_text(" ", strip=True) if len(anchors) > 0 else 0),
+                    "forks": extract_count(anchors[1].get_text(" ", strip=True) if len(anchors) > 1 else 0),
+                    "gained": extract_count(gained_node.get_text(" ", strip=True) if gained_node else ""),
+                    "gained_text": normalize(gained_node.get_text(" ", strip=True) if gained_node else ""),
+                    "growth_source": "trending",
+                    "rank": rank,
+                    "period_key": period_key,
+                    "source_label": "GitHub Trending",
+                    "source_key": "trending",
+                },
+                normalize=normalize,
+                clamp_int=clamp_int,
+                as_bool=as_bool,
+                default_period_key=period_key,
+                default_source_label="GitHub Trending",
+            )
+            if repo:
+                mapping[full_name.lower()] = repo
         return mapping
 
     def build_previous_repo_index(snapshot: dict[str, object]) -> dict[str, dict[str, object]]:
@@ -124,7 +137,7 @@ def build_trending_api(*, deps, github_get):
         for index, item in enumerate(items, start=1):
             full_name = normalize(item.get("full_name"))
             raw_description = normalize(item.get("description"))
-            repos.append(
+            repo = build_repo_record(
                 {
                     "full_name": full_name,
                     "url": normalize(item.get("html_url")) or f"https://github.com/{full_name}",
@@ -139,8 +152,16 @@ def build_trending_api(*, deps, github_get):
                     "rank": index,
                     "period_key": key,
                     "source_label": "GitHub API",
-                }
+                    "source_key": "github_api",
+                },
+                normalize=normalize,
+                clamp_int=clamp_int,
+                as_bool=as_bool,
+                default_period_key=key,
+                default_source_label="GitHub API",
             )
+            if repo:
+                repos.append(repo)
             if len(repos) >= limit:
                 break
         return repos

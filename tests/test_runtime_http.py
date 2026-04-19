@@ -25,7 +25,16 @@ class RuntimeHTTPHandlerTests(unittest.TestCase):
         self.runtime_root = runtime_root
         (runtime_root / "trending.html").write_text("<html>ok</html>", encoding="utf-8")
         self.control_token = "runtime-control-token"
+        self.user_state = {
+            "favorites": [],
+            "watch_later": [],
+            "read": [],
+            "ignored": [],
+            "repo_records": {},
+        }
         self.state_updates: list[tuple[str, bool, dict[str, object] | None]] = []
+        self.batch_state_calls: list[tuple[str, bool, list[dict[str, object]]]] = []
+        self.discovery_job_payloads: list[dict[str, object]] = []
         self.exit_requested = False
         self.refresh_started = True
         self.validated_tokens: list[object | None] = []
@@ -34,6 +43,7 @@ class RuntimeHTTPHandlerTests(unittest.TestCase):
         self.fetch_repo_details = lambda owner, name: {"full_name": f"{owner}/{name}"}
         self.fetch_user_starred = lambda: [{"full_name": "octo/demo", "url": "https://github.com/octo/demo"}]
         self.sync_local_favorites_with_starred = lambda _repos: {"total": 1, "added": 1, "removed": 0}
+        self.sync_favorite_repo = lambda _repo, _enabled: None
         self.runtime_settings = {
             "port": 8080,
             "refresh_hours": 1,
@@ -44,12 +54,35 @@ class RuntimeHTTPHandlerTests(unittest.TestCase):
             "proxy": "http://127.0.0.1:7890",
         }
 
-        def set_repo_state(state_key: str, enabled: bool, repo: object) -> None:
+        def apply_state_update(state_key: str, enabled: bool, repo: object) -> dict[str, object]:
             if state_key not in {"favorites", "watch_later", "read", "ignored"}:
                 raise ValueError("invalid state")
             if not isinstance(repo, dict) or not repo.get("url"):
                 raise ValueError("missing repo")
-            self.state_updates.append((state_key, enabled, repo))
+            clean = dict(repo)
+            url = str(clean["url"])
+            self.user_state["repo_records"][url] = clean
+            self.user_state[state_key] = [item for item in self.user_state.get(state_key, []) if item != url]
+            if enabled:
+                self.user_state[state_key].insert(0, url)
+            return clean
+
+        def set_repo_state(state_key: str, enabled: bool, repo: object) -> None:
+            clean = apply_state_update(state_key, enabled, repo)
+            self.state_updates.append((state_key, enabled, clean))
+
+        def set_repo_state_batch(state_key: str, enabled: bool, repos: object) -> list[dict[str, object]]:
+            if not isinstance(repos, list):
+                raise ValueError("missing repos")
+            processed = [apply_state_update(state_key, enabled, repo) for repo in repos]
+            self.batch_state_calls.append((state_key, enabled, processed))
+            return processed
+
+
+        def start_discovery_job(payload: object) -> dict[str, object]:
+            clean = dict(payload) if isinstance(payload, dict) else {}
+            self.discovery_job_payloads.append(clean)
+            return {"id": "job-1", "status": "queued"}
 
         handler = make_app_handler(
             runtime_root=str(runtime_root),
@@ -62,12 +95,13 @@ class RuntimeHTTPHandlerTests(unittest.TestCase):
             normalize=normalize,
             as_bool=as_bool,
             set_repo_state=set_repo_state,
-            export_user_state=lambda: {"favorites": [], "repo_records": {}},
+            set_repo_state_batch=set_repo_state_batch,
+            export_user_state=lambda: json.loads(json.dumps(self.user_state)),
             import_user_state=lambda payload: {
                 "mode": payload.get("mode", "merge"),
                 "before_counts": {},
                 "after_counts": {},
-                "user_state": {"favorites": [], "repo_records": {}},
+                "user_state": json.loads(json.dumps(self.user_state)),
             },
             normalize_settings=lambda payload: dict(payload),
             merge_settings=self._merge_settings,
@@ -80,7 +114,7 @@ class RuntimeHTTPHandlerTests(unittest.TestCase):
             open_chatgpt_target=lambda _mode, _prompt: (True, "opened"),
             open_external_url=lambda _url: True,
             clear_favorite_updates=lambda: None,
-            start_discovery_job=lambda _payload: {"id": "job-1", "status": "queued"},
+            start_discovery_job=start_discovery_job,
             get_discovery_job=lambda job_id: {"id": job_id, "status": "completed"} if job_id != "missing" else (_ for _ in ()).throw(ValueError("missing")),
             cancel_discovery_job=lambda job_id: {"id": job_id, "status": "cancelled"},
             clear_discovery_results=lambda: {"last_results": []},
@@ -88,7 +122,7 @@ class RuntimeHTTPHandlerTests(unittest.TestCase):
             export_active_discovery_job=lambda: {"id": "job-active", "status": "running"},
             open_main_window=lambda: True,
             exit_app=self._exit_app,
-            sync_favorite_repo=lambda _repo, _enabled: None,
+            sync_favorite_repo=lambda repo, enabled: self.sync_favorite_repo(repo, enabled),
             fetch_user_starred=lambda: self.fetch_user_starred(),
             sync_local_favorites_with_starred=lambda repos: self.sync_local_favorites_with_starred(repos),
             validate_github_token=self._validate_github_token,
@@ -312,6 +346,19 @@ class RuntimeHTTPHandlerTests(unittest.TestCase):
         self.assertEqual(payload["code"], "not_found")
         self.assertIn("missing", payload["error"])
 
+    def test_post_discover_passes_limit_and_ranking_profile_to_job_service(self):
+        resp, data = self.request(
+            "POST",
+            "/api/discover",
+            {"query": "agent", "limit": 100, "auto_expand": True, "ranking_profile": "hot"},
+        )
+        payload = json.loads(data.decode("utf-8"))
+
+        self.assertEqual(resp.status, 200)
+        self.assertTrue(payload["ok"])
+        self.assertEqual(self.discovery_job_payloads[-1]["limit"], 100)
+        self.assertEqual(self.discovery_job_payloads[-1]["ranking_profile"], "hot")
+
     def test_post_state_updates_user_state(self):
         resp, data = self.request(
             "POST",
@@ -337,6 +384,87 @@ class RuntimeHTTPHandlerTests(unittest.TestCase):
         self.assertFalse(payload["ok"])
         self.assertEqual(payload["code"], "invalid_request")
         self.assertIn("repo", payload["error"])
+
+    def test_post_state_batch_updates_user_state_with_single_local_commit(self):
+        repos = [
+            {"full_name": "octo/one", "url": "https://github.com/octo/one"},
+            {"full_name": "octo/two", "url": "https://github.com/octo/two"},
+        ]
+
+        resp, data = self.request(
+            "POST",
+            "/api/state/batch",
+            {"state": "watch_later", "enabled": True, "repos": repos},
+        )
+        payload = json.loads(data.decode("utf-8"))
+
+        self.assertEqual(resp.status, 200)
+        self.assertTrue(payload["ok"])
+        self.assertEqual(payload["processed_count"], 2)
+        self.assertEqual(self.state_updates, [])
+        self.assertEqual(len(self.batch_state_calls), 1)
+        self.assertEqual(payload["user_state"]["watch_later"], ["https://github.com/octo/two", "https://github.com/octo/one"])
+
+    def test_post_state_batch_returns_partial_success_when_github_star_sync_fails_midway(self):
+        repos = [
+            {"full_name": "octo/one", "url": "https://github.com/octo/one"},
+            {"full_name": "octo/two", "url": "https://github.com/octo/two"},
+            {"full_name": "octo/three", "url": "https://github.com/octo/three"},
+        ]
+        sync_calls: list[str] = []
+
+        def sync_favorite_repo(repo: object, _enabled: bool):
+            full_name = str((repo or {}).get("full_name") or "")
+            sync_calls.append(full_name)
+            if full_name == "octo/two":
+                return {"ok": False, "error": "remote failed"}
+            return {"ok": True, "message": f"synced {full_name}"}
+
+        self.sync_favorite_repo = sync_favorite_repo
+
+        resp, data = self.request(
+            "POST",
+            "/api/state/batch",
+            {"state": "favorites", "enabled": True, "repos": repos},
+        )
+        payload = json.loads(data.decode("utf-8"))
+
+        self.assertEqual(resp.status, 400)
+        self.assertFalse(payload["ok"])
+        self.assertEqual(payload["processed_count"], 1)
+        self.assertEqual(sync_calls, ["octo/one", "octo/two"])
+        self.assertEqual(len(self.batch_state_calls), 1)
+        self.assertEqual(payload["user_state"]["favorites"], ["https://github.com/octo/one"])
+        self.assertEqual(len(payload["github_star_syncs"]), 1)
+        self.assertEqual(payload["github_star_syncs"][0]["full_name"], "octo/one")
+
+    def test_post_state_batch_syncs_favorites_in_input_order(self):
+        repos = [
+            {"full_name": "octo/one", "url": "https://github.com/octo/one"},
+            {"full_name": "octo/two", "url": "https://github.com/octo/two"},
+            {"full_name": "octo/three", "url": "https://github.com/octo/three"},
+        ]
+        sync_calls: list[str] = []
+
+        def sync_favorite_repo(repo: object, _enabled: bool):
+            full_name = str((repo or {}).get("full_name") or "")
+            sync_calls.append(full_name)
+            return {"ok": True, "message": full_name}
+
+        self.sync_favorite_repo = sync_favorite_repo
+
+        resp, data = self.request(
+            "POST",
+            "/api/state/batch",
+            {"state": "favorites", "enabled": True, "repos": repos},
+        )
+        payload = json.loads(data.decode("utf-8"))
+
+        self.assertEqual(resp.status, 200)
+        self.assertTrue(payload["ok"])
+        self.assertEqual(sync_calls, ["octo/one", "octo/two", "octo/three"])
+        self.assertEqual(payload["processed_count"], 3)
+        self.assertEqual(len(payload["github_star_syncs"]), 3)
 
     def test_post_refresh_returns_409_when_refresh_in_progress(self):
         self.refresh_started = False

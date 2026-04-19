@@ -79,17 +79,6 @@ document.querySelectorAll("#discover-query").forEach(node => {
   });
 });
 
-document.getElementById("discover-limit").addEventListener("input", event => {
-  const nextValue = Number(event.target.value || 20);
-  discoverDraft.limit = Number.isFinite(nextValue) ? Math.max(5, Math.min(50, nextValue)) : 20;
-  syncDiscoverDraftUI();
-});
-
-document.getElementById("discover-ranking-profile").addEventListener("change", event => {
-  discoverDraft.rankingProfile = normalizeDiscoveryRankingProfile(event.target.value);
-  syncDiscoverDraftUI();
-});
-
 document.getElementById("discover-auto-expand").addEventListener("change", event => {
   discoverDraft.autoExpand = !!event.target.checked;
   syncDiscoverDraftUI();

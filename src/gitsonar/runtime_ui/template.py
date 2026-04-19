@@ -53,118 +53,134 @@ HTML_BODY = """</style>
   </header>
 
   <section class="workspace-bar">
-    <div class="tabs" id="tabs"></div>
-    <div class="workspace-bar-main">
-      <div class="workspace-search-wrap">
-        <label class="field search-field">
-          <span class="field-label">搜索</span>
-          <span class="field-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="11" cy="11" r="7"></circle>
-              <line x1="20" y1="20" x2="16.65" y2="16.65"></line>
-            </svg>
-          </span>
-          <input id="search" class="field-input" type="search" placeholder="搜索仓库 / 描述 / 语言 / 更新内容" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false">
-        </label>
-      </div>
-
-      <div class="workspace-summary">
-        <div class="summary">可见 <span class="metric-number" id="visible-count">0</span><span id="visible-label"> 个仓库</span></div>
-        <div class="sub">已选 <span class="metric-number" id="selected-count">0</span> 项</div>
-      </div>
-
-      <div class="action-split menu-wrap" data-menu-id="ai-target-menu">
-        <button class="action-primary split-main" id="analyze-visible-btn" type="button" onclick="analyzeVisible()">
-          <span class="split-main-label">
-            <span class="split-main-title">分析当前列表</span>
-            <span class="split-main-note" id="ai-target-label" data-ai-target-label>ChatGPT 网页版</span>
-          </span>
-        </button>
-        <button class="action-primary split-trigger" id="ai-target-trigger" type="button" aria-label="选择分析目标" aria-haspopup="menu" aria-expanded="false" onclick="toggleMenu(event,'ai-target-menu')">
-          <span class="menu-caret"></span>
-        </button>
-        <div class="menu-panel" id="ai-target-menu-panel">
-          <button class="menu-item menu-item--check" type="button" data-ai-target="web" onclick="toggleAiTarget('web')">ChatGPT 网页版</button>
-          <button class="menu-item menu-item--check" type="button" data-ai-target="desktop" onclick="toggleAiTarget('desktop')">ChatGPT 桌面版</button>
-          <button class="menu-item menu-item--check" type="button" data-ai-target="gemini_web" onclick="toggleAiTarget('gemini_web')">Gemini 网页版</button>
-          <div class="menu-divider"></div>
-          <button class="menu-item menu-item--check" type="button" data-ai-target="copy" onclick="toggleAiTarget('copy')">仅复制提示词</button>
-        </div>
-      </div>
-
-      <div class="discover-query-row" id="discover-query-row" hidden>
-        <div class="discover-query-main">
-          <label class="field search-field discover-query-field">
-            <span class="field-label">关键词</span>
+    <div class="workspace-bar-shell">
+      <div class="tabs" id="tabs"></div>
+      <div class="workspace-bar-main">
+        <div class="workspace-search-wrap">
+          <label class="field search-field">
+            <span class="field-label">搜索</span>
             <span class="field-icon" aria-hidden="true">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                 <circle cx="11" cy="11" r="7"></circle>
                 <line x1="20" y1="20" x2="16.65" y2="16.65"></line>
               </svg>
             </span>
-            <input id="discover-query" class="field-input" type="search" placeholder="例如 agent / AI agent framework / 图数据库" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" aria-autocomplete="list" aria-controls="discover-query-suggest" aria-expanded="false">
-            <div class="discover-query-suggest" id="discover-query-suggest" hidden></div>
+            <input id="search" class="field-input" type="search" placeholder="搜索仓库 / 描述 / 语言 / 更新内容" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false">
           </label>
-          <button class="action-primary" id="discover-run-btn" type="button" onclick="runDiscovery()">开始搜索</button>
         </div>
-        <div class="discover-query-support">
-          <div class="discover-filter-row">
-            <section class="discover-range-card">
-              <span class="field-label">结果与扩词</span>
-              <div class="discover-range-card-grid">
-                <label class="field">
-                  <span class="field-label">结果数</span>
-                  <input id="discover-limit" class="field-input" type="number" min="5" max="50" step="1">
-                </label>
-                <label class="checkline checkline--stacked discover-expand-card">
-                  <input id="discover-auto-expand" type="checkbox">
-                  <span class="checkline-copy">
-                    <span class="checkline-title">自动扩词</span>
-                    <span class="checkline-note">补充相近表达，优先扩大召回。</span>
+
+        <div class="workspace-summary">
+          <div class="summary">可见 <span class="metric-number" id="visible-count">0</span><span id="visible-label"> 个仓库</span></div>
+          <div class="sub">已选 <span class="metric-number" id="selected-count">0</span> 项</div>
+        </div>
+
+        <div class="action-split menu-wrap" data-menu-id="ai-target-menu">
+          <button class="action-primary split-main" id="analyze-visible-btn" type="button" onclick="analyzeVisible()">
+            <span class="split-main-label">
+              <span class="split-main-title">分析当前列表</span>
+              <span class="split-main-note" id="ai-target-label" data-ai-target-label>ChatGPT 网页版</span>
+            </span>
+          </button>
+          <button class="action-primary split-trigger" id="ai-target-trigger" type="button" aria-label="选择分析目标" aria-haspopup="menu" aria-expanded="false" onclick="toggleMenu(event,'ai-target-menu')">
+            <span class="menu-caret"></span>
+          </button>
+          <div class="menu-panel" id="ai-target-menu-panel">
+            <button class="menu-item menu-item--check" type="button" data-ai-target="web" onclick="toggleAiTarget('web')">ChatGPT 网页版</button>
+            <button class="menu-item menu-item--check" type="button" data-ai-target="desktop" onclick="toggleAiTarget('desktop')">ChatGPT 桌面版</button>
+            <button class="menu-item menu-item--check" type="button" data-ai-target="gemini_web" onclick="toggleAiTarget('gemini_web')">Gemini 网页版</button>
+            <div class="menu-divider"></div>
+            <button class="menu-item menu-item--check" type="button" data-ai-target="copy" onclick="toggleAiTarget('copy')">仅复制提示词</button>
+          </div>
+        </div>
+
+        <div class="discover-query-row" id="discover-query-row" hidden>
+          <div class="discover-query-main">
+            <label class="field search-field discover-query-field">
+              <span class="field-label">关键词</span>
+              <span class="field-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="11" cy="11" r="7"></circle>
+                  <line x1="20" y1="20" x2="16.65" y2="16.65"></line>
+                </svg>
+              </span>
+              <input id="discover-query" class="field-input" type="search" placeholder="例如 agent / AI agent framework / 图数据库" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" aria-autocomplete="list" aria-controls="discover-query-suggest" aria-expanded="false">
+              <div class="discover-query-suggest" id="discover-query-suggest" hidden></div>
+            </label>
+            <div class="action-split menu-wrap discover-run-split" data-menu-id="discover-ranking-menu">
+              <button class="action-primary split-main" id="discover-run-btn" type="button" onclick="runDiscovery()">
+                <span class="split-main-label">
+                  <span class="split-main-title" id="discover-run-title">开始搜索</span>
+                  <span class="split-main-note" id="discover-run-note">开始搜索 · 综合排序</span>
+                </span>
+              </button>
+              <button class="action-primary split-trigger" id="discover-ranking-trigger" type="button" aria-label="切换发现排序" aria-haspopup="menu" aria-expanded="false" onclick="toggleMenu(event,'discover-ranking-menu')">
+                <span class="menu-caret"></span>
+              </button>
+              <div class="menu-panel align-right" id="discover-ranking-menu-panel">
+                <button class="menu-item menu-item--check" type="button" data-discovery-ranking="balanced" onclick="setDiscoveryRankingProfile('balanced')">
+                  <span class="menu-item-copy">
+                    <span>综合排序</span>
+                    <span class="menu-item-meta">平衡相关性、热度与可用性，适合先看全局。</span>
                   </span>
-                </label>
-                <label class="checkline checkline--stacked discover-expand-card">
-                  <input id="discover-save-query" type="checkbox">
-                  <span class="checkline-copy">
-                    <span class="checkline-title">保存本次搜索</span>
-                    <span class="checkline-note">保留当前关键词与排序偏好，下次可直接复用。</span>
-                  </span>
-                </label>
-              </div>
-            </section>
-            <div class="field select-field custom-select discover-ranking-field" data-custom-select-for="discover-ranking-profile" data-menu-id="discover-ranking-profile-menu">
-              <span class="field-label">排序方式</span>
-              <div class="discover-ranking-field-surface">
-                <select id="discover-ranking-profile" class="field-input native-select" aria-hidden="true" tabindex="-1">
-                  <option value="balanced">综合排序</option>
-                  <option value="hot">热门优先</option>
-                  <option value="fresh">新项目优先</option>
-                  <option value="builder">实用优先</option>
-                  <option value="trend">趋势优先</option>
-                </select>
-                <button class="field-input select-trigger" id="discover-ranking-profile-trigger" type="button"
-                  aria-haspopup="listbox" aria-expanded="false"
-                  aria-controls="discover-ranking-profile-menu-panel"
-                  onclick="toggleMenu(event,'discover-ranking-profile-menu')">
-                  <span class="select-trigger-text">综合排序</span>
                 </button>
-                <span class="field-meta" id="discover-ranking-profile-meta">平衡相关性、热度与可用性。</span>
+                <button class="menu-item menu-item--check" type="button" data-discovery-ranking="hot" onclick="setDiscoveryRankingProfile('hot')">
+                  <span class="menu-item-copy">
+                    <span>热门优先</span>
+                    <span class="menu-item-meta">更偏向社区热度高、讨论更多的项目。</span>
+                  </span>
+                </button>
+                <button class="menu-item menu-item--check" type="button" data-discovery-ranking="fresh" onclick="setDiscoveryRankingProfile('fresh')">
+                  <span class="menu-item-copy">
+                    <span>新项目优先</span>
+                    <span class="menu-item-meta">更偏向较新、近期冒头的新项目。</span>
+                  </span>
+                </button>
+                <button class="menu-item menu-item--check" type="button" data-discovery-ranking="builder" onclick="setDiscoveryRankingProfile('builder')">
+                  <span class="menu-item-copy">
+                    <span>实用优先</span>
+                    <span class="menu-item-meta">更偏向信息完整、工程上更容易落地的项目。</span>
+                  </span>
+                </button>
+                <button class="menu-item menu-item--check" type="button" data-discovery-ranking="trend" onclick="setDiscoveryRankingProfile('trend')">
+                  <span class="menu-item-copy">
+                    <span>趋势优先</span>
+                    <span class="menu-item-meta">更偏向近期增速快、话题正在上升的项目。</span>
+                  </span>
+                </button>
               </div>
-              <div class="menu-panel select-menu" id="discover-ranking-profile-menu-panel"
-                role="listbox" aria-labelledby="discover-ranking-profile-trigger"></div>
             </div>
           </div>
-          <div id="discover-saved"></div>
         </div>
-      </div>
 
-      <button class="action-quiet workspace-drawer-trigger" id="control-drawer-trigger" type="button" aria-haspopup="dialog" aria-expanded="false" onclick="toggleControlDrawer()">
-        <span id="control-drawer-label">筛选</span>
-        <span class="menu-caret"></span>
-      </button>
+        <button class="action-quiet workspace-drawer-trigger" id="control-drawer-trigger" type="button" aria-haspopup="dialog" aria-expanded="false" onclick="toggleControlDrawer()">
+          <span id="control-drawer-label">筛选</span>
+          <span class="menu-caret"></span>
+        </button>
+      </div>
     </div>
-    <div class="workspace-summary-strip" id="workspace-summary-strip" hidden></div>
-    <section class="workspace-drawer" id="control-drawer" hidden>
+
+    <div class="workspace-context">
+      <div class="workspace-summary-strip" id="workspace-summary-strip" hidden></div>
+      <section class="discover-context" id="discover-context" hidden>
+        <div class="discover-context-grid">
+          <div class="discover-limit-card">
+            <span class="field-label">搜索设置</span>
+            <div class="discover-limit-row">
+              <span class="discover-limit-copy" id="discover-limit-copy">结果上限 25</span>
+              <button class="action-quiet compact" type="button" onclick="openSettings()">打开设置</button>
+            </div>
+          </div>
+          <label class="checkline checkline--stacked discover-expand-card">
+            <input id="discover-auto-expand" type="checkbox">
+            <span class="checkline-copy">
+              <span class="checkline-title">自动扩词</span>
+              <span class="checkline-note" id="discover-auto-expand-note">会基于首轮命中的仓库名、Topics 和 README 补充相关词，覆盖更广，但会更慢。</span>
+            </span>
+          </label>
+        </div>
+      </section>
+
+      <section class="workspace-drawer" id="control-drawer" hidden>
       <div class="workspace-drawer-head">
         <div>
           <div class="workspace-drawer-title" id="control-drawer-title">筛选</div>
@@ -220,7 +236,8 @@ HTML_BODY = """</style>
           <div class="drawer-note">快捷键仍可使用：Space 勾选，Shift + 1~4 批量收纳，分析按钮在更新页会保持禁用。</div>
         </section>
       </div>
-    </section>
+      </section>
+    </div>
   </section>
 
   <section class="canvas-intro" id="canvas-intro" hidden></section>

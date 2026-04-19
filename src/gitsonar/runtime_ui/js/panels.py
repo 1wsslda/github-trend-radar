@@ -15,7 +15,7 @@ function visibleRepos(){
   const raw = panelRepoSource();
   const searchNode = document.getElementById("search");
   const languageNode = document.getElementById("language");
-  const query = (searchNode?.value || "").trim().toLowerCase();
+  const query = panel === DISCOVER_PANEL_KEY ? "" : (searchNode?.value || "").trim().toLowerCase();
   const language = panel === DISCOVER_PANEL_KEY ? "" : (languageNode?.value || "");
   const repos = raw.filter(repo => {
     const haystack = `${repo.full_name} ${repo.description || ""} ${repo.description_raw || ""} ${repo.language || ""} ${repo.source_label || ""}`.toLowerCase();
@@ -162,7 +162,7 @@ function currentSortLabel(){
 function panelSummaryText(key = panel){
   const meta = panelMeta(key);
   if(!meta) return "今日趋势 · 0 个仓库";
-  if(key === DISCOVER_PANEL_KEY) return `${meta.label} · ${meta.count || 0} 个候选`;
+  if(key === DISCOVER_PANEL_KEY) return `${meta.label} · ${meta.count || 0} 个候选项目`;
   if(key === UPDATE_PANEL_KEY) return `${meta.label} · ${meta.count || 0} 条更新`;
   return `${meta.label} · ${meta.count || 0} 个仓库`;
 }
@@ -172,22 +172,21 @@ function renderWorkspaceSummaryStrip(){
   if(!strip) return;
 
   if(panel === DISCOVER_PANEL_KEY){
-    const results = discoveryResults();
-    const query = String(activeDiscoveryJob?.query?.query || discoveryState.last_query?.query || discoverDraft.query || "").trim();
-    if(!query && !results.length && !activeDiscoveryJob){
+    const query = currentDiscoveryQueryText();
+    if(!query && !discoveryResults().length && !activeDiscoveryJob){
       strip.hidden = true;
       strip.innerHTML = "";
       return;
     }
-    const ranking = discoveryRankingLabel(activeDiscoveryJob?.query?.ranking_profile || discoveryState.last_query?.ranking_profile || discoverDraft.rankingProfile);
-    const status = discoveryBusy ? (activeDiscoveryJob?.stage_label || "发现中") : (results.length ? "结果已就绪" : "等待运行");
+    const ranking = discoveryRankingLabel(currentDiscoveryQuery().ranking_profile || discoverDraft.rankingProfile);
+    const status = currentDiscoveryStatusLabel();
     strip.hidden = false;
     strip.innerHTML = `
       <div class="summary-strip-row">
-        <span class="summary-strip-label">发现摘要</span>
+        <span class="summary-strip-label">当前搜索</span>
         ${query ? `<span class="summary-strip-item">关键词 <strong>${h(query)}</strong></span>` : ""}
-        <span class="summary-strip-item">结果 <strong>${results.length}</strong></span>
-        <span class="summary-strip-item">排序 <strong>${h(ranking)}</strong></span>
+        <span class="summary-strip-item">当前排序 <strong>${h(ranking)}</strong></span>
+        <span class="summary-strip-item">结果上限 <strong>${currentDiscoveryLimit()}</strong></span>
         <span class="summary-strip-item">状态 <strong>${h(status)}</strong></span>
       </div>
     `;
@@ -214,48 +213,22 @@ function renderWorkspaceSummaryStrip(){
   `;
 }
 
-function renderDiscoverEmptyState(){
-  const results = discoveryResults();
-  const lastQuery = discoveryState.last_query || {};
-  const currentQuery = String(discoverDraft.query || "").trim();
-  const primaryAction = currentQuery ? "runDiscovery()" : "toggleControlDrawer(true)";
-  const primaryLabel = currentQuery ? "开始发现" : "打开发现参数";
-
-  if(discoveryBusy && !results.length){
-    return `<div class="workspace-empty-card">
-      <div class="workspace-empty-kicker">Discovery In Progress</div>
-      <div class="workspace-empty-title">${h(activeDiscoveryJob?.stage_label || "正在准备发现结果")}</div>
-      <div class="workspace-empty-copy">${h(activeDiscoveryJob?.message || "GitSonar 正在执行首轮检索、补全详情和综合重排。")}</div>
-      <div class="workspace-empty-actions">
-        <button class="action-primary" type="button" onclick="toggleControlDrawer(true)">查看发现参数</button>
-        <button class="action-quiet danger" type="button" onclick="cancelDiscovery()">取消任务</button>
-      </div>
-    </div>`;
-  }
-
-  if(results.length) return "";
-
-  if(lastQuery.query){
-    return `<div class="workspace-empty-card">
-      <div class="workspace-empty-kicker">Recent Discovery</div>
-      <div class="workspace-empty-title">从上一次发现继续</div>
-      <div class="workspace-empty-copy">最近一次关键词是 <strong>${h(lastQuery.query)}</strong>，共拿到 <strong>${discoveryResults().length}</strong> 个候选${discoveryState.last_run_at ? `，运行于 ${h(discoveryState.last_run_at)}` : ""}。</div>
-      <div class="workspace-empty-actions">
-        <button class="action-primary" type="button" onclick="${primaryAction}">${primaryLabel}</button>
-        <button class="action-quiet" type="button" onclick="toggleControlDrawer(true)">调整参数</button>
-      </div>
-    </div>`;
-  }
-
-  return `<div class="workspace-empty-card">
-    <div class="workspace-empty-kicker">Start Discovery</div>
-    <div class="workspace-empty-title">先给一个关键词，再让结果占据主画布</div>
-    <div class="workspace-empty-copy">发现页默认保持轻量。输入关键词、语言限定和排序偏好后，运行结果会直接进入主区域，只保留一条摘要带提示当前状态。</div>
-    <div class="workspace-empty-actions">
-      <button class="action-primary" type="button" onclick="${primaryAction}">${primaryLabel}</button>
-      <button class="action-quiet" type="button" onclick="toggleControlDrawer(true)">查看最近搜索</button>
-    </div>
-  </div>`;
+function syncWorkspaceBarModes(){
+  const isDiscoverPanel = panel === DISCOVER_PANEL_KEY;
+  const searchWrap = document.querySelector(".workspace-search-wrap");
+  const summary = document.querySelector(".workspace-summary");
+  const analyzeSplit = document.querySelector('.action-split[data-menu-id="ai-target-menu"]');
+  const discoverRow = document.getElementById("discover-query-row");
+  const discoverContext = document.getElementById("discover-context");
+  const drawerTrigger = document.getElementById("control-drawer-trigger");
+  const barMain = document.querySelector(".workspace-bar-main");
+  if(searchWrap) searchWrap.hidden = isDiscoverPanel;
+  if(summary) summary.hidden = isDiscoverPanel;
+  if(analyzeSplit) analyzeSplit.hidden = isDiscoverPanel;
+  if(discoverRow) discoverRow.hidden = !isDiscoverPanel;
+  if(discoverContext) discoverContext.hidden = !isDiscoverPanel;
+  if(drawerTrigger) drawerTrigger.hidden = isDiscoverPanel;
+  if(barMain) barMain.classList.toggle("workspace-bar-main--discover", isDiscoverPanel);
 }
 
 function syncWorkspaceHeader(){
@@ -274,43 +247,45 @@ function syncWorkspaceCanvas(){
     renderWorkspaceSummaryStrip();
     return;
   }
-  const emptyMarkup = renderDiscoverEmptyState();
-  introNode.hidden = !emptyMarkup;
-  introNode.innerHTML = emptyMarkup;
-  cardsNode.classList.toggle("cards--discover-empty", !!emptyMarkup);
+  const introMarkup = renderDiscoverCanvasIntro();
+  introNode.hidden = !introMarkup;
+  introNode.innerHTML = introMarkup;
+  cardsNode.classList.toggle("cards--discover-empty", !discoveryResults().length);
   renderWorkspaceSummaryStrip();
+  syncAiTargetUI();
 }
 
 function syncControlDrawer(){
   const isDiscoverPanel = panel === DISCOVER_PANEL_KEY;
   const isUpdatePanel = panel === UPDATE_PANEL_KEY;
+  const isListPanel = !isDiscoverPanel && !isUpdatePanel;
   const trigger = document.getElementById("control-drawer-trigger");
   const triggerLabel = document.getElementById("control-drawer-label");
   const drawerTitle = document.getElementById("control-drawer-title");
   const drawerSubtitle = document.getElementById("control-drawer-subtitle");
   const listSection = document.getElementById("control-drawer-list");
-  const discoverSection = document.getElementById("control-drawer-discover");
   const updatesSection = document.getElementById("control-drawer-updates");
+  const drawerLabel = isUpdatePanel ? "更新说明" : "筛选";
 
-  if(triggerLabel) triggerLabel.textContent = isDiscoverPanel ? "发现参数" : "筛选";
+  if(isDiscoverPanel) closeControlDrawer();
+  const drawerVisible = !isDiscoverPanel && isControlDrawerVisible();
+
+  if(triggerLabel) triggerLabel.textContent = drawerLabel;
   if(trigger){
-    trigger.classList.toggle("active", isControlDrawerVisible());
-    trigger.setAttribute("aria-expanded", isControlDrawerVisible() ? "true" : "false");
+    trigger.classList.toggle("active", drawerVisible);
+    trigger.setAttribute("aria-expanded", drawerVisible ? "true" : "false");
   }
 
   if(drawerTitle){
-    drawerTitle.textContent = isDiscoverPanel ? "发现参数" : (isUpdatePanel ? "筛选" : "筛选");
+    drawerTitle.textContent = drawerLabel;
   }
   if(drawerSubtitle){
-    drawerSubtitle.textContent = isDiscoverPanel
-      ? "发现页把表单折叠进控制层，只在主区域保留摘要和结果列表。"
-      : (isUpdatePanel
-        ? "更新页保持轻量阅读模式，主画布优先展示仓库变化。"
-        : "趋势列表和我的库把状态、语言、排序收进抽屉，首屏先看卡片。");
+    drawerSubtitle.textContent = isUpdatePanel
+      ? "更新页保持轻量阅读模式，主画布优先展示仓库变化。"
+      : "趋势列表和我的库把状态、语言、排序收进抽屉，首屏先看卡片。";
   }
 
-  if(listSection) listSection.hidden = isDiscoverPanel || isUpdatePanel;
-  if(discoverSection) discoverSection.hidden = !isDiscoverPanel;
+  if(listSection) listSection.hidden = !isListPanel;
   if(updatesSection) updatesSection.hidden = !isUpdatePanel;
 }
 
@@ -318,11 +293,12 @@ function syncControlStates(){
   const isUpdatePanel = panel === UPDATE_PANEL_KEY;
   const isDiscoverPanel = panel === DISCOVER_PANEL_KEY;
   const disableListControls = isUpdatePanel || isDiscoverPanel;
+  syncWorkspaceBarModes();
   document.getElementById("language").disabled = disableListControls;
   document.querySelectorAll("#state-filter-seg .seg-btn").forEach(btn => { btn.disabled = disableListControls; });
   document.querySelectorAll("#sort-primary-seg .seg-btn").forEach(btn => { btn.disabled = disableListControls; });
-  document.getElementById("analyze-visible-btn").disabled = isUpdatePanel;
-  document.getElementById("ai-target-trigger").disabled = isUpdatePanel;
+  document.getElementById("analyze-visible-btn").disabled = isUpdatePanel || isDiscoverPanel;
+  document.getElementById("ai-target-trigger").disabled = isUpdatePanel || isDiscoverPanel;
   const stateFilterGroup = document.getElementById("state-filter-group");
   stateFilterGroup.classList.toggle("is-disabled", disableListControls);
   document.getElementById("sort-primary-group").classList.toggle("is-disabled", disableListControls);

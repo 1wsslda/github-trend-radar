@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
-JS = r"""const MENU_HOST_SELECTOR = ".card,.update-card,.workspace-bar,.panel,.batch-dock,.canvas-intro";
+JS = r"""const MENU_HOST_SELECTOR = ".workspace-header,.workspace-bar-shell,.workspace-drawer,.card,.update-card,.panel,.batch-dock,.canvas-intro";
 const MENU_VIEWPORT_MARGIN = 12;
+let menuRepositionFrame = 0;
 
 function menuRoot(id){
   return document.querySelector(`[data-menu-id="${id}"]`);
@@ -14,6 +15,11 @@ function menuPanel(root){
 
 function customSelectRoot(selectId){
   return document.querySelector(`[data-custom-select-for="${selectId}"]`);
+}
+
+function customSelectOptionDescription(selectId, value){
+  if(selectId === "discover-ranking-profile") return discoveryRankingDescription(value);
+  return "";
 }
 
 function rememberMenuPanelDefaults(panel){
@@ -37,6 +43,17 @@ function resetMenuPanelPosition(root){
   panel.style.right = "";
 }
 
+function withMeasuredMenuPanel(root, callback){
+  const panel = menuPanel(root);
+  if(!root || !panel) return null;
+  panel.classList.add("menu-panel--measuring");
+  try{
+    return callback(panel);
+  } finally {
+    panel.classList.remove("menu-panel--measuring");
+  }
+}
+
 function syncMenuRootState(root){
   if(!root) return;
   const expanded = root.classList.contains("open");
@@ -49,60 +66,72 @@ function syncMenuRootState(root){
 }
 
 function positionMenu(root){
-  const panel = menuPanel(root);
-  if(!root || !panel || !root.classList.contains("open")) return;
-  resetMenuPanelPosition(root);
+  withMeasuredMenuPanel(root, panel => {
+    resetMenuPanelPosition(root);
 
-  let panelRect = panel.getBoundingClientRect();
-  const rootRect = root.getBoundingClientRect();
+    let panelRect = panel.getBoundingClientRect();
+    const rootRect = root.getBoundingClientRect();
 
-  if(panelRect.bottom > window.innerHeight - MENU_VIEWPORT_MARGIN){
-    panel.classList.add("upward");
-    panelRect = panel.getBoundingClientRect();
-  }
+    if(panelRect.bottom > window.innerHeight - MENU_VIEWPORT_MARGIN){
+      panel.classList.add("upward");
+      panelRect = panel.getBoundingClientRect();
+    }
 
-  const fitsLeft = rootRect.left + panelRect.width <= window.innerWidth - MENU_VIEWPORT_MARGIN;
-  const fitsRight = rootRect.right - panelRect.width >= MENU_VIEWPORT_MARGIN;
-  if(panelRect.right > window.innerWidth - MENU_VIEWPORT_MARGIN){
-    if(fitsRight){
-      panel.classList.remove("align-left");
-      panel.classList.add("align-right");
-      panel.style.left = "";
-      panel.style.right = "0px";
-    } else if(fitsLeft){
-      panel.classList.remove("align-right");
-      panel.classList.add("align-left");
-      panel.style.left = "0px";
+    const fitsLeft = rootRect.left + panelRect.width <= window.innerWidth - MENU_VIEWPORT_MARGIN;
+    const fitsRight = rootRect.right - panelRect.width >= MENU_VIEWPORT_MARGIN;
+    if(panelRect.right > window.innerWidth - MENU_VIEWPORT_MARGIN){
+      if(fitsRight){
+        panel.classList.remove("align-left");
+        panel.classList.add("align-right");
+        panel.style.left = "";
+        panel.style.right = "0px";
+      } else if(fitsLeft){
+        panel.classList.remove("align-right");
+        panel.classList.add("align-left");
+        panel.style.left = "0px";
+        panel.style.right = "auto";
+      }
+      panelRect = panel.getBoundingClientRect();
+    } else if(panelRect.left < MENU_VIEWPORT_MARGIN){
+      if(fitsLeft){
+        panel.classList.remove("align-right");
+        panel.classList.add("align-left");
+        panel.style.left = "0px";
+        panel.style.right = "auto";
+      } else if(fitsRight){
+        panel.classList.remove("align-left");
+        panel.classList.add("align-right");
+        panel.style.left = "";
+        panel.style.right = "0px";
+      }
+      panelRect = panel.getBoundingClientRect();
+    }
+
+    if(panelRect.right > window.innerWidth - MENU_VIEWPORT_MARGIN || panelRect.left < MENU_VIEWPORT_MARGIN){
+      const currentLeft = panel.classList.contains("align-left") ? 0 : (rootRect.width - panelRect.width);
+      const minLeft = MENU_VIEWPORT_MARGIN - rootRect.left;
+      const maxLeft = window.innerWidth - MENU_VIEWPORT_MARGIN - rootRect.left - panelRect.width;
+      const clampedLeft = Math.min(Math.max(currentLeft, minLeft), maxLeft);
+      panel.style.left = `${Math.round(clampedLeft)}px`;
       panel.style.right = "auto";
     }
-    panelRect = panel.getBoundingClientRect();
-  } else if(panelRect.left < MENU_VIEWPORT_MARGIN){
-    if(fitsLeft){
-      panel.classList.remove("align-right");
-      panel.classList.add("align-left");
-      panel.style.left = "0px";
-      panel.style.right = "auto";
-    } else if(fitsRight){
-      panel.classList.remove("align-left");
-      panel.classList.add("align-right");
-      panel.style.left = "";
-      panel.style.right = "0px";
-    }
-    panelRect = panel.getBoundingClientRect();
-  }
+  });
+}
 
-  if(panelRect.right > window.innerWidth - MENU_VIEWPORT_MARGIN || panelRect.left < MENU_VIEWPORT_MARGIN){
-    const currentLeft = panel.classList.contains("align-left") ? 0 : (rootRect.width - panelRect.width);
-    const minLeft = MENU_VIEWPORT_MARGIN - rootRect.left;
-    const maxLeft = window.innerWidth - MENU_VIEWPORT_MARGIN - rootRect.left - panelRect.width;
-    const clampedLeft = Math.min(Math.max(currentLeft, minLeft), maxLeft);
-    panel.style.left = `${Math.round(clampedLeft)}px`;
-    panel.style.right = "auto";
-  }
+function positionOpenMenusNow(){
+  document.querySelectorAll("[data-menu-id].open").forEach(positionMenu);
 }
 
 function repositionOpenMenus(){
-  document.querySelectorAll("[data-menu-id].open").forEach(positionMenu);
+  if(menuRepositionFrame) return;
+  menuRepositionFrame = requestAnimationFrame(() => {
+    menuRepositionFrame = 0;
+    positionOpenMenusNow();
+  });
+}
+
+function shouldSkipMenuScrollReposition(target){
+  return target instanceof Element && !!target.closest(".menu-panel,.select-menu");
 }
 
 function closeMenus(exceptId = ""){
@@ -122,9 +151,9 @@ function toggleMenu(event, id){
   if(!root) return;
   const willOpen = !root.classList.contains("open");
   closeMenus(willOpen ? id : "");
+  if(willOpen) positionMenu(root);
   root.classList.toggle("open", willOpen);
   syncMenuRootState(root);
-  if(willOpen) requestAnimationFrame(() => positionMenu(root));
 }
 
 function syncCustomSelect(selectId){
@@ -154,10 +183,16 @@ function syncCustomSelect(selectId){
   panel.innerHTML = options.map(option => {
     const value = String(option.value ?? "");
     const label = String(option.textContent || "").trim() || value;
+    const description = customSelectOptionDescription(selectId, value);
     const activeClass = value === currentValue ? " active" : "";
     const disabledAttr = option.disabled ? " disabled" : "";
     const selectedAttr = value === currentValue ? "true" : "false";
-    return `<button class="menu-item${activeClass}" type="button" role="option" aria-selected="${selectedAttr}"${disabledAttr} onclick='setCustomSelectValue(${JSON.stringify(selectId)}, ${JSON.stringify(value)})'>${h(label)}</button>`;
+    return `<button class="menu-item${activeClass}" type="button" role="option" aria-selected="${selectedAttr}"${disabledAttr} onclick='setCustomSelectValue(${JSON.stringify(selectId)}, ${JSON.stringify(value)})'>
+      <span class="menu-item-copy">
+        <span>${h(label)}</span>
+        ${description ? `<span class="menu-item-meta">${h(description)}</span>` : ""}
+      </span>
+    </button>`;
   }).join("");
 
   syncMenuRootState(root);

@@ -271,8 +271,9 @@ async function saveSettings(){
     settings = data.settings;
     lastTokenStatusFingerprint = "";
     lastTokenStatusResult = null;
-    toast(data.message || "设置已保存");
     closeSettings();
+    render();
+    toast(data.message || "设置已保存");
   }catch(error){
     toast(error.message || "保存设置失败");
   }

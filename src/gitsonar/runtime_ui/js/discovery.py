@@ -9,6 +9,15 @@ function currentDiscoveryQueryText(){
   return String(currentDiscoveryQuery().query || discoverDraft.query || "").trim();
 }
 
+function currentDiscoveryStatusLabel(){
+  if(discoveryBusy) return activeDiscoveryJob?.stage_label || "搜索中";
+  if(activeDiscoveryJob?.status === "failed") return "搜索失败";
+  if(activeDiscoveryJob?.status === "cancelled") return "已取消";
+  if(discoveryResults().length) return "已找到结果";
+  if(String(discoveryState.last_query?.query || "").trim() && discoveryState.last_run_at) return "未找到结果";
+  return "尚未开始";
+}
+
 function currentDiscoveryAiTargetLabel(){
   if(aiTargets.size === 1){
     const [only] = aiTargets;
@@ -20,84 +29,196 @@ function currentDiscoveryAiTargetLabel(){
   return `${aiTargets.size} 个 AI`;
 }
 
-function syncDiscoverDraftUI(){
-  const queryNodes = [
-    document.getElementById("discover-query"),
-    document.getElementById("discover-query-drawer"),
-  ].filter(Boolean);
-  const languageNode = document.getElementById("discover-language");
-  const limitNode = document.getElementById("discover-limit");
-  const rankingProfileNode = document.getElementById("discover-ranking-profile");
-  const autoExpandNode = document.getElementById("discover-auto-expand");
-  const saveQueryNode = document.getElementById("discover-save-query");
-  const clearNode = document.getElementById("discover-clear-btn");
-  const rankingMetaNode = document.getElementById("discover-ranking-profile-meta");
-  const runNodes = [
-    document.getElementById("discover-run-btn"),
-    document.getElementById("discover-run-drawer-btn"),
-  ].filter(Boolean);
-  if(!queryNodes.length) return;
+function currentDiscoveryAutoExpandNote(){
+  return discoverDraft.autoExpand ? DISCOVERY_AUTO_EXPAND_NOTE_ON : DISCOVERY_AUTO_EXPAND_NOTE_OFF;
+}
 
-  queryNodes.forEach(node => {
-    node.value = discoverDraft.query || "";
-    node.disabled = discoveryBusy;
+const DISCOVERY_RECENT_QUERY_KEY = "gtr-discover-recent-queries";
+const MAX_DISCOVERY_RECENT_QUERIES = 6;
+let discoverySuggestionOpen = false;
+let discoverySuggestionCloseTimer = 0;
+
+function normalizeRecentDiscoveryQueryItem(payload){
+  const raw = payload && typeof payload === "object" ? payload : {};
+  const normalized = normalizeDiscoveryQueryPayload(raw);
+  if(!String(normalized.query || "").trim()) return null;
+  return {
+    query:normalized.query,
+    limit:normalized.limit,
+    auto_expand:normalized.auto_expand !== false,
+    ranking_profile:normalizeDiscoveryRankingProfile(normalized.ranking_profile),
+    last_run_at:String(raw.last_run_at || normalized.last_run_at || "").trim(),
+  };
+}
+
+function loadRecentDiscoveryQueries(){
+  try{
+    const raw = JSON.parse(localStorage.getItem(DISCOVERY_RECENT_QUERY_KEY) || "[]");
+    if(!Array.isArray(raw)) return [];
+    return raw.map(normalizeRecentDiscoveryQueryItem).filter(Boolean);
+  }catch(_err){
+    return [];
+  }
+}
+
+function saveRecentDiscoveryQueries(items){
+  localStorage.setItem(DISCOVERY_RECENT_QUERY_KEY, JSON.stringify(items.slice(0, MAX_DISCOVERY_RECENT_QUERIES)));
+}
+
+function recentDiscoveryQueries(){
+  const merged = [];
+  const seen = new Set();
+  [rememberedDiscoveryQuery(), ...loadRecentDiscoveryQueries()].forEach(item => {
+    const normalized = normalizeRecentDiscoveryQueryItem(item);
+    const key = String(normalized?.query || "").trim().toLowerCase();
+    if(!key || seen.has(key)) return;
+    seen.add(key);
+    merged.push(normalized);
   });
-  if(languageNode){
-    languageNode.value = discoverDraft.language || "";
-    languageNode.disabled = discoveryBusy;
+  return merged.slice(0, MAX_DISCOVERY_RECENT_QUERIES);
+}
+
+function filteredRecentDiscoveryQueries(queryText = String(discoverDraft.query || "").trim()){
+  const needle = String(queryText || "").trim().toLowerCase();
+  const items = recentDiscoveryQueries();
+  if(!needle) return items;
+  return items
+    .filter(item => String(item.query || "").toLowerCase().includes(needle))
+    .slice(0, MAX_DISCOVERY_RECENT_QUERIES);
+}
+
+function rememberRecentDiscoveryQuery(payload){
+  const normalized = normalizeRecentDiscoveryQueryItem(payload);
+  if(!normalized) return;
+  const deduped = loadRecentDiscoveryQueries().filter(item => String(item.query || "").toLowerCase() !== normalized.query.toLowerCase());
+  saveRecentDiscoveryQueries([normalized, ...deduped]);
+}
+
+function closeDiscoverySuggestions(){
+  clearTimeout(discoverySuggestionCloseTimer);
+  discoverySuggestionCloseTimer = 0;
+  discoverySuggestionOpen = false;
+  syncDiscoverySuggestionsUI();
+}
+
+function scheduleCloseDiscoverySuggestions(delay = 120){
+  clearTimeout(discoverySuggestionCloseTimer);
+  discoverySuggestionCloseTimer = setTimeout(() => {
+    discoverySuggestionOpen = false;
+    syncDiscoverySuggestionsUI();
+  }, delay);
+}
+
+function openDiscoverySuggestions(){
+  clearTimeout(discoverySuggestionCloseTimer);
+  discoverySuggestionCloseTimer = 0;
+  discoverySuggestionOpen = true;
+  syncDiscoverySuggestionsUI();
+}
+
+function applyRecentDiscoveryQuery(queryText){
+  const nextQuery = recentDiscoveryQueries().find(item => item.query === String(queryText || "").trim());
+  if(!nextQuery) return;
+  syncDiscoverDraftFromQuery(nextQuery);
+  discoverySuggestionOpen = false;
+  syncDiscoverDraftUI();
+  renderWorkspaceSummaryStrip();
+  const queryNode = document.getElementById("discover-query");
+  if(queryNode){
+    queryNode.focus();
+    const caret = queryNode.value.length;
+    if(typeof queryNode.setSelectionRange === "function") queryNode.setSelectionRange(caret, caret);
   }
-  if(limitNode){
-    limitNode.value = discoverDraft.limit || 20;
-    limitNode.disabled = discoveryBusy;
+}
+
+function syncDiscoverySuggestionsUI(){
+  const root = document.getElementById("discover-query-suggest");
+  const field = document.querySelector(".discover-query-field");
+  const queryNode = document.getElementById("discover-query");
+  if(!root || !field || !queryNode) return;
+
+  if(panel !== DISCOVER_PANEL_KEY || discoveryBusy){
+    discoverySuggestionOpen = false;
   }
-  if(rankingProfileNode){
-    rankingProfileNode.value = normalizeDiscoveryRankingProfile(discoverDraft.rankingProfile);
-    rankingProfileNode.disabled = discoveryBusy;
+
+  const items = filteredRecentDiscoveryQueries();
+  const heading = String(discoverDraft.query || "").trim() ? "匹配历史搜索" : "最近搜索";
+  const shouldShow = panel === DISCOVER_PANEL_KEY && discoverySuggestionOpen && !discoveryBusy && items.length > 0;
+
+  field.classList.toggle("is-open", shouldShow);
+  queryNode.setAttribute("aria-expanded", shouldShow ? "true" : "false");
+  root.hidden = !shouldShow;
+  if(!shouldShow){
+    root.innerHTML = "";
+    return;
   }
+
+  root.innerHTML = `
+    <div class="discover-query-suggest-head">
+      <span class="discover-query-suggest-kicker">${h(heading)}</span>
+      <span class="discover-query-suggest-note">可直接载入最近一次搜索配置</span>
+    </div>
+    <div class="discover-query-suggest-list">
+      ${items.map(item => `
+        <button class="discover-query-suggest-item" type="button" onmousedown="event.preventDefault()" onclick='applyRecentDiscoveryQuery(${JSON.stringify(item.query)})'>
+          <span class="discover-query-suggest-title">${h(item.query)}</span>
+          <span class="discover-query-suggest-meta">
+            <span class="badge">${h(discoveryRankingLabel(item.ranking_profile))}</span>
+            ${item.auto_expand ? '<span class="badge gain">自动扩词</span>' : ""}
+          </span>
+        </button>
+      `).join("")}
+    </div>
+  `;
+}
+
+function syncDiscoveryRankingMenuUI(){
+  document.querySelectorAll("[data-discovery-ranking]").forEach(btn => {
+    btn.classList.toggle("active", btn.dataset.discoveryRanking === normalizeDiscoveryRankingProfile(discoverDraft.rankingProfile));
+  });
+}
+
+function syncDiscoveryContextUI(){
+  const limitCopyNode = document.getElementById("discover-limit-copy");
+  const autoExpandNoteNode = document.getElementById("discover-auto-expand-note");
+  if(limitCopyNode) limitCopyNode.textContent = `结果上限 ${currentDiscoveryLimit()}`;
+  if(autoExpandNoteNode) autoExpandNoteNode.textContent = currentDiscoveryAutoExpandNote();
+}
+
+function syncDiscoverDraftUI(){
+  const queryNode = document.getElementById("discover-query");
+  const autoExpandNode = document.getElementById("discover-auto-expand");
+  const runNode = document.getElementById("discover-run-btn");
+  const runTitleNode = document.getElementById("discover-run-title");
+  const runNoteNode = document.getElementById("discover-run-note");
+  const rankingTriggerNode = document.getElementById("discover-ranking-trigger");
+  const rankingRoot = menuRoot("discover-ranking-menu");
+  if(!queryNode) return;
+
+  queryNode.value = discoverDraft.query || "";
+  queryNode.disabled = discoveryBusy;
   if(autoExpandNode){
     autoExpandNode.checked = !!discoverDraft.autoExpand;
     autoExpandNode.disabled = discoveryBusy;
   }
-  if(saveQueryNode){
-    saveQueryNode.checked = !!discoverDraft.saveQuery;
-    saveQueryNode.disabled = discoveryBusy;
-  }
-  if(rankingMetaNode){
-    rankingMetaNode.textContent = discoveryRankingDescription(discoverDraft.rankingProfile);
-  }
-  syncCustomSelect("discover-ranking-profile");
+  if(rankingTriggerNode) rankingTriggerNode.disabled = discoveryBusy;
+  syncDiscoveryRankingMenuUI();
+  syncDiscoveryContextUI();
+  syncDiscoverySuggestionsUI();
 
-  if(clearNode){
-    clearNode.disabled = discoveryBusy || (!discoveryResults().length && !discoveryState.last_query?.query);
+  const hasQuery = !!String(discoverDraft.query || "").trim();
+  const canRun = !discoveryBusy && hasQuery;
+  if(rankingRoot){
+    rankingRoot.classList.toggle("is-idle", !discoveryBusy && !hasQuery);
+    rankingRoot.classList.toggle("is-ready", !discoveryBusy && hasQuery);
+    rankingRoot.classList.toggle("is-busy", discoveryBusy);
   }
-
-  const runLabel = discoveryBusy ? (activeDiscoveryJob?.stage_label || "搜索中") : "开始搜索";
-  const canRun = !discoveryBusy && !!String(discoverDraft.query || "").trim();
-  runNodes.forEach(node => {
-    node.disabled = !canRun;
-    node.textContent = runLabel;
-  });
-}
-
-function renderSavedDiscoveryQueries(){
-  const items = savedDiscoveryQueries();
-  if(!items.length){
-    return '<div class="discover-saved-empty">还没有保存的搜索。</div>';
+  if(runTitleNode) runTitleNode.textContent = discoveryBusy ? (activeDiscoveryJob?.stage_label || "搜索中") : "开始搜索";
+  if(runNoteNode) runNoteNode.textContent = `开始搜索 · ${discoveryRankingLabel(discoverDraft.rankingProfile)}`;
+  if(runNode){
+    runNode.disabled = !canRun;
   }
-  const disabledAttr = discoveryBusy ? " disabled" : "";
-  return items.map(item => `<div class="discover-chip">
-    <div class="discover-chip-head">
-      <div class="discover-chip-title">${h(item.query)}</div>
-      ${item.language ? `<span class="badge source">${h(item.language)}</span>` : ""}
-      <span class="badge">${h(discoveryRankingLabel(item.ranking_profile))}</span>
-      ${item.auto_expand ? '<span class="badge gain">已扩词</span>' : ""}
-    </div>
-    <div class="discover-chip-note">${h(item.last_run_at ? `上次运行 ${item.last_run_at}` : "尚未运行")}</div>
-    <div class="discover-chip-actions">
-      <button class="action-quiet compact" type="button" onclick='runSavedDiscovery(${JSON.stringify(item.id)})'${disabledAttr}>运行</button>
-      <button class="action-quiet compact danger" type="button" onclick='deleteDiscoveryQuery(${JSON.stringify(item.id)})'${disabledAttr}>删除</button>
-    </div>
-  </div>`).join("");
+  if(panel === DISCOVER_PANEL_KEY) renderWorkspaceSummaryStrip();
 }
 
 function renderDiscoveryTop(){
@@ -157,8 +278,20 @@ function renderDiscoveryFailureCard(){
 
 function renderDiscoveryHint(){
   if(discoveryBusy || (activeDiscoveryJob && activeDiscoveryJob.status === "failed")) return "";
+  if(currentDiscoveryStatusLabel() === "未找到结果") return "";
   if(discoveryResults().length) return "";
   return '<div class="discover-inline-hint">输入关键词后开始搜索，结果会显示在下方。</div>';
+}
+
+function renderDiscoveryNoResultsNotice(){
+  if(currentDiscoveryStatusLabel() !== "未找到结果") return "";
+  const query = String(discoveryState.last_query?.query || "").trim();
+  return `<div class="discover-inline-hint discover-inline-hint--warning">
+    <span>这次没有找到和 <strong>${h(query || "当前关键词")}</strong> 匹配的结果，可以换个关键词或放宽筛选。</span>
+    <div class="discover-inline-hint-actions">
+      <button class="action-quiet compact" type="button" onclick="runDiscovery()">重新搜索</button>
+    </div>
+  </div>`;
 }
 
 function renderDiscoveryResultsToolbar(){
@@ -168,8 +301,10 @@ function renderDiscoveryResultsToolbar(){
   const rankingDescription = discoveryRankingDescription(currentDiscoveryQuery().ranking_profile || discoverDraft.rankingProfile);
   return `<section class="discover-results-toolbar">
     <div class="discover-results-toolbar-main">
-      <span class="summary-strip-item">候选项目 <strong>${results.length}</strong></span>
-      <span class="summary-strip-item">排序方式 <strong>${h(ranking)}</strong></span>
+      <div class="discover-results-toolbar-pills">
+        <span class="summary-strip-item">候选项目 <strong>${results.length}</strong></span>
+        <span class="summary-strip-item">排序方式 <strong>${h(ranking)}</strong></span>
+      </div>
       <span class="discover-toolbar-note">${h(rankingDescription)}</span>
     </div>
     <div class="discover-results-toolbar-actions">
@@ -230,6 +365,7 @@ function renderDiscoverCanvasIntro(){
   const sections = [
     renderDiscoveryProgress(),
     renderDiscoveryFailureCard(),
+    renderDiscoveryNoResultsNotice(),
     renderDiscoveryHint(),
     renderDiscoveryTop(),
     renderDiscoveryResultsToolbar(),
@@ -239,27 +375,21 @@ function renderDiscoverCanvasIntro(){
 }
 
 function syncDiscoveryPanel(){
-  const savedNode = document.getElementById("discover-saved");
-  const savedSummaryNote = document.querySelector(".discover-saved-summary-note");
-  if(!savedNode) return;
   syncDiscoverDraftUI();
-  savedNode.innerHTML = renderSavedDiscoveryQueries();
-  if(savedSummaryNote){
-    const count = savedDiscoveryQueries().length;
-    savedSummaryNote.textContent = count ? `最近 ${Math.min(count, 5)} 条` : "还没有保存";
-  }
+}
+
+function setDiscoveryRankingProfile(value){
+  discoverDraft.rankingProfile = normalizeDiscoveryRankingProfile(value);
+  closeMenus();
+  syncDiscoverDraftUI();
 }
 
 function syncDiscoverDraftFromQuery(lastQuery){
   discoverDraft = {
     query:lastQuery?.query || discoverDraft.query,
-    language:lastQuery?.language || "",
-    limit:lastQuery?.limit || discoverDraft.limit || 20,
     autoExpand:lastQuery?.auto_expand !== false,
     rankingProfile:normalizeDiscoveryRankingProfile(lastQuery?.ranking_profile || discoverDraft.rankingProfile),
-    saveQuery:false,
   };
-  saveDiscoverDraft();
 }
 
 async function startDiscoveryPolling(jobId){
@@ -400,21 +530,17 @@ async function beginDiscoveryJob(endpoint, body, requestError, startMessage){
 async function runDiscovery(){
   const payload = {
     query:String(discoverDraft.query || "").trim(),
-    language:String(discoverDraft.language || "").trim(),
-    limit:Number(discoverDraft.limit || 20),
+    limit:currentDiscoveryLimit(),
     auto_expand:!!discoverDraft.autoExpand,
     ranking_profile:normalizeDiscoveryRankingProfile(discoverDraft.rankingProfile),
-    save_query:!!discoverDraft.saveQuery,
   };
   if(!payload.query){
     toast("请输入关键词");
     return;
   }
+  rememberRecentDiscoveryQuery(payload);
+  closeDiscoverySuggestions();
   await beginDiscoveryJob("/api/discover", payload, "开始搜索失败", "正在准备这次搜索");
-}
-
-async function runSavedDiscovery(queryId){
-  await beginDiscoveryJob("/api/discovery/run-saved", {id:queryId}, "运行保存搜索失败", "正在重新运行已保存搜索");
 }
 
 async function cancelDiscovery(){
@@ -442,30 +568,6 @@ async function cancelDiscovery(){
     toast(data.message || "已发送取消请求");
   }catch(error){
     toast(error.message || "取消搜索失败");
-  }
-}
-
-async function deleteDiscoveryQuery(queryId){
-  if(!window.confirm("确认删除这条保存的搜索吗？")) return;
-  try{
-    const {resp, data} = await requestJson(
-      "/api/discovery/delete",
-      {
-        method:"POST",
-        headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({id:queryId}),
-      },
-      "删除保存搜索失败",
-    );
-    if(!resp.ok || !data.ok){
-      toast(data.error || "删除保存搜索失败");
-      return;
-    }
-    discoveryState = data.discovery_state || {};
-    render();
-    toast(data.message || "已删除保存的搜索");
-  }catch(error){
-    toast(error.message || "删除保存搜索失败");
   }
 }
 

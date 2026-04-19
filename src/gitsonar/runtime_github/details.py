@@ -13,10 +13,11 @@ def build_details_api(*, deps, github_get):
     clamp_int = deps.clamp_int
     strip_markdown = deps.strip_markdown
     translate_text = deps.translate_text
-    save_translation_cache = deps.save_translation_cache
+    flush_translation_cache = deps.flush_translation_cache
     save_repo_details = deps.save_repo_details
+    flush_repo_details_cache = deps.flush_repo_details_cache
 
-    def fetch_repo_details(owner: str, name: str) -> dict[str, object]:
+    def fetch_repo_details(owner: str, name: str, *, persist_cache: bool = True) -> dict[str, object]:
         owner = normalize(owner)
         name = normalize(name)
         if not owner or not name:
@@ -67,8 +68,10 @@ def build_details_api(*, deps, github_get):
                 "readme_summary": translate_text(raw_summary),
                 "readme_summary_raw": raw_summary,
             }
-            save_translation_cache()
             save_repo_details(cache_key, details)
+            if persist_cache:
+                flush_translation_cache()
+                flush_repo_details_cache()
             return dict(details)
 
     return {"fetch_repo_details": fetch_repo_details}
