@@ -111,6 +111,27 @@ class RuntimeUILayoutSmokeTests(unittest.TestCase):
             with self.subTest(css=token):
                 self.assertIn(token, CSS)
 
+    def test_selection_enter_motion_hooks_are_present_in_assets(self):
+        for token in (
+            "let lastSelectionSyncUrls = new Set(selectedUrls);",
+            "function clearCardSelectionEnter(card){",
+            "function playCardSelectionEnter(card){",
+        ):
+            with self.subTest(js=token):
+                self.assertIn(token, JS)
+
+        for token in (
+            ".card.selectable::before,",
+            ".card.selection-enter::before,",
+            "@keyframes card-selection-sheen {",
+            "animation:card-selection-sheen .68s var(--ease-smooth) 1 forwards;",
+            "isolation:isolate;",
+            "@keyframes badge-selection-enter {",
+            "animation:badge-selection-enter .32s var(--ease-smooth) forwards;",
+        ):
+            with self.subTest(css=token):
+                self.assertIn(token, CSS)
+
     def test_primary_nav_and_subnav_use_current_family_switching_contract(self):
         html = build_fixture_html()
         summary_section = html.split('<div class="workspace-summary"', 1)[1].split('<span class="workspace-ai-target"', 1)[0]

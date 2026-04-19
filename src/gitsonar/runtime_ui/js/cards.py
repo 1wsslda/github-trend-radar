@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 JS = r"""const emptyIcon = '<div style="display:flex; flex-direction:column; align-items:center; gap:24px; padding:64px 20px;"><div style="position:relative; width:80px; height:80px; border-radius:999px; background:radial-gradient(circle at center, rgba(233,201,143,0.08) 0%, transparent 70%); display:flex; align-items:center; justify-content:center;"><svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="rgba(233,201,143,0.24)" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M16 16s-1.5-2-4-2-4 2-4 2"></path><line x1="9" y1="9" x2="9.01" y2="9"></line><line x1="15" y1="9" x2="15.01" y2="9"></line></svg></div></div>';
+let lastSelectionSyncUrls = new Set(selectedUrls);
 
 function selectedBadgeMarkup(index){
   return `<span class="badge badge-selection">#${index + 1} 已选</span>`;
@@ -52,6 +53,29 @@ function cardsByUrl(url){
     if(card.getAttribute("data-select-url") === url) matches.push(card);
   });
   return matches;
+}
+
+function clearCardSelectionEnter(card){
+  if(!card) return;
+  const cleanup = card.__selectionEnterCleanup;
+  if(typeof cleanup === "function"){
+    card.removeEventListener("animationend", cleanup);
+    delete card.__selectionEnterCleanup;
+  }
+  card.classList.remove("selection-enter");
+}
+
+function playCardSelectionEnter(card){
+  if(!card) return;
+  clearCardSelectionEnter(card);
+  void card.offsetWidth;
+  const handleAnimationEnd = event => {
+    if(event.target !== card || event.animationName !== "card-selection-sheen") return;
+    clearCardSelectionEnter(card);
+  };
+  card.__selectionEnterCleanup = handleAnimationEnd;
+  card.addEventListener("animationend", handleAnimationEnd);
+  card.classList.add("selection-enter");
 }
 
 function syncStateActionsForUrl(url){
@@ -124,6 +148,8 @@ function syncCardSelectionState(){
     const url = card.getAttribute("data-select-url");
     const selectedIdx = urlArray.indexOf(url);
     const selected = selectedIdx !== -1;
+    const wasSelected = lastSelectionSyncUrls.has(url);
+    if(!selected) clearCardSelectionEnter(card);
     card.classList.toggle("selected", selected);
     const badgeRow = card.querySelector(".badges");
     const existingBadge = badgeRow?.querySelector(".badge-selection");
@@ -137,7 +163,9 @@ function syncCardSelectionState(){
     }else if(existingBadge){
       existingBadge.remove();
     }
+    if(selected && !wasSelected) playCardSelectionEnter(card);
   });
+  lastSelectionSyncUrls = new Set(selectedUrls);
 }
 
 function refreshSelectionUI(){

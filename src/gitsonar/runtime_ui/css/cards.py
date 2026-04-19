@@ -102,10 +102,65 @@ CSS = r""".tabs{
   border:1px solid rgba(232,214,184,.1);
   background:linear-gradient(180deg, rgba(29,26,21,.95), rgba(21,19,15,.98));
   box-shadow:var(--shadow-soft);
-  transition:border-color .25s var(--ease-smooth),transform .25s var(--ease-smooth),box-shadow .25s var(--ease-smooth),background .25s var(--ease-smooth);
+  transition:
+    border-color .28s var(--ease-smooth),
+    transform .25s var(--ease-smooth),
+    box-shadow .32s var(--ease-smooth),
+    background .32s var(--ease-smooth);
 }
 .card.selectable,
-.update-card.selectable{cursor:pointer}
+.update-card.selectable{
+  position:relative;
+  isolation:isolate;
+  cursor:pointer;
+}
+.card.selectable > *,
+.update-card.selectable > *{
+  position:relative;
+  z-index:1;
+}
+.card.selectable::before,
+.update-card.selectable::before{
+  content:"";
+  position:absolute;
+  top:-14%;
+  bottom:-14%;
+  left:-24%;
+  width:32%;
+  border-radius:inherit;
+  background:linear-gradient(
+    112deg,
+    rgba(233,201,143,0) 24%,
+    rgba(241,216,170,.08) 42%,
+    rgba(241,216,170,.42) 50%,
+    rgba(233,201,143,.12) 58%,
+    rgba(233,201,143,0) 76%
+  );
+  opacity:0;
+  pointer-events:none;
+  transform:translate3d(-148%, 0, 0) skewX(-18deg);
+  z-index:0;
+}
+@keyframes card-selection-sheen {
+  0%{
+    opacity:0;
+    transform:translate3d(0, 0, 0) skewX(-18deg);
+  }
+  18%{
+    opacity:.16;
+  }
+  44%{
+    opacity:.52;
+  }
+  100%{
+    opacity:0;
+    transform:translate3d(420%, 0, 0) skewX(-18deg);
+  }
+}
+.card.selection-enter::before,
+.update-card.selection-enter::before{
+  animation:card-selection-sheen .68s var(--ease-smooth) 1 forwards;
+}
 .card.selectable:focus-visible,
 .update-card.selectable:focus-visible{
   outline:none;
@@ -125,11 +180,12 @@ CSS = r""".tabs{
 .card.selected,
 .update-card.selected{
   background:
-    radial-gradient(ellipse at top right, rgba(233,201,143,.12), transparent 60%),
-    linear-gradient(180deg, rgba(37,30,20,.96), rgba(21,19,15,.98));
-  border-color:rgba(233,201,143,.45);
+    radial-gradient(ellipse at top right, rgba(233,201,143,.14), transparent 62%),
+    linear-gradient(180deg, rgba(39,31,20,.97), rgba(21,19,15,.98));
+  border-color:rgba(233,201,143,.42);
   box-shadow:
-    0 0 0 1px rgba(233,201,143,.2) inset,
+    0 0 0 1px rgba(233,201,143,.18) inset,
+    0 14px 34px rgba(66,48,19,.14),
     0 24px 44px rgba(0,0,0,.32);
 }
 .card-head{
@@ -230,15 +286,21 @@ CSS = r""".tabs{
   border-color:rgba(216,175,103,.18);
   background:rgba(216,175,103,.06);
 }
-@keyframes pop-badge {
-  0% { transform: scale(0.85); opacity: 0; }
-  100% { transform: scale(1); opacity: 1; }
+@keyframes badge-selection-enter {
+  0%{
+    opacity:0;
+    transform:translateY(4px) scale(.96);
+  }
+  100%{
+    opacity:1;
+    transform:translateY(0) scale(1);
+  }
 }
 .badge-selection{
   color:var(--accent);
   border-color:rgba(233,201,143,.22);
   background:rgba(233,201,143,.08);
-  animation: pop-badge .25s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  animation:badge-selection-enter .32s var(--ease-smooth) forwards;
 }
 .title{
   display:block;

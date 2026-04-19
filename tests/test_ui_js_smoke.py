@@ -65,6 +65,20 @@ class UIJSSmokeTests(unittest.TestCase):
         self.assertIn("const isDiscoverPanel = panel === DISCOVER_PANEL_KEY;", body)
         self.assertIn("const showBatchDock = !isDiscoverPanel && selected > 0;", body)
 
+    def test_sync_card_selection_state_only_animates_new_selections(self):
+        body = function_body(JS, "syncCardSelectionState")
+        self.assertIn("const wasSelected = lastSelectionSyncUrls.has(url);", body)
+        self.assertIn("if(!selected) clearCardSelectionEnter(card);", body)
+        self.assertIn("if(selected && !wasSelected) playCardSelectionEnter(card);", body)
+        self.assertIn("lastSelectionSyncUrls = new Set(selectedUrls);", body)
+
+    def test_play_card_selection_enter_restarts_and_cleans_up_animation(self):
+        body = function_body(JS, "playCardSelectionEnter")
+        self.assertIn("clearCardSelectionEnter(card);", body)
+        self.assertIn("void card.offsetWidth;", body)
+        self.assertIn('event.animationName !== "card-selection-sheen"', body)
+        self.assertIn('card.classList.add("selection-enter");', body)
+
     def test_render_pipeline_updates_shell_and_canvas(self):
         body = function_body(JS, "render")
         self.assertIn("syncWorkspaceCanvas();", body)
