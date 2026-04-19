@@ -5,11 +5,15 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from dataclasses import dataclass
+from datetime import date
 from http.server import SimpleHTTPRequestHandler
 from urllib.parse import parse_qs, urlparse
 
 logger = logging.getLogger(__name__)
+
+SAFE_MARKDOWN_FILENAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*\.md$")
 
 
 @dataclass(frozen=True, slots=True)
@@ -321,6 +325,15 @@ def build_app_handler(deps: AppHandlerDeps):
         params = parse_qs(parsed.query)
         return (params.get("owner") or [""])[0], (params.get("name") or [""])[0]
 
+    def default_analysis_markdown_filename() -> str:
+        return f"gitsonar-analysis-{date.today().isoformat()}.md"
+
+    def sanitize_analysis_markdown_filename(raw: object) -> str:
+        filename = normalize(raw)
+        if SAFE_MARKDOWN_FILENAME_RE.fullmatch(filename or ""):
+            return filename
+        return default_analysis_markdown_filename()
+
     def handle_get_settings(_handler, _parsed, _payload):
         return sanitize_settings(_handler.is_loopback_request())
 
@@ -359,6 +372,16 @@ def build_app_handler(deps: AppHandlerDeps):
             body=body,
             filename="gitsonar_backup.json",
             content_type="application/json; charset=utf-8",
+        )
+
+    def handle_post_analysis_export_markdown(_handler, _parsed, payload):
+        if not isinstance(payload.get("content"), str) or not normalize(payload.get("content")):
+            raise LocalAPIError("缺少 Markdown 内容。", code="analysis_export_invalid")
+        content = str(payload.get("content")).replace("\r\n", "\n").replace("\r", "\n")
+        return AttachmentResult(
+            body=content.encode("utf-8"),
+            filename=sanitize_analysis_markdown_filename(payload.get("filename")),
+            content_type="text/markdown; charset=utf-8",
         )
 
     def handle_post_state(_handler, _parsed, payload):
@@ -571,6 +594,15 @@ def build_app_handler(deps: AppHandlerDeps):
         "/api/settings/token-status": Route(handle_post_token_status, loopback_only=True, control_only=True, json_body=True),
         "/api/refresh": Route(handle_post_refresh, loopback_only=True, control_only=True),
         "/api/chatgpt/open": Route(handle_post_chatgpt_open, loopback_only=True, control_only=True, json_body=True),
+        "/api/analysis/export-markdown": Route(
+            handle_post_analysis_export_markdown,
+            loopback_only=True,
+            control_only=True,
+            json_body=True,
+            error_status=500,
+            error_code="analysis_export_failed",
+            error_message="导出 Markdown 失败。",
+        ),
         "/api/open-external": Route(handle_post_open_external, loopback_only=True, control_only=True, json_body=True, error_status=500, error_code="open_external_failed", error_message="打开外部链接失败。"),
         "/api/favorite-updates/clear": Route(handle_post_clear_favorite_updates, loopback_only=True, control_only=True),
         "/api/discover": Route(handle_post_discover, loopback_only=True, control_only=True, json_body=True),

@@ -145,6 +145,10 @@ function repoLine(repo){
   return `- ${repo.full_name} | ${repo.language || "未知语言"} | Stars ${repo.stars || 0} | ${repo.url}\n  简介: ${repo.description || repo.description_raw || "暂无描述"}`;
 }
 
+function collectionRepoLine(repo, index){
+  return `${index + 1}. ${repo.full_name} | ${repo.language || "\u672a\u77e5\u8bed\u8a00"} | Stars ${repo.stars || 0} | ${repo.url}\n   \u589e\u957f: ${gainLabel(repo)}\n   \u6765\u6e90: ${repo.source_label || "\u672a\u77e5\u6765\u6e90"}\n   \u7b80\u4ecb: ${repo.description || repo.description_raw || "\u6682\u65e0\u63cf\u8ff0"}`;
+}
+
 function buildRepoPrompt(repo){
   return `你是一位资深技术总监兼产品战略专家。请阅读下方仓库信息，用中文输出一份简洁的研判报告。
 语言要求：直白、通俗，遇到复杂概念优先解释清楚，不要堆术语。
@@ -203,4 +207,54 @@ function splitRepoPrompts(repos, title, maxEncodedLength = 2600, maxItemsPerBatc
   }
   if(currentBatch.length) batches.push(currentBatch);
   return batches.map((batch, index) => buildBatchPrompt(batch, title, index + 1, batches.length));
+}
+
+function buildCollectionPrompt(repos, title){
+  const normalized = repos.filter(Boolean);
+  if(!normalized.length) return "";
+  return `\u4f60\u662f\u4e00\u4f4d\u8d44\u6df1\u67b6\u6784\u5e08\uff0c\u6b63\u5728\u5e2e\u56e2\u961f\u5feb\u901f\u7b5b\u9009\u503c\u5f97\u5173\u6ce8\u7684 GitHub \u5f00\u6e90\u9879\u76ee\u3002
+\u8bf7\u7528\u4e2d\u6587\u4e25\u683c\u6309\u7ed9\u5b9a\u987a\u5e8f\uff0c\u9010\u4e2a\u5206\u6790\u4e0b\u9762\u7684\u4ed3\u5e93\uff0c\u8bed\u8a00\u76f4\u767d\uff0c\u4e0d\u5806\u672f\u8bed\u3002
+
+\u3010\u786c\u6027\u8981\u6c42\u3011
+1. \u5fc5\u987b\u8986\u76d6\u5217\u8868\u4e2d\u7684\u5168\u90e8\u4ed3\u5e93\uff0c\u4e0d\u5f97\u7701\u7565\uff0c\u4e0d\u5f97\u5408\u5e76\u8df3\u8fc7\u3002
+2. \u8f93\u51fa\u987a\u5e8f\u5fc5\u987b\u4e0e\u8f93\u5165\u5217\u8868\u4fdd\u6301\u4e00\u81f4\u3002
+3. \u6bcf\u4e2a\u4ed3\u5e93\u90fd\u8981\u5355\u72ec\u7ed9\u51fa\u7ed3\u8bba\uff0c\u6700\u540e\u518d\u7ed9\u51fa\u4e00\u6bb5\u6574\u4f53\u5efa\u8bae\u3002
+
+\u5206\u6790\u8303\u56f4: ${title}
+\u4ed3\u5e93\u6570\u91cf: ${normalized.length}
+
+\u4ed3\u5e93\u5217\u8868:
+${normalized.map(collectionRepoLine).join("\n")}
+
+\u3010\u8f93\u51fa\u7ed3\u6784\u3011
+1. \u6309\u8f93\u5165\u987a\u5e8f\uff0c\u4e3a\u6bcf\u4e2a\u4ed3\u5e93\u5206\u522b\u8f93\u51fa:
+   - \u4e00\u53e5\u8bdd\u8bf4\u6e05\u695a\u5b83\u662f\u505a\u4ec0\u4e48\u7684
+   - \u6700\u5927\u7684\u5b9e\u9645\u4ef7\u503c\u6216\u4eae\u70b9\uff081-2 \u6761\uff0c\u5e26\u573a\u666f\uff09
+   - \u4e3b\u8981\u98ce\u9669\uff0c\u5c40\u9650\u6216\u91c7\u7528\u95e8\u69db
+   - \u51b3\u7b56\u5efa\u8bae\uff1a\u7acb\u5373\u8bd5\u7528 / \u6301\u7eed\u89c2\u5bdf / \u6682\u65f6\u5ffd\u7565\uff0c\u5e76\u9644\u4e00\u53e5\u7406\u7531
+2. \u6700\u540e\u8865\u4e00\u6bb5\u300a\u603b\u89c8\u5efa\u8bae\u300b\uff0c\u8bf4\u660e\u8fd9\u6279\u4ed3\u5e93\u91cc\u6700\u503c\u5f97\u4f18\u5148\u770b\u7684\u5bf9\u8c61\uff0c\u9002\u5408\u8c01\uff0c\u4ee5\u53ca\u4e0d\u8be5\u76f2\u76ee\u6295\u5165\u7684\u70b9\u3002`;
+}
+
+function canTransportAsSinglePrompt(prompt){
+  prompt = String(prompt || "");
+  return encodeURIComponent(prompt).length <= 2600;
+}
+
+function buildAnalysisMarkdown(title, prompt, repos){
+  const normalized = repos.filter(Boolean);
+  const lines = [
+    `# GitSonar \u5206\u6790\u5bfc\u51fa\uff1a${title}`,
+    "",
+    `\u751f\u6210\u65f6\u95f4\uff1a${new Date().toISOString()}`,
+    `\u4ed3\u5e93\u6570\u91cf\uff1a${normalized.length}`,
+    "",
+    "## \u4ed3\u5e93\u6e05\u5355",
+    ...normalized.flatMap((repo, index) => [collectionRepoLine(repo, index), ""]),
+    "## \u5b8c\u6574\u539f\u59cb prompt",
+    "~~~~text",
+    String(prompt || "").replace(/\r\n?/g, "\n"),
+    "~~~~",
+    "",
+  ];
+  return lines.join("\n");
 }"""

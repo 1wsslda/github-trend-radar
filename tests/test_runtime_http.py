@@ -6,6 +6,7 @@ import sys
 import tempfile
 import threading
 import unittest
+from datetime import date
 from http.server import ThreadingHTTPServer
 from pathlib import Path
 
@@ -339,6 +340,57 @@ class RuntimeHTTPHandlerTests(unittest.TestCase):
         self.assertEqual(resp.status, 200)
         self.assertEqual(resp.getheader("Content-Disposition"), 'attachment; filename="gitsonar_backup.json"')
         self.assertIn(b'"favorites": []', data)
+
+    def test_post_analysis_export_markdown_returns_attachment(self):
+        markdown = "# GitSonar 分析导出\n\n完整内容\n"
+        resp, data = self.request(
+            "POST",
+            "/api/analysis/export-markdown",
+            {
+                "filename": "gitsonar-analysis-visible-2026-04-20.md",
+                "content": markdown,
+            },
+        )
+
+        self.assertEqual(resp.status, 200)
+        self.assertEqual(
+            resp.getheader("Content-Disposition"),
+            'attachment; filename="gitsonar-analysis-visible-2026-04-20.md"',
+        )
+        self.assertEqual(resp.getheader("Content-Type"), "text/markdown; charset=utf-8")
+        self.assertEqual(data.decode("utf-8"), markdown)
+
+    def test_post_analysis_export_markdown_rejects_missing_or_empty_content(self):
+        for body in (
+            {"filename": "gitsonar-analysis-visible-2026-04-20.md"},
+            {"filename": "gitsonar-analysis-visible-2026-04-20.md", "content": ""},
+        ):
+            with self.subTest(body=body):
+                resp, data = self.request("POST", "/api/analysis/export-markdown", body)
+                payload = json.loads(data.decode("utf-8"))
+
+                self.assertEqual(resp.status, 400)
+                self.assertFalse(payload["ok"])
+                self.assertEqual(payload["code"], "analysis_export_invalid")
+                self.assertIn("Markdown", payload["error"])
+
+    def test_post_analysis_export_markdown_falls_back_for_invalid_filename(self):
+        markdown = "# GitSonar 分析导出\n"
+        resp, data = self.request(
+            "POST",
+            "/api/analysis/export-markdown",
+            {
+                "filename": "../unsafe name.md",
+                "content": markdown,
+            },
+        )
+
+        self.assertEqual(resp.status, 200)
+        self.assertEqual(
+            resp.getheader("Content-Disposition"),
+            f'attachment; filename="gitsonar-analysis-{date.today().isoformat()}.md"',
+        )
+        self.assertEqual(data.decode("utf-8"), markdown)
 
     def test_get_discovery_job_returns_404_for_missing_job(self):
         resp, data = self.request("GET", "/api/discovery/job?id=missing")

@@ -20,7 +20,7 @@ JS = r"""async function openExternalUrl(url){
   return true;
 }
 
-async function openAiPrompts(prompts){
+async function legacyOpenAiPrompts(prompts){
   const queue = prompts.filter(Boolean);
   if(!queue.length) return false;
   if(aiTargets.has("copy")){
@@ -125,26 +125,26 @@ async function analyzeRepo(url){
   await openAiPrompts([buildRepoPrompt(repo)]);
 }
 
-async function analyzeVisible(){
+async function legacyAnalyzeVisible(){
   if(panel === UPDATE_PANEL_KEY){
     toast("收藏更新面板不支持整页分析");
     return;
   }
-  const repos = visibleRepos().slice(0, 20);
+  const repos = visibleRepos();
   if(!repos.length){
     toast("当前列表没有可分析的仓库");
     return;
   }
-  await openAiPrompts(splitRepoPrompts(repos, panel === DISCOVER_PANEL_KEY ? "当前这批候选项目" : "当前 GitHub 趋势列表"));
+  await analyzeRepoCollection(repos, panel === DISCOVER_PANEL_KEY ? "当前这批候选项目" : "当前 GitHub 趋势列表", `gitsonar-analysis-visible-${analysisDateStamp()}.md`);
 }
 
-async function analyzeSelected(){
+async function legacyAnalyzeSelected(){
   const repos = selectedRepos();
   if(!repos.length){
     toast("请先选中仓库");
     return;
   }
-  await openAiPrompts(splitRepoPrompts(repos, "已选仓库"));
+  await analyzeRepoCollection(repos, "已选仓库", `gitsonar-analysis-selected-${analysisDateStamp()}.md`);
 }
 
 async function fetchRepoDetails(repo){
@@ -353,4 +353,126 @@ async function exitApp(){
   }catch(error){
     toast(error.message || "退出程序失败");
   }
+}
+
+function analysisDateStamp(){
+  const now = new Date();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${now.getFullYear()}-${month}-${day}`;
+}
+
+function analysisFilenameFromHeader(value){
+  const match = /filename="([^"]+)"/.exec(String(value || ""));
+  return match ? match[1] : "";
+}
+
+async function exportAnalysisMarkdown(markdown, filename){
+  const content = String(markdown || "");
+  if(!content.trim()){
+    toast("\u6ca1\u6709\u53ef\u5bfc\u51fa\u7684 Markdown");
+    return false;
+  }
+  let resp;
+  try{
+    resp = await fetch(
+      "/api/analysis/export-markdown",
+      localApiOptions({
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({filename:String(filename || "").trim(), content}),
+      }),
+    );
+  }catch(_err){
+    toast("\u5bfc\u51fa Markdown \u5931\u8d25");
+    return false;
+  }
+  if(!resp.ok){
+    let data = {};
+    try{
+      data = JSON.parse(await resp.text() || "{}");
+    }catch(_err){}
+    toast(data.error || "\u5bfc\u51fa Markdown \u5931\u8d25");
+    return false;
+  }
+  const blob = await resp.blob();
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = analysisFilenameFromHeader(resp.headers.get("Content-Disposition")) || String(filename || "").trim() || `gitsonar-analysis-${analysisDateStamp()}.md`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+  return true;
+}
+
+async function analyzeRepoCollection(repos, title, filename){
+  const prompt = buildCollectionPrompt(repos, title);
+  if(!prompt) return false;
+  if(canTransportAsSinglePrompt(prompt)){
+    return openAiPrompts([prompt]);
+  }
+  const markdown = buildAnalysisMarkdown(title, prompt, repos);
+  const exported = await exportAnalysisMarkdown(markdown, filename);
+  if(exported) toast("\u5168\u91cf\u5185\u5bb9\u8fc7\u957f\uff0c\u5df2\u5bfc\u51fa Markdown");
+  return exported;
+}
+
+async function openAiPrompts(prompts){
+  const queue = prompts.filter(Boolean);
+  if(!queue.length) return false;
+  if(aiTargets.has("copy")){
+    await copyText(queue.join("\n\n-----\n\n"), "\u5206\u6790\u63d0\u793a\u8bcd\u5df2\u590d\u5236");
+    return true;
+  }
+  const targets = [...aiTargets].filter(t => t !== "copy");
+  if(!targets.length) return false;
+  if(queue.length > 1){
+    toast("\u5f53\u524d AI \u76ee\u6807\u53ea\u652f\u6301\u5355\u6761\u63d0\u793a\u8bcd\uff0c\u8bf7\u6539\u4e3a\u590d\u5236\u6216\u5bfc\u51fa Markdown");
+    return false;
+  }
+  const aiNames = targets.map(t => AI_TARGET_LABELS[t] || t).join(" + ");
+  await copyText(queue[0], `\u5206\u6790\u63d0\u793a\u8bcd\u5df2\u590d\u5236\uff0c\u6b63\u5728\u6253\u5f00 ${aiNames}`);
+  for(const target of targets){
+    const {resp, data} = await requestJson(
+      "/api/chatgpt/open",
+      {
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({mode:target, prompt:queue[0]}),
+      },
+      `\u6253\u5f00 ${AI_TARGET_LABELS[target] || target} \u5931\u8d25`,
+    );
+    if(!resp.ok || !data.ok){
+      toast(data.error || `\u6253\u5f00 ${AI_TARGET_LABELS[target] || target} \u5931\u8d25`);
+      return false;
+    }
+    if(targets.indexOf(target) < targets.length - 1) await sleep(300);
+  }
+  toast(`\u5df2\u6253\u5f00 ${aiNames}`);
+  return true;
+}
+
+async function analyzeVisible(){
+  if(panel === UPDATE_PANEL_KEY){
+    toast("\u6536\u85cf\u66f4\u65b0\u9762\u677f\u4e0d\u652f\u6301\u6574\u9875\u5206\u6790");
+    return;
+  }
+  const repos = visibleRepos();
+  if(!repos.length){
+    toast("\u5f53\u524d\u5217\u8868\u6ca1\u6709\u53ef\u5206\u6790\u7684\u4ed3\u5e93");
+    return;
+  }
+  const title = panel === DISCOVER_PANEL_KEY ? "\u5f53\u524d\u8fd9\u6279\u5019\u9009\u9879\u76ee" : "\u5f53\u524d GitHub \u8d8b\u52bf\u5217\u8868";
+  await analyzeRepoCollection(repos, title, `gitsonar-analysis-visible-${analysisDateStamp()}.md`);
+}
+
+async function analyzeSelected(){
+  const repos = selectedRepos();
+  if(!repos.length){
+    toast("\u8bf7\u5148\u9009\u4e2d\u4ed3\u5e93");
+    return;
+  }
+  await analyzeRepoCollection(repos, "\u5df2\u9009\u4ed3\u5e93", `gitsonar-analysis-selected-${analysisDateStamp()}.md`);
 }"""
