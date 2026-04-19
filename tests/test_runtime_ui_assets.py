@@ -1,5 +1,4 @@
 from __future__ import annotations
-
 import sys
 import unittest
 from pathlib import Path
@@ -101,6 +100,23 @@ class RuntimeUILayoutSmokeTests(unittest.TestCase):
         ):
             with self.subTest(css=token):
                 self.assertIn(token, CSS)
+
+    def test_trend_nav_summary_uses_current_sort_label_and_summary_wrapper(self):
+        html = build_fixture_html()
+        summary_section = html.split('<div class="workspace-summary"', 1)[1].split('<div class="action-split menu-wrap" data-menu-id="ai-target-menu">', 1)[0]
+
+        self.assertIn('class="workspace-summary">', html)
+        self.assertIn('class="workspace-summary-copy"', html)
+        self.assertNotIn('aria-live="polite"', summary_section)
+        self.assertNotIn('role="status"', summary_section)
+        self.assertIn('const activeTrendSortLabel = currentSortLabel();', JS)
+        self.assertIn('const trendTriggerSummary = activeTrend', JS)
+        self.assertIn('activeFamily === "trend"', JS)
+        self.assertIn('nav-pill-label">${h(activeTrendSortLabel)}</span><span class="nav-count">${activeTrend.count}</span>', JS)
+        self.assertIn('趋势<span class="nav-pill-note">${h(activeTrend.label)}</span><span class="nav-count">${activeTrend.count}</span>', JS)
+        self.assertIn(".nav-pill-label{", CSS)
+        self.assertIn(".workspace-summary-copy{", CSS)
+        self.assertIn('[data-menu-id="ai-target-menu"] .split-main,', CSS)
 
     def test_settings_markup_includes_sensitive_setting_controls(self):
         html = build_fixture_html(control_token="test-control-token")

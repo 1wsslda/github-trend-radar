@@ -70,8 +70,10 @@ HTML_BODY = """</style>
         </div>
 
         <div class="workspace-summary">
-          <div class="summary">可见 <span class="metric-number" id="visible-count">0</span><span id="visible-label"> 个仓库</span></div>
-          <div class="sub">已选 <span class="metric-number" id="selected-count">0</span> 项</div>
+          <div class="workspace-summary-copy">
+            <div class="summary">可见 <span class="metric-number" id="visible-count">0</span><span id="visible-label"> 个仓库</span></div>
+            <div class="sub">已选 <span class="metric-number" id="selected-count">0</span> 项</div>
+          </div>
         </div>
 
         <div class="action-split menu-wrap" data-menu-id="ai-target-menu">

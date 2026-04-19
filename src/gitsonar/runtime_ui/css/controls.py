@@ -773,6 +773,10 @@ button[aria-haspopup]:active:not(:disabled){
   min-width:240px;
   padding:0 18px;
 }
+.workspace-bar-main > .action-split[data-menu-id="ai-target-menu"] .split-main,
+.workspace-bar-main > .action-split[data-menu-id="ai-target-menu"] .split-trigger{
+  min-height:var(--workspace-bar-emphasis-height, 56px);
+}
 .split-main-label{
   display:grid;
   justify-items:start;

@@ -103,6 +103,12 @@ function renderTabs(){
   const updatesTab = tabs.find(tab => tab.family === "updates");
   const activeTrend = trendTabs.find(tab => tab.key === panel) || trendTabs[0];
   const activeLibrary = libraryTabs.find(tab => tab.key === panel) || libraryTabs[0];
+  const activeTrendSortLabel = currentSortLabel();
+  const trendTriggerSummary = activeTrend
+    ? activeFamily === "trend"
+      ? `<span class="nav-pill-label">${h(activeTrendSortLabel)}</span><span class="nav-count">${activeTrend.count}</span>`
+      : `趋势<span class="nav-pill-note">${h(activeTrend.label)}</span><span class="nav-count">${activeTrend.count}</span>`
+    : "趋势";
   const libraryCount = libraryTabs.reduce((sum, tab) => sum + (tab.count || 0), 0);
   const trendMenu = trendTabs.map(tab => `
     <button class="menu-item ${tab.key === panel ? "active" : ""}" type="button" onclick='setPanel(${JSON.stringify(tab.key)});closeMenus();'>
@@ -120,8 +126,7 @@ function renderTabs(){
   document.getElementById("tabs").innerHTML = `<div class="nav-main">
     <div class="menu-wrap" data-menu-id="nav-trend-menu">
       <button class="nav-pill menu-toggle ${activeFamily === "trend" ? "active" : ""}" type="button" aria-haspopup="menu" aria-expanded="false" onclick='toggleMenu(event, "nav-trend-menu")'>
-        趋势
-        ${activeTrend ? `<span class="nav-pill-note">${h(activeTrend.label)}</span><span class="nav-count">${activeTrend.count}</span>` : ""}
+        ${trendTriggerSummary}
         <span class="menu-caret"></span>
       </button>
       <div class="menu-panel align-left nav-menu-panel" id="nav-trend-menu-panel">

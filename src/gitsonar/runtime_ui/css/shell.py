@@ -96,6 +96,7 @@ CSS = r""".page{
   overflow:visible;
 }
 .workspace-bar-shell{
+  --workspace-bar-emphasis-height:56px;
   position:sticky;
   top:12px;
   z-index:18;
@@ -161,6 +162,15 @@ CSS = r""".page{
   border-color:rgba(233,201,143,.18);
   color:var(--text);
 }
+.nav-pill-label{
+  max-width:16ch;
+  color:var(--text);
+  font-weight:620;
+  line-height:1;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
 .nav-pill-note{
   max-width:16ch;
   color:var(--text-soft);
@@ -193,19 +203,33 @@ CSS = r""".page{
   min-width:0;
 }
 .workspace-summary{
-  display:grid;
-  gap:2px;
-  min-width:150px;
-  padding:7px 12px;
-  border:1px solid rgba(232,214,184,.1);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  min-height:var(--workspace-bar-emphasis-height);
+  min-width:168px;
+  padding:8px 15px;
+  border:1px solid rgba(232,214,184,.12);
   border-radius:16px;
-  background:rgba(13,11,9,.3);
+  background:linear-gradient(180deg, rgba(37,32,25,.72), rgba(19,17,13,.88));
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.03),
+    0 1px 0 rgba(0,0,0,.18);
+}
+.workspace-summary-copy{
+  display:grid;
+  align-content:center;
+  gap:3px;
+  width:100%;
+  min-width:0;
 }
 .workspace-summary .summary{
   font-size:.92rem;
+  line-height:1.22;
 }
 .workspace-summary .sub{
   font-size:.76rem;
+  line-height:1.2;
 }
 .workspace-drawer-trigger{
   min-width:90px;

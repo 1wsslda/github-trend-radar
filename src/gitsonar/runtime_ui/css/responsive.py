@@ -16,8 +16,7 @@ CSS = r"""@media (min-width:1600px){
   }
   .workspace-summary{
     grid-column:1 / -1;
-    grid-template-columns:repeat(2,minmax(0,max-content));
-    align-items:center;
+    min-width:0;
   }
 }
 @media (max-width:1199px){
@@ -33,7 +32,7 @@ CSS = r"""@media (min-width:1600px){
   }
   .workspace-summary{
     grid-column:auto;
-    grid-template-columns:1fr;
+    min-width:0;
   }
   .discover-query-row{
     grid-template-columns:1fr;
@@ -83,7 +82,7 @@ CSS = r"""@media (min-width:1600px){
     grid-template-columns:1fr;
   }
   .workspace-summary{
-    grid-template-columns:repeat(2,minmax(0,1fr));
+    width:100%;
   }
   .workspace-drawer-head{
     grid-template-columns:1fr;
@@ -142,7 +141,7 @@ CSS = r"""@media (min-width:1600px){
     flex:0 0 auto;
   }
   .workspace-summary{
-    grid-template-columns:1fr;
+    width:100%;
   }
   .discover-query-row{
     grid-template-columns:1fr;
