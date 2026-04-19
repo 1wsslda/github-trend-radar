@@ -6,7 +6,7 @@
 
 ![GitSonar 主界面](assets/screenshots/trending.png)
 
-GitSonar 不是把 GitHub Trending 页面搬到桌面。它把趋势发现、关键词发现、本地状态整理、关注更新、仓库详情、双仓库对比和 ChatGPT 提示词交接放进一个可以长期挂在托盘里的工作台，适合需要持续筛选和跟进 GitHub 项目的人。
+GitSonar 不是把 GitHub Trending 页面搬到桌面。它把趋势发现、关键词发现、本地状态整理、关注更新、仓库详情、双仓库对比和 ChatGPT 提示词交接放进一个桌面工作台，适合需要持续筛选和跟进 GitHub 项目的人。
 
 ## 它解决什么问题
 
@@ -32,7 +32,7 @@ GitSonar 不是把 GitHub Trending 页面搬到桌面。它把趋势发现、关
 - **变化跟踪**：关注仓库的 Push、Star / Fork、Release 变化追踪与更新面板
 - **仓库理解**：详情抽屉、README 摘要、Topics、License、主页等关键信息
 - **对比与提示词**：双仓库对比，单仓库 / 批量 / 对比三种 ChatGPT 提示词交接
-- **桌面体验**：系统托盘、隐藏 / 唤醒、单实例、关闭行为、开机启动、代理支持
+- **桌面体验**：单实例唤醒、关闭行为、开机启动、代理支持
 - **本地运行**：GitHub Token 本地加密保存，旧数据目录迁移，开发态 `runtime-data/` 与打包态 `%LOCALAPPDATA%\GitSonar`
 
 ## 它适合谁
@@ -45,7 +45,7 @@ GitSonar 不是把 GitHub Trending 页面搬到桌面。它把趋势发现、关
 ## 为什么它不是普通的 Trending 查看器
 
 - 普通 Trending viewer 主要解决“今天有什么火”；GitSonar 继续处理“哪些值得继续看、为什么值得继续看”
-- 普通 Trending viewer 更像一次性浏览；GitSonar 强调托盘常驻、后台刷新和回头判断
+- 普通 Trending viewer 更像一次性浏览；GitSonar 强调桌面上的持续整理、刷新和回头判断
 - 普通 Trending viewer 往往停在 GitHub Star；GitSonar 增加了本地状态、更新跟踪、详情阅读、对比和提示词工作流
 
 ## 术语说明
@@ -72,14 +72,18 @@ GitSonar 不是把 GitHub Trending 页面搬到桌面。它把趋势发现、关
 - `代理地址`：网络无法稳定访问 GitHub 时填写
 - `刷新间隔`
 - `结果上限`
-- `关闭行为`
 
 ### 开发者 / 维护者
+
+环境要求：
+
+- Windows
+- Python 3.12+
 
 直接运行：
 
 ```powershell
-python -m pip install -r requirements.txt pyinstaller
+python -m pip install -r requirements.txt
 python src/gitsonar/__main__.py
 ```
 
@@ -107,7 +111,7 @@ scripts\build_all_click.cmd
 
 1. 在 `今天 / 本周 / 本月` 或关键词发现里找候选仓库
 2. 先用 `关注 / 稍后看 / 已读 / 忽略` 做整理，不急着立刻下结论
-3. 让应用在托盘后台刷新，回到“收藏更新”看哪些仓库发生了 Push / Star / Release 变化
+3. 在程序运行期间，回到“收藏更新”看哪些仓库发生了 Push / Star / Release 变化
 4. 打开详情或对比视图，再把单仓库 / 批量 / 对比提示词交给 ChatGPT 辅助判断
 
 ## 截图

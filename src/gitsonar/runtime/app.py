@@ -1,12 +1,11 @@
-
 #!/usr/bin/env python3
 from __future__ import annotations
 
 import ctypes
-import hashlib
 import logging
 import os
 import re
+import secrets
 import socket
 import sys
 import threading
@@ -18,8 +17,10 @@ from urllib.parse import quote
 
 import requests
 from bs4 import BeautifulSoup
+
 from ..runtime_github import make_github_runtime
 from ..runtime_ui import build_html as build_runtime_html
+from .discovery_jobs import make_discovery_job_runtime
 from .http import make_app_handler
 from .paths import (
     APP_NAME,
@@ -70,14 +71,14 @@ from .utils import (
 
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s [%(levelname)s] %(message)s',
-    datefmt='%H:%M:%S',
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    datefmt="%H:%M:%S",
     stream=sys.stdout,
 )
 logger = logging.getLogger(__name__)
 
-SEARCH_API_URL = 'https://api.github.com/search/repositories'
-REPO_API_URL = 'https://api.github.com/repos'
+SEARCH_API_URL = "https://api.github.com/search/repositories"
+REPO_API_URL = "https://api.github.com/repos"
 API_TIMEOUT = (5, 12)
 TRENDING_TIMEOUT = (4, 10)
 TRANSLATE_TIMEOUT = (4, 8)
@@ -85,39 +86,47 @@ TRANSLATE_RETRIES = 2
 DETAIL_CACHE_SECONDS = 6 * 3600
 _MAX_TRANSLATION_CACHE_SIZE = 5000
 _MAX_DETAIL_CACHE_SIZE = 500
+_MAX_DETAIL_FETCH_LOCKS = 1000
 FAVORITE_WATCH_MIN_SECONDS_NO_TOKEN = 6 * 3600
 FAVORITE_WATCH_MIN_SECONDS_WITH_TOKEN = 3600
 FAVORITE_RELEASE_MIN_SECONDS_NO_TOKEN = 24 * 3600
 FAVORITE_RELEASE_MIN_SECONDS_WITH_TOKEN = 6 * 3600
 FAVORITE_WATCH_MAX_CHECKS_NO_TOKEN = 6
 FAVORITE_WATCH_MAX_CHECKS_WITH_TOKEN = 20
+
 HEADERS = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-    'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+        "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+    ),
+    "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
 }
+
 PERIODS = [
-    {'key': 'daily', 'label': '今天', 'days': 1},
-    {'key': 'weekly', 'label': '本周', 'days': 7},
-    {'key': 'monthly', 'label': '本月', 'days': 30},
+    {"key": "daily", "label": "今天", "days": 1},
+    {"key": "weekly", "label": "本周", "days": 7},
+    {"key": "monthly", "label": "本月", "days": 30},
 ]
+
 STATE_DEFS = [
-    {'key': 'favorites', 'label': '关注', 'button': '关注'},
-    {'key': 'watch_later', 'label': '待看', 'button': '待看'},
-    {'key': 'read', 'label': '已读', 'button': '已读'},
-    {'key': 'ignored', 'label': '忽略', 'button': '忽略'},
+    {"key": "favorites", "label": "关注", "button": "关注"},
+    {"key": "watch_later", "label": "待看", "button": "待看"},
+    {"key": "read", "label": "已读", "button": "已读"},
+    {"key": "ignored", "label": "忽略", "button": "忽略"},
 ]
-HAN_RE = re.compile(r'[\u3400-\u9fff]')
+
+HAN_RE = re.compile(r"[\u3400-\u9fff]")
 
 SESSION = requests.Session()
 SESSION.headers.update(HEADERS)
+
 LOCAL_CONTROL = requests.Session()
 LOCAL_CONTROL.trust_env = False
+
 TRANSLATE_SESSION = requests.Session()
 TRANSLATE_SESSION.trust_env = False
-TRANSLATE_SESSION.headers.update({
-    'User-Agent': HEADERS['User-Agent'],
-    'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
-})
+TRANSLATE_SESSION.headers.update(HEADERS)
+
 SETTINGS_LOCK = threading.RLock()
 STATE_LOCK = threading.RLock()
 DISCOVERY_LOCK = threading.RLock()
@@ -125,36 +134,37 @@ DISCOVERY_JOB_LOCK = threading.RLock()
 REFRESH_LOCK = threading.Lock()
 TRANSLATION_LOCK = threading.RLock()
 DETAIL_CACHE_LOCK = threading.RLock()
+
 SETTINGS: dict[str, object] = {}
 USER_STATE: dict[str, object] = {}
 DISCOVERY_STATE: dict[str, object] = {}
-DISCOVERY_JOBS: dict[str, dict[str, object]] = {}
-ACTIVE_DISCOVERY_JOB_ID = ''
 CURRENT_SNAPSHOT: dict[str, object] = {}
 RUNTIME_PORT: int | None = None
+CONTROL_TOKEN = ""
+AUTO_SYNC_USER_STARS_DONE = False
+
 APP_EXIT_EVENT = threading.Event()
 BROWSER_LOCK = threading.RLock()
 DETAIL_FETCH_SEMAPHORE = threading.Semaphore(3)
 TRANSLATION_CACHE: dict[str, str] = {}
 DETAIL_CACHE: dict[str, object] = {}
 DETAIL_FETCH_LOCKS: dict[str, threading.Lock] = {}
-_MAX_DETAIL_FETCH_LOCKS = 1000
 
-if os.name == 'nt':
+if os.name == "nt":
     TH32CS_SNAPPROCESS = 0x00000002
 
     class PROCESSENTRY32W(ctypes.Structure):
         _fields_ = [
-            ('dwSize', ctypes.c_ulong),
-            ('cntUsage', ctypes.c_ulong),
-            ('th32ProcessID', ctypes.c_ulong),
-            ('th32DefaultHeapID', ctypes.c_size_t),
-            ('th32ModuleID', ctypes.c_ulong),
-            ('cntThreads', ctypes.c_ulong),
-            ('th32ParentProcessID', ctypes.c_ulong),
-            ('pcPriClassBase', ctypes.c_long),
-            ('dwFlags', ctypes.c_ulong),
-            ('szExeFile', ctypes.c_wchar * 260),
+            ("dwSize", ctypes.c_ulong),
+            ("cntUsage", ctypes.c_ulong),
+            ("th32ProcessID", ctypes.c_ulong),
+            ("th32DefaultHeapID", ctypes.c_size_t),
+            ("th32ModuleID", ctypes.c_ulong),
+            ("cntThreads", ctypes.c_ulong),
+            ("th32ParentProcessID", ctypes.c_ulong),
+            ("pcPriClassBase", ctypes.c_long),
+            ("dwFlags", ctypes.c_ulong),
+            ("szExeFile", ctypes.c_wchar * 260),
         ]
 
 
@@ -164,29 +174,29 @@ def ensure_runtime_layout() -> None:
 
 
 def configure_console() -> None:
-    for name in ('stdout', 'stderr'):
+    for name in ("stdout", "stderr"):
         stream = getattr(sys, name, None)
-        if hasattr(stream, 'reconfigure'):
+        if hasattr(stream, "reconfigure"):
             try:
-                stream.reconfigure(encoding='utf-8', errors='replace')
+                stream.reconfigure(encoding="utf-8", errors="replace")
             except Exception:
                 pass
     hide_console_window_if_needed()
 
 
 def parent_process_name() -> str:
-    if os.name != 'nt':
-        return ''
+    if os.name != "nt":
+        return ""
     kernel32 = ctypes.windll.kernel32
     snapshot = kernel32.CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0)
     invalid_handle = ctypes.c_void_p(-1).value
     if snapshot == invalid_handle:
-        return ''
+        return ""
     try:
         entry = PROCESSENTRY32W()
         entry.dwSize = ctypes.sizeof(PROCESSENTRY32W)
         if not kernel32.Process32FirstW(snapshot, ctypes.byref(entry)):
-            return ''
+            return ""
         names: dict[int, str] = {}
         parent_pid = 0
         while True:
@@ -201,17 +211,17 @@ def parent_process_name() -> str:
 
 
 def hide_console_window_if_needed() -> None:
-    if os.name != 'nt':
+    if os.name != "nt":
         return
     for slug in {APP_SLUG, LEGACY_APP_SLUG}:
-        if normalize(os.environ.get(f'{slug.upper()}_SHOW_CONSOLE')).lower() in {'1', 'true', 'yes'}:
+        if normalize(os.environ.get(f"{slug.upper()}_SHOW_CONSOLE")).lower() in {"1", "true", "yes"}:
             return
     try:
         kernel32 = ctypes.windll.kernel32
         hwnd = kernel32.GetConsoleWindow()
         if not hwnd:
             return
-        if parent_process_name() not in {'explorer.exe', 'wscript.exe', 'cscript.exe'}:
+        if parent_process_name() not in {"explorer.exe", "wscript.exe", "cscript.exe"}:
             return
         ctypes.windll.user32.ShowWindow(hwnd, 0)
     except Exception:
@@ -227,8 +237,12 @@ def cached_repo_details(cache_key: str) -> dict[str, object] | None:
     now = int(time.time())
     with DETAIL_CACHE_LOCK:
         cached = DETAIL_CACHE.get(cache_key, {})
-        if isinstance(cached, dict) and clamp_int(cached.get('expires_at'), 0, 0) > now and isinstance(cached.get('data'), dict):
-            return dict(cached['data'])
+        if (
+            isinstance(cached, dict)
+            and clamp_int(cached.get("expires_at"), 0, 0) > now
+            and isinstance(cached.get("data"), dict)
+        ):
+            return dict(cached["data"])
     return None
 
 
@@ -237,13 +251,12 @@ def detail_fetch_lock(cache_key: str) -> threading.Lock:
         lock = DETAIL_FETCH_LOCKS.get(cache_key)
         if lock is None:
             if len(DETAIL_FETCH_LOCKS) >= _MAX_DETAIL_FETCH_LOCKS:
-                # 优先清理不在缓存中的过期锁；仍超限则删除前一半
-                stale = [k for k in DETAIL_FETCH_LOCKS if k not in DETAIL_CACHE]
-                for k in stale[:500]:
-                    del DETAIL_FETCH_LOCKS[k]
+                stale = [key for key in DETAIL_FETCH_LOCKS if key not in DETAIL_CACHE]
+                for key in stale[:500]:
+                    del DETAIL_FETCH_LOCKS[key]
                 if len(DETAIL_FETCH_LOCKS) >= _MAX_DETAIL_FETCH_LOCKS:
-                    for k in list(DETAIL_FETCH_LOCKS)[:500]:
-                        del DETAIL_FETCH_LOCKS[k]
+                    for key in list(DETAIL_FETCH_LOCKS)[:500]:
+                        del DETAIL_FETCH_LOCKS[key]
             lock = threading.Lock()
             DETAIL_FETCH_LOCKS[cache_key] = lock
         return lock
@@ -253,18 +266,27 @@ def save_repo_details(cache_key: str, details: dict[str, object]) -> None:
     now = int(time.time())
     with DETAIL_CACHE_LOCK:
         DETAIL_CACHE[cache_key] = {
-            'expires_at': now + DETAIL_CACHE_SECONDS,
-            'data': dict(details),
+            "expires_at": now + DETAIL_CACHE_SECONDS,
+            "data": dict(details),
         }
-        # 清理已过期条目
-        expired = [k for k, v in DETAIL_CACHE.items() if isinstance(v, dict) and clamp_int(v.get('expires_at'), 0, 0) <= now]
-        for k in expired:
-            del DETAIL_CACHE[k]
-        # 若仍超过上限，按过期时间升序删除最旧条目
+        expired = [
+            key
+            for key, value in DETAIL_CACHE.items()
+            if isinstance(value, dict) and clamp_int(value.get("expires_at"), 0, 0) <= now
+        ]
+        for key in expired:
+            del DETAIL_CACHE[key]
         if len(DETAIL_CACHE) > _MAX_DETAIL_CACHE_SIZE:
-            oldest = sorted(DETAIL_CACHE, key=lambda k: clamp_int(DETAIL_CACHE[k].get('expires_at') if isinstance(DETAIL_CACHE[k], dict) else 0, 0, 0))
-            for k in oldest[:len(DETAIL_CACHE) - _MAX_DETAIL_CACHE_SIZE]:
-                del DETAIL_CACHE[k]
+            oldest = sorted(
+                DETAIL_CACHE,
+                key=lambda key: clamp_int(
+                    DETAIL_CACHE[key].get("expires_at") if isinstance(DETAIL_CACHE[key], dict) else 0,
+                    0,
+                    0,
+                ),
+            )
+            for key in oldest[: len(DETAIL_CACHE) - _MAX_DETAIL_CACHE_SIZE]:
+                del DETAIL_CACHE[key]
         atomic_write_json(DETAIL_CACHE_PATH, DETAIL_CACHE)
 
 
@@ -293,6 +315,11 @@ apply_repo_translation = translation_runtime.apply_repo_translation
 translate_repo_list = translation_runtime.translate_repo_list
 translate_snapshot = translation_runtime.translate_snapshot
 
+
+def current_port() -> int:
+    return RUNTIME_PORT or clamp_int(SETTINGS.get("port", 8080), 8080, 1, 65535)
+
+
 settings_runtime = make_settings_runtime(
     settings=SETTINGS,
     settings_path=SETTINGS_PATH,
@@ -318,6 +345,7 @@ normalize_settings = settings_runtime.normalize_settings
 sanitize_settings = settings_runtime.sanitize_settings
 save_settings = settings_runtime.save_settings
 load_settings = settings_runtime.load_settings
+merge_settings = settings_runtime.merge_settings
 apply_runtime_settings = settings_runtime.apply_runtime_settings
 
 state_runtime = make_state_runtime(
@@ -359,8 +387,7 @@ load_discovery_state = state_runtime.load_discovery_state
 save_discovery_state = state_runtime.save_discovery_state
 export_discovery_state = state_runtime.export_discovery_state
 clear_discovery_results = state_runtime.clear_discovery_results
-upsert_saved_discovery_query = state_runtime.upsert_saved_discovery_query
-delete_saved_discovery_query = state_runtime.delete_saved_discovery_query
+apply_discovery_result = state_runtime.apply_discovery_result
 discovery_warning_list = state_runtime.discovery_warning_list
 empty_snapshot = state_runtime.empty_snapshot
 load_snapshot = state_runtime.load_snapshot
@@ -386,6 +413,7 @@ startup_runtime = make_startup_runtime(
     load_json_file=load_json_file,
     atomic_write_json=atomic_write_json,
     current_port_getter=lambda: current_port(),
+    control_token_getter=lambda: CONTROL_TOKEN,
 )
 startup_dir = startup_runtime.startup_dir
 startup_launcher_path = startup_runtime.startup_launcher_path
@@ -406,426 +434,38 @@ show_message_box = startup_runtime.show_message_box
 set_main_url = startup_runtime.set_main_url
 
 
-DISCOVERY_JOB_STAGE_LABELS = {
-    'queued': '等待开始',
-    'initial_search': '首轮搜索中',
-    'initial_results': '首轮结果已返回',
-    'seed_details': '正在补全详情',
-    'expansion_search': '正在扩展相关词',
-    'rescoring': '正在综合重排',
-    'completed': '已完成',
-    'failed': '执行失败',
-    'cancelled': '已取消',
-}
-
-DISCOVERY_JOB_STAGE_PROGRESS = {
-    'queued': 0.02,
-    'initial_search': 0.16,
-    'initial_results': 0.38,
-    'seed_details': 0.52,
-    'expansion_search': 0.74,
-    'rescoring': 0.9,
-    'completed': 1.0,
-    'failed': 1.0,
-    'cancelled': 1.0,
-}
-
-DISCOVERY_JOB_TERMINAL = {'completed', 'failed', 'cancelled'}
-
-
-def discovery_warning_list(items: object, *, limit: int = 8) -> list[str]:
-    if not isinstance(items, list):
-        return []
-    return list(dict.fromkeys(normalize(item) for item in items if normalize(item)))[:limit]
-
-
-def estimate_discovery_eta(query_payload: dict[str, object]) -> tuple[int, int]:
-    limit = clamp_int(query_payload.get('limit'), 20, 5, 50)
-    has_token = bool(normalize(SETTINGS.get('github_token', '')))
-    auto_expand = as_bool(query_payload.get('auto_expand'), True)
-    language = normalize(query_payload.get('language'))
-    size_penalty = min(6, max(0, (limit - 5) // 10) * 2)
-    initial_seconds = 14 + size_penalty
-    if language:
-        initial_seconds += 1
-    if not has_token:
-        initial_seconds += 2
-    full_seconds = initial_seconds + (10 if auto_expand else 6) + (4 if has_token else 5) + size_penalty
-    return initial_seconds, max(initial_seconds + 2, full_seconds)
-
-
-def build_discovery_job_message(stage: str, query_payload: dict[str, object], payload: dict[str, object] | None = None) -> str:
-    query = normalize(query_payload.get('query')) or '当前关键词'
-    payload = payload if isinstance(payload, dict) else {}
-    result_count = len(payload.get('results', [])) if isinstance(payload.get('results'), list) else 0
-    if stage == 'initial_search':
-        return f'正在为“{query}”执行首轮 GitHub 搜索'
-    if stage == 'initial_results':
-        return f'首轮结果已返回 {result_count} 个候选，正在继续补全与扩词'
-    if stage == 'seed_details':
-        return f'正在为“{query}”补全首批仓库详情'
-    if stage == 'expansion_search':
-        return f'正在扩展相关词并补充更多候选仓库'
-    if stage == 'rescoring':
-        return f'正在对“{query}”执行综合打分与重排'
-    if stage == 'completed':
-        return f'关键词发现已完成，共返回 {result_count} 个结果'
-    if stage == 'cancelled':
-        return '关键词发现已取消'
-    if stage == 'failed':
-        return normalize(payload.get('error')) or '关键词发现失败'
-    return '正在准备关键词发现任务'
-
-
-def build_discovery_job_snapshot(job: dict[str, object]) -> dict[str, object]:
-    started_ts = float(job.get('_started_ts') or 0.0)
-    finished_ts = float(job.get('_finished_ts') or 0.0)
-    now_ts = finished_ts or time.time()
-    elapsed_seconds = max(0, int(round(now_ts - started_ts))) if started_ts else 0
-    eta_initial_seconds = clamp_int(job.get('eta_initial_seconds'), 4, 1, 300)
-    eta_full_seconds = clamp_int(job.get('eta_full_seconds'), eta_initial_seconds + 2, eta_initial_seconds, 600)
-    preview_results = [clean for item in job.get('preview_results', []) if (clean := normalize_repo(item))]
-    status = normalize(job.get('status')) or 'queued'
-    target_seconds = eta_initial_seconds if not preview_results and status not in DISCOVERY_JOB_TERMINAL else eta_full_seconds
-    eta_remaining_seconds = 0 if status in DISCOVERY_JOB_TERMINAL else max(1, target_seconds - elapsed_seconds)
-    return {
-        'id': normalize(job.get('id')),
-        'status': status,
-        'stage': normalize(job.get('stage')) or 'queued',
-        'stage_label': normalize(job.get('stage_label')) or DISCOVERY_JOB_STAGE_LABELS.get(normalize(job.get('stage')) or 'queued', '处理中'),
-        'message': normalize(job.get('message')),
-        'query': normalize_discovery_query(job.get('query')) or {},
-        'save_query': as_bool(job.get('save_query'), False),
-        'cancel_requested': as_bool(job.get('cancel_requested'), False),
-        'created_at': normalize(job.get('created_at')),
-        'started_at': normalize(job.get('started_at')),
-        'finished_at': normalize(job.get('finished_at')),
-        'elapsed_seconds': elapsed_seconds,
-        'eta_initial_seconds': eta_initial_seconds,
-        'eta_full_seconds': eta_full_seconds,
-        'eta_remaining_seconds': eta_remaining_seconds,
-        'progress': max(0.0, min(1.0, float(job.get('progress') or 0.0))),
-        'progress_percent': max(0, min(100, int(round(float(job.get('progress') or 0.0) * 100)))),
-        'translated_query': normalize(job.get('translated_query')),
-        'generated_queries': [normalize(item) for item in job.get('generated_queries', []) if normalize(item)][:12] if isinstance(job.get('generated_queries'), list) else [],
-        'related_terms': [normalize(item) for item in job.get('related_terms', []) if normalize(item)][:12] if isinstance(job.get('related_terms'), list) else [],
-        'warnings': discovery_warning_list(job.get('warnings'), limit=8),
-        'preview_results': preview_results[:50],
-        'error': normalize(job.get('error')),
-        'discovery_state': job.get('discovery_state') if isinstance(job.get('discovery_state'), dict) else None,
-    }
-
-
-def export_active_discovery_job() -> dict[str, object] | None:
-    with DISCOVERY_JOB_LOCK:
-        active_id = normalize(ACTIVE_DISCOVERY_JOB_ID)
-        job = DISCOVERY_JOBS.get(active_id) if active_id else None
-        if not isinstance(job, dict):
-            return None
-        return build_discovery_job_snapshot(job)
-
-
-def update_discovery_job(job_id: str, **changes) -> dict[str, object] | None:
-    global ACTIVE_DISCOVERY_JOB_ID
-    clean_id = normalize(job_id)
-    if not clean_id:
-        return None
-    with DISCOVERY_JOB_LOCK:
-        job = DISCOVERY_JOBS.get(clean_id)
-        if not isinstance(job, dict):
-            return None
-        if 'status' in changes and normalize(changes.get('status')) == 'running' and not normalize(job.get('started_at')):
-            job['started_at'] = iso_now()
-            job['_started_ts'] = time.time()
-        if 'stage' in changes:
-            stage = normalize(changes.get('stage')) or job.get('stage') or 'queued'
-            job['stage'] = stage
-            job['stage_label'] = DISCOVERY_JOB_STAGE_LABELS.get(stage, stage)
-            job['progress'] = DISCOVERY_JOB_STAGE_PROGRESS.get(stage, job.get('progress', 0.0))
-        for key in ('status', 'message', 'translated_query', 'error'):
-            if key in changes and changes.get(key) is not None:
-                job[key] = normalize(changes.get(key))
-        for key in ('generated_queries', 'related_terms'):
-            if key in changes and changes.get(key) is not None:
-                job[key] = [normalize(item) for item in changes.get(key, []) if normalize(item)][:12]
-        if 'warnings' in changes and changes.get('warnings') is not None:
-            existing = discovery_warning_list(job.get('warnings'), limit=8)
-            incoming = discovery_warning_list(changes.get('warnings'), limit=8)
-            job['warnings'] = list(dict.fromkeys([*existing, *incoming]))[:8]
-        if 'preview_results' in changes and changes.get('preview_results') is not None:
-            job['preview_results'] = [clean for item in changes.get('preview_results', []) if (clean := normalize_repo(item))][:50]
-        if 'discovery_state' in changes and isinstance(changes.get('discovery_state'), dict):
-            job['discovery_state'] = changes.get('discovery_state')
-        if 'cancel_requested' in changes:
-            job['cancel_requested'] = as_bool(changes.get('cancel_requested'), False)
-        status = normalize(job.get('status')) or 'queued'
-        if status not in DISCOVERY_JOB_TERMINAL:
-            ACTIVE_DISCOVERY_JOB_ID = clean_id
-        else:
-            job['finished_at'] = normalize(job.get('finished_at')) or iso_now()
-            job['_finished_ts'] = float(job.get('_finished_ts') or time.time())
-            if ACTIVE_DISCOVERY_JOB_ID == clean_id:
-                ACTIVE_DISCOVERY_JOB_ID = ''
-        snapshot = build_discovery_job_snapshot(job)
-        stale_ids = [
-            key for key, value in DISCOVERY_JOBS.items()
-            if key != ACTIVE_DISCOVERY_JOB_ID and normalize(value.get('status')) in DISCOVERY_JOB_TERMINAL
-        ]
-        for stale_id in stale_ids[:-10]:
-            DISCOVERY_JOBS.pop(stale_id, None)
-        return snapshot
-
-
-def apply_discovery_result(query_payload: dict[str, object], discovery: dict[str, object], *, save_query: bool) -> dict[str, object]:
-    results = [clean for item in discovery.get('results', []) if (clean := normalize_repo(item))]
-    last_run_at = normalize(discovery.get('run_at')) or iso_now()
-    warnings = discovery_warning_list(discovery.get('warnings'), limit=8)
-    with DISCOVERY_LOCK:
-        DISCOVERY_STATE['last_query'] = query_payload
-        DISCOVERY_STATE['last_results'] = results
-        DISCOVERY_STATE['last_related_terms'] = [normalize(item) for item in discovery.get('related_terms', []) if normalize(item)][:12]
-        DISCOVERY_STATE['last_generated_queries'] = [normalize(item) for item in discovery.get('generated_queries', []) if normalize(item)][:12]
-        DISCOVERY_STATE['last_translated_query'] = normalize(discovery.get('translated_query'))
-        DISCOVERY_STATE['last_warnings'] = warnings
-        DISCOVERY_STATE['last_run_at'] = last_run_at
-        DISCOVERY_STATE['last_error'] = ''
-        if save_query:
-            saved_queries = [item for item in DISCOVERY_STATE.get('saved_queries', []) if item.get('id') != query_payload['id']]
-            saved_query = dict(query_payload)
-            saved_query['last_run_at'] = last_run_at
-            saved_queries.insert(0, saved_query)
-            DISCOVERY_STATE['saved_queries'] = saved_queries[:20]
-        elif query_payload['id'] in {item.get('id') for item in DISCOVERY_STATE.get('saved_queries', [])}:
-            for item in DISCOVERY_STATE['saved_queries']:
-                if item.get('id') == query_payload['id']:
-                    item['last_run_at'] = last_run_at
-                    break
-        save_discovery_state()
-        return export_discovery_state()
-
-
-def run_discovery_search(payload: object) -> dict[str, object]:
-    query_payload = normalize_discovery_query(payload)
-    if not query_payload:
-        raise ValueError('请输入关键词')
-    save_query = as_bool(payload.get('save_query') if isinstance(payload, dict) else False, False)
-    discovery = github_runtime.discover_repos(
-        query=query_payload['query'],
-        language=query_payload['language'],
-        limit=query_payload['limit'],
-        auto_expand=query_payload['auto_expand'],
-        ranking_profile=query_payload['ranking_profile'],
-    )
-    return apply_discovery_result(query_payload, discovery, save_query=save_query)
-
-
-def run_saved_discovery_query(query_id: str) -> dict[str, object]:
-    clean_id = normalize(query_id)
-    if not clean_id:
-        raise ValueError('缺少搜索标识')
-    with DISCOVERY_LOCK:
-        query_payload = next((dict(item) for item in DISCOVERY_STATE.get('saved_queries', []) if item.get('id') == clean_id), None)
-    if not query_payload:
-        raise ValueError('未找到已保存搜索')
-    query_payload['save_query'] = False
-    return run_discovery_search(query_payload)
-
-
-def start_discovery_job(payload: object) -> dict[str, object]:
-    global ACTIVE_DISCOVERY_JOB_ID
-    query_payload = normalize_discovery_query(payload)
-    if not query_payload:
-        raise ValueError('请输入关键词')
-    save_query = as_bool(payload.get('save_query') if isinstance(payload, dict) else False, False)
-    eta_initial_seconds, eta_full_seconds = estimate_discovery_eta(query_payload)
-    job_hash = hashlib.sha1(f"{query_payload['id']}-{time.time()}".encode('utf-8')).hexdigest()[:8]
-    job_id = f"discover-{int(time.time() * 1000)}-{job_hash}"
-    created_at = iso_now()
-    with DISCOVERY_JOB_LOCK:
-        for other_id, other in DISCOVERY_JOBS.items():
-            if other_id == job_id:
-                continue
-            if normalize(other.get('status')) not in DISCOVERY_JOB_TERMINAL:
-                other['cancel_requested'] = True
-                other['message'] = '已有新的关键词发现开始，当前任务正在取消'
-        DISCOVERY_JOBS[job_id] = {
-            'id': job_id,
-            'status': 'queued',
-            'stage': 'queued',
-            'stage_label': DISCOVERY_JOB_STAGE_LABELS['queued'],
-            'message': '正在准备关键词发现任务',
-            'query': query_payload,
-            'save_query': save_query,
-            'cancel_requested': False,
-            'created_at': created_at,
-            'started_at': '',
-            'finished_at': '',
-            'progress': DISCOVERY_JOB_STAGE_PROGRESS['queued'],
-            'eta_initial_seconds': eta_initial_seconds,
-            'eta_full_seconds': eta_full_seconds,
-            'translated_query': '',
-            'generated_queries': [],
-            'related_terms': [],
-            'warnings': [],
-            'preview_results': [],
-            'error': '',
-            'discovery_state': None,
-            '_created_ts': time.time(),
-            '_started_ts': 0.0,
-            '_finished_ts': 0.0,
-        }
-        ACTIVE_DISCOVERY_JOB_ID = job_id
-        snapshot = build_discovery_job_snapshot(DISCOVERY_JOBS[job_id])
-
-    cancel_error = getattr(github_runtime, 'DiscoveryCancelledError', RuntimeError)
-
-    def worker():
-        def is_cancelled() -> bool:
-            with DISCOVERY_JOB_LOCK:
-                job = DISCOVERY_JOBS.get(job_id, {})
-                return as_bool(job.get('cancel_requested'), False)
-
-        def on_progress(stage: str, progress_payload: dict[str, object]) -> None:
-            update_discovery_job(
-                job_id,
-                status='running',
-                stage=stage,
-                message=build_discovery_job_message(stage, query_payload, progress_payload),
-                translated_query=progress_payload.get('translated_query'),
-                generated_queries=progress_payload.get('generated_queries'),
-                related_terms=progress_payload.get('related_terms'),
-                warnings=progress_payload.get('warnings'),
-                preview_results=progress_payload.get('results'),
-            )
-
-        try:
-            update_discovery_job(
-                job_id,
-                status='running',
-                stage='initial_search',
-                message=build_discovery_job_message('initial_search', query_payload),
-            )
-            discovery = github_runtime.discover_repos(
-                query=query_payload['query'],
-                language=query_payload['language'],
-                limit=query_payload['limit'],
-                auto_expand=query_payload['auto_expand'],
-                ranking_profile=query_payload['ranking_profile'],
-                progress_callback=on_progress,
-                is_cancelled=is_cancelled,
-            )
-            if is_cancelled():
-                raise cancel_error('关键词发现已取消')
-            discovery_state = apply_discovery_result(query_payload, discovery, save_query=save_query)
-            update_discovery_job(
-                job_id,
-                status='completed',
-                stage='completed',
-                message=build_discovery_job_message('completed', query_payload, {'results': discovery_state.get('last_results', [])}),
-                translated_query=discovery.get('translated_query'),
-                generated_queries=discovery.get('generated_queries'),
-                related_terms=discovery.get('related_terms'),
-                warnings=discovery.get('warnings'),
-                preview_results=discovery_state.get('last_results'),
-                discovery_state=discovery_state,
-            )
-        except cancel_error:
-            update_discovery_job(
-                job_id,
-                status='cancelled',
-                stage='cancelled',
-                message=build_discovery_job_message('cancelled', query_payload),
-            )
-        except Exception as exc:
-            update_discovery_job(
-                job_id,
-                status='failed',
-                stage='failed',
-                message=build_discovery_job_message('failed', query_payload, {'error': str(exc)}),
-                error=str(exc),
-            )
-
-    threading.Thread(target=worker, name=f'discovery-job-{job_id}', daemon=True).start()
-    return snapshot
-
-
-def start_saved_discovery_job(query_id: str) -> dict[str, object]:
-    clean_id = normalize(query_id)
-    if not clean_id:
-        raise ValueError('缺少搜索标识')
-    with DISCOVERY_LOCK:
-        query_payload = next((dict(item) for item in DISCOVERY_STATE.get('saved_queries', []) if item.get('id') == clean_id), None)
-    if not query_payload:
-        raise ValueError('未找到已保存搜索')
-    query_payload['save_query'] = False
-    return start_discovery_job(query_payload)
-
-
-def get_discovery_job(job_id: str) -> dict[str, object]:
-    clean_id = normalize(job_id)
-    if not clean_id:
-        active = export_active_discovery_job()
-        if active:
-            return active
-        raise ValueError('缺少 discovery job 标识')
-    with DISCOVERY_JOB_LOCK:
-        job = DISCOVERY_JOBS.get(clean_id)
-        if not isinstance(job, dict):
-            raise ValueError('未找到对应的 discovery job')
-        return build_discovery_job_snapshot(job)
-
-
-def cancel_discovery_job(job_id: str) -> dict[str, object]:
-    clean_id = normalize(job_id)
-    if not clean_id:
-        raise ValueError('缺少 discovery job 标识')
-    with DISCOVERY_JOB_LOCK:
-        job = DISCOVERY_JOBS.get(clean_id)
-        if not isinstance(job, dict):
-            raise ValueError('未找到对应的 discovery job')
-        status = normalize(job.get('status'))
-        if status in DISCOVERY_JOB_TERMINAL:
-            return build_discovery_job_snapshot(job)
-        job['cancel_requested'] = True
-        job['message'] = '已收到取消请求，当前阶段结束后会停止'
-        return build_discovery_job_snapshot(job)
-
-
 def set_repo_state(state_key: str, enabled: bool, repo: object) -> None:
-    if state_key not in {item['key'] for item in STATE_DEFS}:
-        raise ValueError('无效状态')
+    if state_key not in {item["key"] for item in STATE_DEFS}:
+        raise ValueError("无效状态")
     clean = normalize_repo(repo)
     if not clean:
-        raise ValueError('缺少仓库信息')
-    url = clean['url']
+        raise ValueError("缺少仓库信息")
+    url = clean["url"]
     with STATE_LOCK:
-        USER_STATE['repo_records'][url] = clean
+        USER_STATE["repo_records"][url] = clean
         USER_STATE[state_key] = [item for item in USER_STATE.get(state_key, []) if item != url]
         if enabled:
             USER_STATE[state_key].insert(0, url)
-        elif state_key == 'favorites':
-            USER_STATE.get('favorite_watch', {}).pop(url, None)
+        elif state_key == "favorites":
+            USER_STATE.get("favorite_watch", {}).pop(url, None)
         save_user_state()
+
 
 def sync_repo_records(snapshot: dict[str, object]) -> None:
     changed = False
     with STATE_LOCK:
         for period in PERIODS:
-            for repo in snapshot.get(period['key'], []):
+            for repo in snapshot.get(period["key"], []):
                 clean = normalize_repo(repo)
-                if clean and USER_STATE['repo_records'].get(clean['url']) != clean:
-                    USER_STATE['repo_records'][clean['url']] = clean
+                if clean and USER_STATE["repo_records"].get(clean["url"]) != clean:
+                    USER_STATE["repo_records"][clean["url"]] = clean
                     changed = True
         if changed:
             save_user_state()
 
 
-def current_port() -> int:
-    return RUNTIME_PORT or clamp_int(SETTINGS.get('port', 8080), 8080, 1, 65535)
-
-
 def choose_runtime_port() -> int:
-    preferred = clamp_int(SETTINGS.get('port', 8080), 8080, 1, 65535)
+    preferred = clamp_int(SETTINGS.get("port", 8080), 8080, 1, 65535)
     for port in [preferred, *range(preferred + 1, min(preferred + 20, 65535))]:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
             try:
@@ -838,64 +478,85 @@ def choose_runtime_port() -> int:
         return int(sock.getsockname()[1])
 
 
-def write_status(refreshing: bool, fetched_at: str = '', source: str = '', error: str = '') -> None:
-    atomic_write_json(STATUS_PATH, {'refreshing': refreshing, 'fetched_at': fetched_at, 'source': source, 'error': error, 'updated_at': iso_now()})
+def write_status(refreshing: bool, fetched_at: str = "", source: str = "", error: str = "") -> None:
+    atomic_write_json(
+        STATUS_PATH,
+        {
+            "refreshing": refreshing,
+            "fetched_at": fetched_at,
+            "source": source,
+            "error": error,
+            "updated_at": iso_now(),
+        },
+    )
 
 
 def write_html(snapshot: dict[str, object], note: str, pending: bool) -> None:
-    atomic_write_text(HTML_PATH, build_runtime_html(
-        app_name=APP_NAME,
-        snapshot=snapshot,
-        user_state=export_user_state(),
-        discovery_state=export_discovery_state(),
-        settings=sanitize_settings(False),
-        periods=PERIODS,
-        states=STATE_DEFS,
-        note=note,
-        pending=pending,
-    ))
+    atomic_write_text(
+        HTML_PATH,
+        build_runtime_html(
+            app_name=APP_NAME,
+            snapshot=snapshot,
+            user_state=export_user_state(),
+            discovery_state=export_discovery_state(),
+            settings=sanitize_settings(False),
+            periods=PERIODS,
+            states=STATE_DEFS,
+            note=note,
+            pending=pending,
+            control_token=CONTROL_TOKEN,
+        ),
+    )
 
 
 def refresh_once_locked(source: str, status_written: bool = False) -> dict[str, object]:
-    global CURRENT_SNAPSHOT
+    global CURRENT_SNAPSHOT, AUTO_SYNC_USER_STARS_DONE
+    started_ts = time.perf_counter()
     if not status_written:
-        write_status(True, str(CURRENT_SNAPSHOT.get('fetched_at', '')), source, '')
+        write_status(True, str(CURRENT_SNAPSHOT.get("fetched_at", "")), source, "")
     snapshot = github_runtime.fetch_all()
     save_snapshot(snapshot)
-    if normalize(SETTINGS.get('github_token', '')):
+    if normalize(SETTINGS.get("github_token", "")) and not AUTO_SYNC_USER_STARS_DONE:
+        AUTO_SYNC_USER_STARS_DONE = True
         try:
             github_runtime.sync_local_favorites_with_starred(github_runtime.fetch_user_starred())
         except Exception as exc:
-            logger.warning('同步 GitHub 星标到本地关注失败: %s', exc)
+            logger.warning("github_star_sync_failed source=%s error=%s", source, exc)
     sync_repo_records(snapshot)
     new_update_count = github_runtime.track_favorite_updates()
     CURRENT_SNAPSHOT = snapshot
-    write_html(snapshot, '已显示最新数据', False)
-    write_status(False, str(snapshot.get('fetched_at', '')), source, '')
+    write_html(snapshot, "已显示最新数据", False)
+    write_status(False, str(snapshot.get("fetched_at", "")), source, "")
+    logger.info(
+        "refresh_completed source=%s periods=%d new_favorite_updates=%d duration_ms=%d",
+        source,
+        sum(len(snapshot.get(period["key"], [])) for period in PERIODS),
+        new_update_count,
+        int((time.perf_counter() - started_ts) * 1000),
+    )
     if new_update_count:
-        shell_runtime.notify_tray(f'有 {new_update_count} 个收藏仓库发生了变化，请查看「收藏更新」面板。')
+        shell_runtime.notify_tray(f"有 {new_update_count} 个收藏仓库发生了变化，请查看“收藏更新”面板。")
     return snapshot
 
 
-def refresh_once(source: str = 'network') -> dict[str, object]:
-    global CURRENT_SNAPSHOT
+def refresh_once(source: str = "network") -> dict[str, object]:
     if not REFRESH_LOCK.acquire(blocking=False):
-        raise RuntimeError('后台正在刷新，请稍后')
+        raise RuntimeError("后台正在刷新，请稍后")
     try:
         return refresh_once_locked(source)
     finally:
         REFRESH_LOCK.release()
 
 
-def refresh_once_safe(source: str = 'network', lock_acquired: bool = False, status_written: bool = False) -> None:
+def refresh_once_safe(source: str = "network", lock_acquired: bool = False, status_written: bool = False) -> None:
     try:
         if lock_acquired:
             refresh_once_locked(source, status_written=status_written)
         else:
             refresh_once(source)
     except Exception as exc:
-        write_status(False, str(CURRENT_SNAPSHOT.get('fetched_at', '')), source, str(exc))
-        logger.error('后台刷新失败: %s', exc)
+        write_status(False, str(CURRENT_SNAPSHOT.get("fetched_at", "")), source, str(exc))
+        logger.error("refresh_failed source=%s error=%s", source, exc)
     finally:
         if lock_acquired:
             REFRESH_LOCK.release()
@@ -904,14 +565,14 @@ def refresh_once_safe(source: str = 'network', lock_acquired: bool = False, stat
 def start_refresh_async(source: str) -> bool:
     if not REFRESH_LOCK.acquire(blocking=False):
         return False
-    write_status(True, str(CURRENT_SNAPSHOT.get('fetched_at', '')), source, '')
+    write_status(True, str(CURRENT_SNAPSHOT.get("fetched_at", "")), source, "")
     try:
         threading.Thread(target=refresh_once_safe, args=(source, True, True), daemon=True).start()
         return True
     except Exception as exc:
         REFRESH_LOCK.release()
-        write_status(False, str(CURRENT_SNAPSHOT.get('fetched_at', '')), source, str(exc))
-        logger.error('启动后台刷新线程失败: %s', exc)
+        write_status(False, str(CURRENT_SNAPSHOT.get("fetched_at", "")), source, str(exc))
+        logger.error("refresh_thread_start_failed source=%s error=%s", source, exc)
         return False
 
 
@@ -930,7 +591,6 @@ shell_runtime = make_shell_runtime(
     normalize=normalize,
     quote=quote,
 )
-
 
 github_runtime = make_github_runtime(
     session=SESSION,
@@ -976,6 +636,26 @@ github_runtime = make_github_runtime(
     favorite_watch_max_checks_with_token=FAVORITE_WATCH_MAX_CHECKS_WITH_TOKEN,
 )
 
+discovery_job_runtime = make_discovery_job_runtime(
+    settings=SETTINGS,
+    normalize=normalize,
+    clamp_int=clamp_int,
+    as_bool=as_bool,
+    iso_now=iso_now,
+    normalize_repo=normalize_repo,
+    normalize_discovery_query=normalize_discovery_query,
+    apply_discovery_result=apply_discovery_result,
+    discovery_warning_list=discovery_warning_list,
+    github_runtime=github_runtime,
+    job_lock=DISCOVERY_JOB_LOCK,
+)
+estimate_discovery_eta = discovery_job_runtime.estimate_discovery_eta
+update_discovery_job = discovery_job_runtime.update_discovery_job
+run_discovery_search = discovery_job_runtime.run_discovery_search
+start_discovery_job = discovery_job_runtime.start_discovery_job
+get_discovery_job = discovery_job_runtime.get_discovery_job
+cancel_discovery_job = discovery_job_runtime.cancel_discovery_job
+export_active_discovery_job = discovery_job_runtime.export_active_discovery_job
 
 ServerAppHandler = make_app_handler(
     runtime_root=RUNTIME_ROOT,
@@ -991,6 +671,7 @@ ServerAppHandler = make_app_handler(
     export_user_state=export_user_state,
     import_user_state=import_user_state,
     normalize_settings=normalize_settings,
+    merge_settings=merge_settings,
     save_settings=save_settings,
     apply_runtime_settings=apply_runtime_settings,
     update_auto_start=update_auto_start,
@@ -1001,10 +682,8 @@ ServerAppHandler = make_app_handler(
     open_external_url=shell_runtime.open_external_url,
     clear_favorite_updates=github_runtime.clear_favorite_updates,
     start_discovery_job=start_discovery_job,
-    start_saved_discovery_job=start_saved_discovery_job,
     get_discovery_job=get_discovery_job,
     cancel_discovery_job=cancel_discovery_job,
-    delete_saved_discovery_query=delete_saved_discovery_query,
     clear_discovery_results=clear_discovery_results,
     export_discovery_state=export_discovery_state,
     export_active_discovery_job=export_active_discovery_job,
@@ -1014,41 +693,44 @@ ServerAppHandler = make_app_handler(
     validate_github_token=github_runtime.validate_github_token,
     open_main_window=shell_runtime.open_main_window,
     exit_app=shell_runtime.exit_app,
+    control_token_getter=lambda: CONTROL_TOKEN,
 )
 
 
 def refresh_loop(run_immediately: bool = False) -> None:
     if run_immediately:
-        logger.info('后台刷新最新数据...')
-        refresh_once_safe('startup')
-        logger.info('首次后台刷新完成')
-    while not APP_EXIT_EVENT.wait(clamp_int(SETTINGS.get('refresh_hours', 1), 1, 1, 24) * 3600):
-        logger.info('自动刷新中...')
-        refresh_once_safe('auto')
+        logger.info("startup_refresh_begin")
+        refresh_once_safe("startup")
+        logger.info("startup_refresh_complete")
+    while not APP_EXIT_EVENT.wait(clamp_int(SETTINGS.get("refresh_hours", 1), 1, 1, 24) * 3600):
+        logger.info("scheduled_refresh_begin")
+        refresh_once_safe("auto")
 
 
 def main() -> None:
-    global CURRENT_SNAPSHOT, RUNTIME_PORT
+    global CURRENT_SNAPSHOT, RUNTIME_PORT, CONTROL_TOKEN, AUTO_SYNC_USER_STARS_DONE
     configure_console()
     ensure_runtime_layout()
     if not acquire_single_instance():
         if not request_existing_instance_open():
-            show_message_box('GitSonar 已经在运行。')
+            show_message_box("GitSonar 已经在运行。")
         return
     server = None
-    logger.info('=' * 40)
-    logger.info('  %s', APP_NAME)
-    logger.info('=' * 40)
+    logger.info("=" * 40)
+    logger.info("  %s", APP_NAME)
+    logger.info("=" * 40)
     try:
         TRANSLATION_CACHE.clear()
         TRANSLATION_CACHE.update(load_translation_cache())
         with DETAIL_CACHE_LOCK:
             DETAIL_CACHE.clear()
             DETAIL_CACHE.update(load_detail_cache())
+        CONTROL_TOKEN = secrets.token_urlsafe(32)
+        AUTO_SYNC_USER_STARS_DONE = False
         SETTINGS.clear()
         SETTINGS.update(load_settings())
         apply_runtime_settings()
-        update_auto_start(bool(SETTINGS.get('auto_start')))
+        update_auto_start(bool(SETTINGS.get("auto_start")))
         USER_STATE.clear()
         USER_STATE.update(load_user_state())
         DISCOVERY_STATE.clear()
@@ -1056,17 +738,17 @@ def main() -> None:
         RUNTIME_PORT = choose_runtime_port()
         CURRENT_SNAPSHOT = load_snapshot()
         sync_repo_records(CURRENT_SNAPSHOT)
-        has_cache = any(CURRENT_SNAPSHOT.get(p['key']) for p in PERIODS)
-        note = '已加载本地缓存，后台刷新中...' if has_cache else '首次启动，正在后台抓取数据...'
+        has_cache = any(CURRENT_SNAPSHOT.get(period["key"]) for period in PERIODS)
+        note = "已加载本地缓存，后台刷新中..." if has_cache else "首次启动，正在后台抓取数据..."
         write_html(CURRENT_SNAPSHOT, note, True)
-        write_status(True, str(CURRENT_SNAPSHOT.get('fetched_at', '')), 'cache', '')
+        write_status(True, str(CURRENT_SNAPSHOT.get("fetched_at", "")), "cache", "")
         server = ThreadingHTTPServer((SERVER_HOST, current_port()), ServerAppHandler)
-        set_main_url(f'http://{LOCAL_HOST}:{current_port()}/trending.html?v={int(time.time())}')
+        set_main_url(f"http://{LOCAL_HOST}:{current_port()}/trending.html?v={int(time.time())}")
         write_runtime_state()
-        logger.info('本机访问: %s', get_main_url())
-        logger.info('每 %s 小时自动更新一次', SETTINGS.get('refresh_hours', 1))
+        logger.info("local_url=%s", get_main_url())
+        logger.info("refresh_interval_hours=%s", SETTINGS.get("refresh_hours", 1))
         threading.Thread(target=server.serve_forever, daemon=True).start()
-        threading.Thread(target=refresh_loop, kwargs={'run_immediately': True}, daemon=True).start()
+        threading.Thread(target=refresh_loop, kwargs={"run_immediately": True}, daemon=True).start()
         shell_runtime.open_main_window()
         shell_runtime.run_tray_loop()
     finally:
@@ -1079,5 +761,5 @@ def main() -> None:
             server.server_close()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

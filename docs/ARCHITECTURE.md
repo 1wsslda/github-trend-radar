@@ -4,7 +4,7 @@
 
 GitSonar 是一个面向中文用户的 GitHub 项目情报台。
 
-它不是单纯的“桌面版 Trending 页面”，而是一个长期常驻的本地工作台：负责抓取、筛选、跟踪、收藏、详情补全和前端展示。
+它不是单纯的“桌面版 Trending 页面”，而是一个本地工作台：负责抓取、筛选、跟踪、收藏、详情补全和前端展示。当前版本里，主窗口关闭就退出，单实例唤醒仍然保留。
 
 ## 运行链路
 
@@ -16,8 +16,6 @@ GitHub Trending + GitHub API
       Local HTTP Server
               ->
    Desktop Shell Window
-              ->
-         System Tray
 ```
 
 ## 当前目录结构
@@ -56,7 +54,7 @@ src/gitsonar/
 
 ### `src/gitsonar/__main__.py`
 
-应用入口。负责把 `python -m gitsonar` 和打包后的启动方式统一到 `runtime.app.main()`。
+应用入口。负责把仓库内直接运行 `python src/gitsonar/__main__.py` 和打包后的启动方式统一到 `runtime.app.main()`。
 
 ### `src/gitsonar/runtime/app.py`
 
@@ -120,7 +118,7 @@ src/gitsonar/
 
 ### `src/gitsonar/runtime/shell.py`
 
-桌面壳层。负责浏览器应用窗口、托盘菜单、外链打开、关闭监听和窗口唤醒。
+桌面壳层。负责浏览器应用窗口、外链打开、关闭监听和窗口唤醒。
 
 ### `src/gitsonar/runtime/utils.py`
 

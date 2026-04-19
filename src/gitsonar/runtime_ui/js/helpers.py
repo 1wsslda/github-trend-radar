@@ -26,6 +26,16 @@ function toast(message){
   window.__toastTimer = setTimeout(() => node.classList.remove("show"), duration);
 }
 
+function localApiOptions(options){
+  const next = {...(options || {})};
+  const headers = new Headers(next.headers || {});
+  if(controlToken){
+    headers.set(CONTROL_TOKEN_HEADER, controlToken);
+  }
+  next.headers = headers;
+  return next;
+}
+
 async function copyText(text, label){
   const value = String(text || "").trim();
   if(!value){
@@ -56,7 +66,7 @@ async function copyText(text, label){
 async function requestJson(url, options, errorMessage = "无法连接本地服务"){
   let resp;
   try{
-    resp = await fetch(url, options);
+    resp = await fetch(url, localApiOptions(options));
   }catch(_err){
     throw new Error(errorMessage);
   }

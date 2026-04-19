@@ -57,7 +57,33 @@ def make_settings_runtime(
         normalized["auto_start"] = as_bool(raw.get("auto_start"), False)
         return normalized
 
-    def sanitize_settings(include_sensitive: bool) -> dict[str, object]:
+    def merge_settings(payload: object, current: object | None = None) -> dict[str, object]:
+        raw = payload if isinstance(payload, dict) else {}
+        existing = normalize_settings(current if isinstance(current, dict) else SETTINGS)
+        merged = dict(existing)
+        merged["port"] = clamp_int(raw.get("port"), existing["port"], 1, 65535)
+        merged["refresh_hours"] = clamp_int(raw.get("refresh_hours"), existing["refresh_hours"], 1, 24)
+        merged["result_limit"] = clamp_int(raw.get("result_limit"), existing["result_limit"], 10, 100)
+        merged["default_sort"] = normalize(raw.get("default_sort", existing["default_sort"])) or existing["default_sort"]
+        merged["auto_start"] = as_bool(raw.get("auto_start"), existing["auto_start"])
+
+        if as_bool(raw.get("clear_github_token"), False):
+            merged["github_token"] = ""
+        elif "github_token" in raw:
+            token = decrypt_secret(normalize(raw.get("github_token", "")))
+            if token:
+                merged["github_token"] = token
+
+        if as_bool(raw.get("clear_proxy"), False):
+            merged["proxy"] = ""
+        elif "proxy" in raw:
+            proxy = normalize_proxy_url(raw.get("proxy", ""))
+            if proxy:
+                merged["proxy"] = proxy
+
+        return merged
+
+    def sanitize_settings(include_sensitive: bool = False) -> dict[str, object]:
         configured_port = clamp_int(SETTINGS.get("port", defaults["port"]), defaults["port"], 1, 65535)
         payload = {
             "port": configured_port,
@@ -68,13 +94,15 @@ def make_settings_runtime(
             "default_sort": SETTINGS.get("default_sort", defaults["default_sort"]),
             "auto_start": bool(SETTINGS.get("auto_start")),
             "has_github_token": bool(normalize(SETTINGS.get("github_token", ""))),
+            "has_proxy": bool(normalize_proxy_url(SETTINGS.get("proxy", ""))),
             "effective_proxy": proxy_state["effective"],
             "proxy_source": proxy_state["source"],
             "runtime_root": RUNTIME_ROOT,
         }
         if include_sensitive:
-            payload["github_token"] = SETTINGS.get("github_token", "")
-            payload["proxy"] = SETTINGS.get("proxy", "")
+            # Preserve the legacy response shape without returning plaintext secrets.
+            payload["github_token"] = ""
+            payload["proxy"] = ""
         return payload
 
     def save_settings(payload: dict[str, object]) -> None:
@@ -121,6 +149,7 @@ def make_settings_runtime(
 
     return SimpleNamespace(
         normalize_settings=normalize_settings,
+        merge_settings=merge_settings,
         sanitize_settings=sanitize_settings,
         save_settings=save_settings,
         load_settings=load_settings,

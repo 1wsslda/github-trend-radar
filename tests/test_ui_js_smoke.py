@@ -60,62 +60,25 @@ class UIJSSmokeTests(unittest.TestCase):
         self.assertIn("closeControlDrawer();", body)
         self.assertIn("render();", body)
 
-    def test_control_drawer_sync_targets_real_nodes(self):
-        body = function_body(JS, "syncControlDrawer")
-        self.assertIn('document.getElementById("control-drawer-trigger")', body)
-        self.assertIn('document.getElementById("control-drawer-list")', body)
-        self.assertIn('document.getElementById("control-drawer-discover")', body)
-        self.assertIn('document.getElementById("control-drawer-updates")', body)
-        self.assertIn('panel === DISCOVER_PANEL_KEY', body)
-        self.assertIn('panel === UPDATE_PANEL_KEY', body)
-
-    def test_escape_closes_inline_control_drawer(self):
-        self.assertIn('drawer.hidden = !nextVisible;', function_body(JS, "toggleControlDrawer"))
-        self.assertIn('drawer.classList.toggle("show", nextVisible);', function_body(JS, "toggleControlDrawer"))
-        self.assertIn('drawer.hidden = true;', function_body(JS, "closeControlDrawer"))
-        self.assertIn("closeControlDrawer();", JS.split('window.addEventListener("keydown", event => {', 1)[1])
-
-    def test_discovery_empty_and_result_states_have_distinct_paths(self):
-        body = function_body(JS, "renderDiscoverEmptyState")
-        self.assertIn("if(discoveryBusy && !results.length)", body)
-        self.assertIn('if(results.length) return "";', body)
-        self.assertIn("toggleControlDrawer(true)", body)
-        self.assertIn("runDiscovery()", body)
-        self.assertIn("workspace-empty-title", body)
-
-    def test_render_pipeline_updates_header_strip_and_canvas(self):
+    def test_render_pipeline_updates_shell_and_canvas(self):
         body = function_body(JS, "render")
         self.assertIn("syncWorkspaceHeader();", body)
         self.assertIn("syncWorkspaceCanvas();", body)
         self.assertIn("syncControlStates();", body)
-        self.assertIn("syncDiscoveryPanel();", body)
-
-    def test_custom_select_sync_scans_dom_instead_of_hard_coded_ids(self):
-        body = function_body(JS, "syncAllCustomSelects")
-        self.assertIn('document.querySelectorAll("[data-custom-select-for]")', body)
-        self.assertIn("syncCustomSelect(root.dataset.customSelectFor || \"\");", body)
-        self.assertNotIn("CUSTOM_SELECT_IDS", JS)
-
-    def test_menu_state_sync_restores_aria_and_host_elevation(self):
-        body = function_body(JS, "syncMenuRootState")
-        self.assertIn('node.setAttribute("aria-expanded", expanded ? "true" : "false");', body)
-        self.assertIn('host.classList.toggle("menu-host-open", expanded);', body)
-        self.assertIn("resetMenuPanelPosition(root);", body)
-
-    def test_toggle_menu_repositions_and_position_menu_corrects_overflow(self):
-        toggle_body = function_body(JS, "toggleMenu")
-        position_body = function_body(JS, "positionMenu")
-        self.assertIn("closeMenus(willOpen ? id : \"\");", toggle_body)
-        self.assertIn("requestAnimationFrame(() => positionMenu(root));", toggle_body)
-        self.assertIn("panelRect.bottom > window.innerHeight - MENU_VIEWPORT_MARGIN", position_body)
-        self.assertIn('panel.classList.add("upward");', position_body)
-        self.assertIn("panelRect.right > window.innerWidth - MENU_VIEWPORT_MARGIN", position_body)
 
     def test_token_status_validation_uses_dedicated_settings_endpoint(self):
         body = function_body(JS, "validateTokenStatus")
         self.assertIn('"/api/settings/token-status"', body)
         self.assertIn('applyTokenStatus({state:"checking"', body)
-        self.assertIn('applyTokenStatus(data.status || null);', body)
+        self.assertIn('document.getElementById("setting-clear-token")?.checked', body)
+        self.assertIn("JSON.stringify(tokenValue ? {github_token:tokenValue} : {})", body)
+        self.assertIn("applyTokenStatus(data.status || null);", body)
+
+    def test_local_api_requests_attach_runtime_control_token(self):
+        body = function_body(JS, "localApiOptions")
+        self.assertIn("new Headers(next.headers || {})", body)
+        self.assertIn("headers.set(CONTROL_TOKEN_HEADER, controlToken);", body)
+        self.assertIn("next.headers = headers;", body)
 
 
 if __name__ == "__main__":

@@ -20,6 +20,12 @@ scripts/build_all_click.cmd
 - 文件：`scripts/build_all_click.cmd`
 - 适合：日常更新代码后快速重新产出 EXE 和安装包
 
+### 仓库内直接运行
+
+```powershell
+python src/gitsonar/__main__.py
+```
+
 ### 仅打包 EXE
 
 ```powershell
@@ -47,7 +53,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\build_setup.ps1
 当前项目主要面向 Windows。
 
 - Windows 11
-- Python 3.14
+- Python 3.12+
 - Inno Setup 6
 
 Python 依赖较少，核心包括：
@@ -57,6 +63,11 @@ Python 依赖较少，核心包括：
 - `pystray`
 - `Pillow`
 - `PyInstaller`
+
+## 验证命令
+
+- `python scripts/verify_runtime.py`
+- `python -m unittest discover -s tests -q`
 
 ## 脚本行为说明
 

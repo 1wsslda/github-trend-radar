@@ -5,6 +5,7 @@ import base64
 import ctypes
 import ctypes.wintypes
 import json
+import logging
 import os
 import re
 import socket
@@ -13,6 +14,7 @@ from html import escape
 from urllib.parse import urlparse
 
 _DPAPI_PREFIX = 'dpapi:'
+logger = logging.getLogger(__name__)
 
 
 class _DataBlob(ctypes.Structure):
@@ -125,10 +127,13 @@ def atomic_write_text(path: str, content: str) -> None:
 
 
 def load_json_file(path: str, default: object) -> object:
+    if not os.path.exists(path):
+        return default
     try:
         with open(path, encoding='utf-8') as f:
             return json.load(f)
-    except Exception:
+    except Exception as exc:
+        logger.warning("json_load_failed path=%s error=%s", path, exc)
         return default
 
 

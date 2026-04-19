@@ -25,11 +25,15 @@ function closeControlDrawer(){
 function toggleControlDrawer(force){
   const drawer = document.getElementById("control-drawer");
   if(!drawer) return;
+  const trigger = document.getElementById("control-drawer-trigger");
+  if(trigger?.hidden){
+    closeControlDrawer();
+    return;
+  }
   const nextVisible = typeof force === "boolean" ? force : !isControlDrawerVisible();
   closeMenus();
   drawer.hidden = !nextVisible;
   drawer.classList.toggle("show", nextVisible);
-  const trigger = document.getElementById("control-drawer-trigger");
   if(trigger){
     trigger.classList.toggle("active", nextVisible);
     trigger.setAttribute("aria-expanded", nextVisible ? "true" : "false");
@@ -127,6 +131,35 @@ async function analyzeCompare(){
 
 let tokenStatusRequestId = 0;
 
+function proxySourceLabel(source){
+  const key = String(source || "").trim();
+  if(key === "configured") return "已配置";
+  if(key === "auto") return "自动探测";
+  if(key === "auto-fallback") return "配置不可用，已自动回退";
+  return "未启用";
+}
+
+function syncSensitiveSettingHints(){
+  const tokenNode = document.getElementById("setting-token-presence");
+  const proxyNode = document.getElementById("setting-proxy-presence");
+  const clearToken = document.getElementById("setting-clear-token")?.checked;
+  const clearProxy = document.getElementById("setting-clear-proxy")?.checked;
+  if(tokenNode){
+    tokenNode.textContent = clearToken
+      ? "当前已标记为保存时清空 GitHub Token。"
+      : (settings.has_github_token ? "当前已配置 GitHub Token；留空保存会保留现有值。" : "当前未配置 GitHub Token；留空不会新增。");
+  }
+  if(proxyNode){
+    proxyNode.textContent = clearProxy
+      ? "当前已标记为保存时清空代理。"
+      : (
+        settings.has_proxy
+          ? "当前已配置代理；留空保存会保留现有值。"
+          : (settings.effective_proxy ? `当前自动代理 ${settings.effective_proxy}；留空时会继续自动探测。` : "当前未配置代理，留空时会继续自动探测。")
+      );
+  }
+}
+
 function applyTokenStatus(status){
   const node = document.getElementById("setting-token-status");
   if(!node) return;
@@ -137,6 +170,12 @@ function applyTokenStatus(status){
 }
 
 async function validateTokenStatus(tokenOverride){
+  if(document.getElementById("setting-clear-token")?.checked){
+    applyTokenStatus({state:"idle", message:"当前会在保存时清空 GitHub Token。"});
+    return null;
+  }
+  const inputValue = typeof tokenOverride === "string" ? tokenOverride : (document.getElementById("setting-token")?.value || "");
+  const tokenValue = String(inputValue || "").trim();
   const requestId = ++tokenStatusRequestId;
   applyTokenStatus({state:"checking", message:"正在校验 GitHub Token..."});
   try{
@@ -145,7 +184,7 @@ async function validateTokenStatus(tokenOverride){
       {
         method:"POST",
         headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({github_token:typeof tokenOverride === "string" ? tokenOverride : (document.getElementById("setting-token")?.value || "")}),
+        body:JSON.stringify(tokenValue ? {github_token:tokenValue} : {}),
       },
       "校验 GitHub Token 失败",
     );
@@ -168,15 +207,18 @@ async function openSettings(){
     const {resp, data} = await requestJson("/api/settings", {cache:"no-store"}, "读取设置失败");
     if(resp.ok) settings = data;
   }catch(_err){}
-  document.getElementById("setting-token").value = settings.github_token || "";
-  document.getElementById("setting-proxy").value = settings.proxy || "";
+  document.getElementById("setting-token").value = "";
+  document.getElementById("setting-proxy").value = "";
+  document.getElementById("setting-clear-token").checked = false;
+  document.getElementById("setting-clear-proxy").checked = false;
   document.getElementById("setting-refresh-hours").value = settings.refresh_hours || 1;
   document.getElementById("setting-result-limit").value = settings.result_limit || 25;
   document.getElementById("setting-port").value = settings.port || 8080;
   document.getElementById("setting-auto-start").checked = !!settings.auto_start;
+  syncSensitiveSettingHints();
   document.getElementById("settings-runtime-hint").textContent = `当前生效端口 ${settings.effective_port || settings.port || 8080} · 当前代理 ${settings.effective_proxy || "未启用"} · 关闭主窗口时会直接退出程序 · 程序不提供 VPN${settings.restart_required ? " · 修改端口后需重启生效" : ""}`;
   setOverlayVisible("settings-modal", true);
-  validateTokenStatus(settings.github_token || "");
+  validateTokenStatus();
 }
 
 function closeSettings(){
@@ -186,7 +228,9 @@ function closeSettings(){
 async function saveSettings(){
   const payload = {
     github_token:document.getElementById("setting-token").value,
+    clear_github_token:document.getElementById("setting-clear-token").checked,
     proxy:document.getElementById("setting-proxy").value,
+    clear_proxy:document.getElementById("setting-clear-proxy").checked,
     refresh_hours:Number(document.getElementById("setting-refresh-hours").value || 1),
     result_limit:Number(document.getElementById("setting-result-limit").value || 25),
     port:Number(document.getElementById("setting-port").value || 8080),

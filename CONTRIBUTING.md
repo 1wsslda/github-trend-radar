@@ -20,7 +20,7 @@ For a step-by-step maintainer guide in Chinese, see [docs/MAINTENANCE.md](docs/M
 
 ## Development Notes
 
-- Main app entry: `src/GitSonar.pyw`
+- Main app entry: `src/gitsonar/__main__.py`
 - Package source: `src/gitsonar/`
 - Build scripts: `scripts/`
 - Installer config: `packaging/GitSonar.iss`
@@ -37,10 +37,12 @@ For a step-by-step maintainer guide in Chinese, see [docs/MAINTENANCE.md](docs/M
 
 Pick the checks that match your change:
 
-- `python -m py_compile src\\gitsonar\\runtime_ui.py`
-- App launch smoke test on Windows
+- `python scripts/verify_runtime.py`
+- `python -m unittest discover -s tests -q`
+- `python -m py_compile src\\gitsonar\\__main__.py src\\gitsonar\\runtime\\*.py src\\gitsonar\\runtime_ui\\*.py src\\gitsonar\\runtime_ui\\js\\*.py`
+- App launch smoke test on Windows with `python src/gitsonar/__main__.py`
 - Packaging script smoke test when touching installer or build files
-- Manual verification for UI, tray behavior, settings, and GitHub connectivity flows
+- Manual verification for UI, single-instance wake-up, settings, and GitHub connectivity flows
 
 ## Security
 

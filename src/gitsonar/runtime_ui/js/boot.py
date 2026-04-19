@@ -55,49 +55,78 @@ document.getElementById("language").addEventListener("change", event => {
   render();
 });
 
-document.querySelectorAll("#discover-query, #discover-query-drawer").forEach(node => {
+document.querySelectorAll("#discover-query").forEach(node => {
+  node.addEventListener("focus", () => {
+    openDiscoverySuggestions();
+  });
   node.addEventListener("input", event => {
     discoverDraft.query = event.target.value;
-    saveDiscoverDraft();
+    openDiscoverySuggestions();
     syncDiscoverDraftUI();
   });
-});
-
-document.getElementById("discover-language").addEventListener("input", event => {
-  discoverDraft.language = event.target.value;
-  saveDiscoverDraft();
+  node.addEventListener("blur", () => {
+    scheduleCloseDiscoverySuggestions();
+  });
+  node.addEventListener("keydown", event => {
+    if(event.key === "Escape"){
+      closeDiscoverySuggestions();
+      return;
+    }
+    if(event.key !== "Enter" || event.shiftKey || event.altKey || event.ctrlKey || event.metaKey) return;
+    event.preventDefault();
+    closeDiscoverySuggestions();
+    runDiscovery();
+  });
 });
 
 document.getElementById("discover-limit").addEventListener("input", event => {
   const nextValue = Number(event.target.value || 20);
   discoverDraft.limit = Number.isFinite(nextValue) ? Math.max(5, Math.min(50, nextValue)) : 20;
-  saveDiscoverDraft();
+  syncDiscoverDraftUI();
 });
 
 document.getElementById("discover-ranking-profile").addEventListener("change", event => {
   discoverDraft.rankingProfile = normalizeDiscoveryRankingProfile(event.target.value);
-  saveDiscoverDraft();
+  syncDiscoverDraftUI();
 });
 
 document.getElementById("discover-auto-expand").addEventListener("change", event => {
   discoverDraft.autoExpand = !!event.target.checked;
-  saveDiscoverDraft();
+  syncDiscoverDraftUI();
 });
 
-document.getElementById("discover-save-query").addEventListener("change", event => {
-  discoverDraft.saveQuery = !!event.target.checked;
-  saveDiscoverDraft();
-});
 
 document.getElementById("setting-token").addEventListener("input", () => {
+  document.getElementById("setting-clear-token").checked = false;
+  syncSensitiveSettingHints();
   applyTokenStatus({
     state:"idle",
     message:"输入已变更，离开输入框后会重新校验 GitHub Token。",
   });
 });
 
-document.getElementById("setting-token").addEventListener("blur", event => {
-  validateTokenStatus(event.target.value || "");
+document.getElementById("setting-token").addEventListener("blur", () => {
+  validateTokenStatus();
+});
+
+document.getElementById("setting-clear-token").addEventListener("change", event => {
+  if(event.target.checked){
+    document.getElementById("setting-token").value = "";
+  }
+  syncSensitiveSettingHints();
+  validateTokenStatus();
+});
+
+document.getElementById("setting-proxy").addEventListener("input", () => {
+  document.getElementById("setting-clear-proxy").checked = false;
+  syncSensitiveSettingHints();
+});
+
+document.getElementById("setting-clear-proxy").addEventListener("change", event => {
+  if(event.target.checked){
+    document.getElementById("setting-proxy").value = "";
+  }
+  syncSensitiveSettingHints();
 });
 
 document.querySelectorAll("#state-filter-seg [data-value]").forEach(btn => {
@@ -133,18 +162,22 @@ document.addEventListener("click", event => {
     return;
   }
   if(!event.target.closest("[data-menu-id]")) closeMenus();
+  if(!event.target.closest(".discover-query-field")) closeDiscoverySuggestions();
 });
 
 window.addEventListener("resize", () => {
   repositionOpenMenus();
+  syncExpandableDescriptions();
 });
 
-document.addEventListener("scroll", () => {
+document.addEventListener("scroll", event => {
+  if(shouldSkipMenuScrollReposition(event.target)) return;
   repositionOpenMenus();
 }, true);
 
 window.addEventListener("keydown", event => {
   if(event.key !== "Escape") return;
+  closeDiscoverySuggestions();
   closeMenus();
   closeControlDrawer();
   closeSettings();

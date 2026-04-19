@@ -58,7 +58,7 @@ async function openAiPrompts(prompts){
 
 async function exportUserState(){
   try{
-    const resp = await fetch("/api/export", {cache:"no-store"});
+    const resp = await fetch("/api/export", localApiOptions({cache:"no-store"}));
     if(!resp.ok) throw new Error("导出失败");
     const blob = await resp.blob();
     const url = URL.createObjectURL(blob);

@@ -8,7 +8,7 @@
 
 1. 不要再往 `runtime/app.py`、`runtime_ui/assets.py`、`runtime_github/__init__.py` 里继续堆大段新逻辑。
 2. 先按职责找模块，再动代码；找不到入口时先看 `docs/CODEMAP.md`。
-3. 提交前至少跑 `py_compile` 和 `unittest discover`。
+3. 提交前至少跑 `python scripts/verify_runtime.py` 和 `python -m unittest discover -s tests -q`。
 
 ## 先看哪里
 
@@ -53,7 +53,7 @@
 
 接口背后的业务实现一般来自 `runtime/app.py` 注入的方法，而不是直接写死在 handler 里。
 
-### 改窗口、托盘、外部打开行为
+### 改窗口、外部打开行为
 
 看：
 
@@ -118,7 +118,7 @@ python -m unittest discover -s tests -q
 这是默认必跑项：
 
 ```powershell
-python -m py_compile src\gitsonar\__main__.py src\gitsonar\runtime\app.py src\gitsonar\runtime\http.py src\gitsonar\runtime\shell.py tests\test_runtime_ui_assets.py tests\test_ui_js_smoke.py tests\test_runtime_github_exports.py
+python scripts/verify_runtime.py
 python -m unittest discover -s tests -q
 ```
 
@@ -144,7 +144,7 @@ git diff --cached --stat
 统一入口是：
 
 ```powershell
-python -m gitsonar
+python src/gitsonar/__main__.py
 ```
 
 打包和运行都以 `src/gitsonar/__main__.py` 为准，不再使用旧的 `src/GitSonar.pyw`。
@@ -196,6 +196,6 @@ python -m gitsonar
 至少确认：
 
 1. `python -m unittest discover -s tests -q` 通过。
-2. `python -m gitsonar` 能正常启动。
-3. 设置保存、后台刷新、托盘唤醒、详情抽屉、收藏同步这几条主路径没有回退。
+2. `python src/gitsonar/__main__.py` 能正常启动。
+3. 设置保存、后台刷新、单实例唤醒、详情抽屉、收藏同步这几条主路径没有回退。
 4. 文档里的路径没有再写旧的单文件运行时结构。

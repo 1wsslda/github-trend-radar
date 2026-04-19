@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 JS = r"""const INITIAL = __PAYLOAD__;
+const CONTROL_TOKEN_HEADER = "X-GitSonar-Control";
+const controlToken = String(INITIAL.controlToken || "").trim();
 const DISCOVER_PANEL_KEY = "discover";
 const UPDATE_PANEL_KEY = "favorite-updates";
 const OVERLAY_IDS = ["settings-modal", "detail-modal", "compare-modal"];
@@ -26,6 +28,14 @@ const AI_TARGET_LABELS = {
   copy:"仅复制提示词",
 };
 const VALID_AI_TARGETS = new Set(["web","desktop","gemini_web","copy"]);
+const LEGACY_DISCOVER_DRAFT_KEYS = [
+  "gtr-discover-query",
+  "gtr-discover-language",
+  "gtr-discover-limit",
+  "gtr-discover-auto-expand",
+  "gtr-discover-ranking-profile",
+  "gtr-discover-save-query",
+];
 const DISCOVERY_RANKING_LABELS = {
   balanced:"综合排序",
   hot:"热门优先",
@@ -157,11 +167,44 @@ function normalizeUpdateEntry(payload){
   };
 }
 
+function normalizeDiscoveryQueryPayload(payload){
+  const raw = payload && typeof payload === "object" ? payload : {};
+  const query = String(raw.query || "").trim();
+  if(!query) return {};
+  const limit = Number(raw.limit ?? settings.result_limit ?? 20);
+  return {
+    id:String(raw.id || "").trim(),
+    query,
+    limit:Number.isFinite(limit) ? Math.max(5, Math.min(50, limit)) : 20,
+    auto_expand:raw.auto_expand !== false,
+    ranking_profile:normalizeDiscoveryRankingProfile(raw.ranking_profile),
+    created_at:String(raw.created_at || "").trim(),
+    last_run_at:String(raw.last_run_at || "").trim(),
+  };
+}
+
+function normalizeDiscoveryStatePayload(payload){
+  const raw = payload && typeof payload === "object" ? payload : {};
+  return {
+    remembered_query:normalizeDiscoveryQueryPayload(raw.remembered_query),
+    last_query:normalizeDiscoveryQueryPayload(raw.last_query),
+    last_results:Array.isArray(raw.last_results) ? raw.last_results : [],
+    last_related_terms:Array.isArray(raw.last_related_terms) ? raw.last_related_terms.filter(Boolean).slice(0, 12) : [],
+    last_generated_queries:Array.isArray(raw.last_generated_queries) ? raw.last_generated_queries.filter(Boolean).slice(0, 12) : [],
+    last_translated_query:String(raw.last_translated_query || "").trim(),
+    last_warnings:Array.isArray(raw.last_warnings) ? raw.last_warnings.filter(Boolean).slice(0, 8) : [],
+    last_run_at:String(raw.last_run_at || "").trim(),
+    last_error:String(raw.last_error || "").trim(),
+  };
+}
+
 function normalizeRuntimePayload(){
   if(!snapshot || typeof snapshot !== "object") snapshot = {};
   if(!userState || typeof userState !== "object") userState = {};
   if(!userState.repo_records || typeof userState.repo_records !== "object") userState.repo_records = {};
   if(!Array.isArray(userState.favorite_updates)) userState.favorite_updates = [];
+  if(!discoveryState || typeof discoveryState !== "object") discoveryState = {};
+  discoveryState = normalizeDiscoveryStatePayload(discoveryState);
 
   if(Array.isArray(snapshot.periods)){
     snapshot.periods.forEach(period => {
@@ -216,24 +259,20 @@ function saveSelectedUrls(){
   localStorage.setItem("gtr-selected", JSON.stringify([...selectedUrls]));
 }
 
-function loadDiscoverDraft(){
-  const lastQuery = INITIAL.discoveryState?.last_query || {};
-  const limit = Number(localStorage.getItem("gtr-discover-limit") || lastQuery.limit || settings.result_limit || 20);
-  return {
-    query:localStorage.getItem("gtr-discover-query") || lastQuery.query || "",
-    language:localStorage.getItem("gtr-discover-language") || lastQuery.language || "",
-    limit:Number.isFinite(limit) ? Math.max(5, Math.min(50, limit)) : 20,
-    autoExpand:(localStorage.getItem("gtr-discover-auto-expand") ?? String(lastQuery.auto_expand ?? true)) !== "false",
-    rankingProfile:normalizeDiscoveryRankingProfile(localStorage.getItem("gtr-discover-ranking-profile") || lastQuery.ranking_profile || "balanced"),
-    saveQuery:localStorage.getItem("gtr-discover-save-query") === "true",
-  };
+function clearLegacyDiscoverDraftStorage(){
+  LEGACY_DISCOVER_DRAFT_KEYS.forEach(key => localStorage.removeItem(key));
 }
 
-function saveDiscoverDraft(){
-  localStorage.setItem("gtr-discover-query", discoverDraft.query || "");
-  localStorage.setItem("gtr-discover-language", discoverDraft.language || "");
-  localStorage.setItem("gtr-discover-limit", String(discoverDraft.limit || 20));
-  localStorage.setItem("gtr-discover-auto-expand", discoverDraft.autoExpand ? "true" : "false");
-  localStorage.setItem("gtr-discover-ranking-profile", normalizeDiscoveryRankingProfile(discoverDraft.rankingProfile));
-  localStorage.setItem("gtr-discover-save-query", discoverDraft.saveQuery ? "true" : "false");
-}"""
+function loadDiscoverDraft(){
+  clearLegacyDiscoverDraftStorage();
+  const rememberedQuery = normalizeDiscoveryQueryPayload(INITIAL.discoveryState?.remembered_query || {});
+  const limit = Number(rememberedQuery.limit || settings.result_limit || 20);
+  return {
+    query:rememberedQuery.query || "",
+    limit:Number.isFinite(limit) ? Math.max(5, Math.min(50, limit)) : 20,
+    autoExpand:rememberedQuery.auto_expand !== false,
+    rankingProfile:normalizeDiscoveryRankingProfile(rememberedQuery.ranking_profile || "balanced"),
+    saveQuery:false,
+  };
+}
+"""

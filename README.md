@@ -6,7 +6,7 @@
 
 ![GitSonar Screen](assets/screenshots/trending.png)
 
-GitSonar is not just a Trending viewer. It combines trend discovery, keyword discovery, local workflow states, update tracking, repo detail reading, side-by-side comparison, and ChatGPT prompt handoff in one tray-friendly desktop workspace.
+GitSonar is not just a Trending viewer. It combines trend discovery, keyword discovery, local workflow states, update tracking, repo detail reading, side-by-side comparison, and ChatGPT prompt handoff in one desktop workspace.
 
 ## Workflow
 
@@ -28,19 +28,19 @@ GitSonar is not just a Trending viewer. It combines trend discovery, keyword dis
 - Repo detail drawer and README summary
 - Side-by-side repo comparison
 - AI prompt handoff to ChatGPT web / desktop, Gemini web, or copy-only; multi-target supported
-- Tray, wake-up, close behavior, auto start, proxy support, and local token storage
+- Single-instance wake-up, close-to-exit behavior, auto start, proxy support, and local token storage
 
 ## Who It Is For
 
 - People who follow GitHub projects over time, not just once
 - Builders, researchers, product people, and heavy open-source users
-- Anyone who wants a long-running workspace instead of a one-off Trending page
+- Anyone who wants a desktop workspace instead of a one-off Trending page
 
 ## Not Just A Trending Viewer
 
 - A viewer helps you discover repos. GitSonar keeps the follow-up workflow on desktop.
 - GitHub stars are only one signal. GitSonar adds local states, update tracking, detail reading, compare, and judgement tools.
-- The app is built to stay in the tray, refresh in the background, and come back when needed.
+- The app keeps the follow-up workflow on desktop with single-instance wake-up and explicit relaunch when needed.
 
 ## Terms
 
@@ -62,8 +62,13 @@ GitSonar is not just a Trending viewer. It combines trend discovery, keyword dis
 
 ### Developers
 
+Requirements:
+
+- Windows
+- Python 3.12+
+
 ```powershell
-python -m pip install -r requirements.txt pyinstaller
+python -m pip install -r requirements.txt
 python src/gitsonar/__main__.py
 powershell -ExecutionPolicy Bypass -File .\scripts\build_exe.ps1
 powershell -ExecutionPolicy Bypass -File .\scripts\build_setup.ps1

@@ -27,6 +27,7 @@ def make_startup_runtime(
     load_json_file,
     atomic_write_json,
     current_port_getter,
+    control_token_getter=None,
 ):
     APP_NAME = app_name
     APP_SLUG = app_slug
@@ -38,6 +39,7 @@ def make_startup_runtime(
     LEGACY_RUNTIME_STATE_PATH = legacy_runtime_state_path
     LOCAL_HOST = local_host
     LOCAL_CONTROL = local_control
+    control_token_getter = control_token_getter or (lambda: "")
     state = {
         "browser_process": None,
         "browser_hidden": False,
@@ -110,6 +112,7 @@ def make_startup_runtime(
                 "pid": os.getpid(),
                 "port": current_port(),
                 "url": state["main_url"],
+                "control_token": normalize(control_token_getter()),
                 "browser_pid": pid,
                 "browser_hidden": bool(state["browser_hidden"]),
                 "updated_at": iso_now(),
@@ -166,10 +169,16 @@ def make_startup_runtime(
                 continue
             port = clamp_int(runtime.get('port'), 0, 1, 65535)
             url = normalize(runtime.get('url'))
+            control_token = normalize(runtime.get('control_token'))
+            headers = {'X-GitSonar-Control': control_token} if control_token else None
             for _ in range(8):
                 if port:
                     try:
-                        if LOCAL_CONTROL.post(f'http://{LOCAL_HOST}:{port}/api/window/open', timeout=2).ok:
+                        if LOCAL_CONTROL.post(
+                            f'http://{LOCAL_HOST}:{port}/api/window/open',
+                            headers=headers,
+                            timeout=2,
+                        ).ok:
                             return True
                     except Exception:
                         pass

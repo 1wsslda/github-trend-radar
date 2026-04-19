@@ -31,7 +31,6 @@ HTML_BODY = """</style>
     </div>
     <div class="workspace-status">
       <div class="status-card">
-        <span class="status-label">Runtime</span>
         <div class="runtime-note" id="note"></div>
       </div>
       <div class="nav-actions">
@@ -65,7 +64,7 @@ HTML_BODY = """</style>
               <line x1="20" y1="20" x2="16.65" y2="16.65"></line>
             </svg>
           </span>
-          <input id="search" class="field-input" type="search" placeholder="搜索仓库 / 描述 / 语言 / 更新内容">
+          <input id="search" class="field-input" type="search" placeholder="搜索仓库 / 描述 / 语言 / 更新内容" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false">
         </label>
       </div>
 
@@ -94,17 +93,69 @@ HTML_BODY = """</style>
       </div>
 
       <div class="discover-query-row" id="discover-query-row" hidden>
-        <label class="field search-field discover-query-field">
-          <span class="field-label">关键词</span>
-          <span class="field-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="11" cy="11" r="7"></circle>
-              <line x1="20" y1="20" x2="16.65" y2="16.65"></line>
-            </svg>
-          </span>
-          <input id="discover-query" class="field-input" type="search" placeholder="例如 agent / AI agent framework / 图数据库">
-        </label>
-        <button class="action-primary" id="discover-run-btn" type="button" onclick="runDiscovery()">开始搜索</button>
+        <div class="discover-query-main">
+          <label class="field search-field discover-query-field">
+            <span class="field-label">关键词</span>
+            <span class="field-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="7"></circle>
+                <line x1="20" y1="20" x2="16.65" y2="16.65"></line>
+              </svg>
+            </span>
+            <input id="discover-query" class="field-input" type="search" placeholder="例如 agent / AI agent framework / 图数据库" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" aria-autocomplete="list" aria-controls="discover-query-suggest" aria-expanded="false">
+            <div class="discover-query-suggest" id="discover-query-suggest" hidden></div>
+          </label>
+          <button class="action-primary" id="discover-run-btn" type="button" onclick="runDiscovery()">开始搜索</button>
+        </div>
+        <div class="discover-query-support">
+          <div class="discover-filter-row">
+            <section class="discover-range-card">
+              <span class="field-label">结果与扩词</span>
+              <div class="discover-range-card-grid">
+                <label class="field">
+                  <span class="field-label">结果数</span>
+                  <input id="discover-limit" class="field-input" type="number" min="5" max="50" step="1">
+                </label>
+                <label class="checkline checkline--stacked discover-expand-card">
+                  <input id="discover-auto-expand" type="checkbox">
+                  <span class="checkline-copy">
+                    <span class="checkline-title">自动扩词</span>
+                    <span class="checkline-note">补充相近表达，优先扩大召回。</span>
+                  </span>
+                </label>
+                <label class="checkline checkline--stacked discover-expand-card">
+                  <input id="discover-save-query" type="checkbox">
+                  <span class="checkline-copy">
+                    <span class="checkline-title">保存本次搜索</span>
+                    <span class="checkline-note">保留当前关键词与排序偏好，下次可直接复用。</span>
+                  </span>
+                </label>
+              </div>
+            </section>
+            <div class="field select-field custom-select discover-ranking-field" data-custom-select-for="discover-ranking-profile" data-menu-id="discover-ranking-profile-menu">
+              <span class="field-label">排序方式</span>
+              <div class="discover-ranking-field-surface">
+                <select id="discover-ranking-profile" class="field-input native-select" aria-hidden="true" tabindex="-1">
+                  <option value="balanced">综合排序</option>
+                  <option value="hot">热门优先</option>
+                  <option value="fresh">新项目优先</option>
+                  <option value="builder">实用优先</option>
+                  <option value="trend">趋势优先</option>
+                </select>
+                <button class="field-input select-trigger" id="discover-ranking-profile-trigger" type="button"
+                  aria-haspopup="listbox" aria-expanded="false"
+                  aria-controls="discover-ranking-profile-menu-panel"
+                  onclick="toggleMenu(event,'discover-ranking-profile-menu')">
+                  <span class="select-trigger-text">综合排序</span>
+                </button>
+                <span class="field-meta" id="discover-ranking-profile-meta">平衡相关性、热度与可用性。</span>
+              </div>
+              <div class="menu-panel select-menu" id="discover-ranking-profile-menu-panel"
+                role="listbox" aria-labelledby="discover-ranking-profile-trigger"></div>
+            </div>
+          </div>
+          <div id="discover-saved"></div>
+        </div>
       </div>
 
       <button class="action-quiet workspace-drawer-trigger" id="control-drawer-trigger" type="button" aria-haspopup="dialog" aria-expanded="false" onclick="toggleControlDrawer()">
@@ -164,79 +215,6 @@ HTML_BODY = """</style>
           </div>
         </section>
 
-        <section class="drawer-section" id="control-drawer-discover" hidden>
-          <section class="discover-form-section">
-            <div class="group-label">基础筛选</div>
-            <div class="discover-grid discover-grid-basic">
-              <label class="field">
-                <span class="field-label">关键词</span>
-                <input id="discover-query-drawer" class="field-input" type="search" placeholder="例如 agent / AI agent framework / 图数据库">
-              </label>
-
-              <label class="field">
-                <span class="field-label">结果数量</span>
-                <input id="discover-limit" class="field-input" type="number" min="5" max="50" step="1">
-              </label>
-
-              <label class="checkline checkline--stacked">
-                <input id="discover-auto-expand" type="checkbox">
-                <span class="checkline-copy">
-                  <span class="checkline-title">自动扩展关键词</span>
-                  <span class="checkline-note">会补充相关表达，结果更宽但可能更散。</span>
-                </span>
-              </label>
-            </div>
-            <div class="discover-actions">
-              <button class="action-primary" id="discover-run-drawer-btn" type="button" onclick="runDiscovery()">开始搜索</button>
-            </div>
-          </section>
-
-          <section class="discover-form-section">
-            <div class="group-label">更多筛选</div>
-            <div class="discover-grid discover-grid-advanced">
-              <label class="field">
-                <span class="field-label">编程语言</span>
-                <input id="discover-language" class="field-input" type="text" placeholder="可选，如 Python / TypeScript">
-              </label>
-
-              <div class="field select-field custom-select" data-custom-select-for="discover-ranking-profile" data-menu-id="discover-ranking-profile-menu">
-                <span class="field-label">排序方式</span>
-                <select id="discover-ranking-profile" class="field-input native-select" aria-hidden="true" tabindex="-1">
-                  <option value="balanced">综合排序</option>
-                  <option value="hot">热门优先</option>
-                  <option value="fresh">新项目优先</option>
-                  <option value="builder">实用优先</option>
-                  <option value="trend">趋势优先</option>
-                </select>
-                <button class="field-input select-trigger" id="discover-ranking-profile-trigger" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="discover-ranking-profile-menu-panel" onclick="toggleMenu(event,'discover-ranking-profile-menu')">
-                  <span class="select-trigger-text">综合排序</span>
-                </button>
-                <div class="menu-panel select-menu" id="discover-ranking-profile-menu-panel" role="listbox" aria-labelledby="discover-ranking-profile-trigger"></div>
-                <span class="field-meta" id="discover-ranking-profile-meta">平衡相关性、热度与可用性，适合先看全局。</span>
-              </div>
-
-              <label class="checkline checkline--stacked">
-                <input id="discover-save-query" type="checkbox">
-                <span class="checkline-copy">
-                  <span class="checkline-title">保存搜索</span>
-                  <span class="checkline-note">保留这组筛选，方便下次直接重跑。</span>
-                </span>
-              </label>
-            </div>
-          </section>
-
-          <details class="discover-saved-panel">
-            <summary class="discover-saved-summary">
-              <span>已保存搜索</span>
-              <span class="discover-saved-summary-note">最近 5 条</span>
-            </summary>
-            <div class="discover-saved" id="discover-saved"></div>
-            <div class="discover-saved-footer">
-              <button class="action-quiet compact" id="discover-clear-btn" type="button" onclick="clearDiscovery()">清空本次结果</button>
-            </div>
-          </details>
-        </section>
-
         <section class="drawer-section" id="control-drawer-updates" hidden>
           <div class="drawer-note">更新页保持轻量阅读模式。主画布优先展示仓库变化，这里不提供额外筛选；需要清空更新记录时，可在右上角“更多”里处理。</div>
           <div class="drawer-note">快捷键仍可使用：Space 勾选，Shift + 1~4 批量收纳，分析按钮在更新页会保持禁用。</div>
@@ -291,11 +269,21 @@ HTML_BODY = """</style>
         <label class="field">
           <span class="field-label">GitHub Token</span>
           <input id="setting-token" class="field-input" type="password" placeholder="可选，用于提高请求稳定性">
+          <span class="field-meta" id="setting-token-presence">未配置 GitHub Token。</span>
           <span class="field-meta" id="setting-token-status" data-state="idle">会自动校验当前 Token，可区分空值、无效、权限不足和可正常使用四种状态。</span>
+          <label class="checkline">
+            <input id="setting-clear-token" type="checkbox">
+            <span>保存时清空当前 Token</span>
+          </label>
         </label>
         <label class="field">
           <span class="field-label">代理地址</span>
           <input id="setting-proxy" class="field-input" type="text" placeholder="留空则自动探测">
+          <span class="field-meta" id="setting-proxy-presence">未配置代理，留空时会继续自动探测。</span>
+          <label class="checkline">
+            <input id="setting-clear-proxy" type="checkbox">
+            <span>保存时清空当前代理</span>
+          </label>
         </label>
         <div class="settings-inline">
           <label class="field">
@@ -386,6 +374,7 @@ def build_html(
     states: list[dict[str, object]],
     note: str,
     pending: bool,
+    control_token: str = "",
 ) -> str:
     payload = json.dumps(
         {
@@ -397,6 +386,7 @@ def build_html(
             "states": states,
             "note": note,
             "pending": pending,
+            "controlToken": control_token,
         },
         ensure_ascii=False,
     ).replace("</", "<\\/")
