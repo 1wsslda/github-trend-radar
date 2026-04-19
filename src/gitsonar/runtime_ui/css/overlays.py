@@ -23,6 +23,51 @@ CSS = r""".toast{
   transform:translateY(0);
 }
 
+.workspace-back-to-top{
+  position:fixed;
+  right:20px;
+  bottom:calc(94px + env(safe-area-inset-bottom, 0px));
+  z-index:47;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  width:52px;
+  height:52px;
+  padding:0;
+  border:1px solid rgba(232,214,184,.14);
+  border-radius:999px;
+  background:rgba(20,17,13,.92);
+  color:var(--text);
+  box-shadow:0 18px 36px rgba(0,0,0,.28);
+  opacity:0;
+  visibility:hidden;
+  pointer-events:none;
+  transform:translateY(10px);
+  transition:
+    opacity .24s var(--ease-smooth),
+    transform .24s var(--ease-smooth),
+    visibility .24s var(--ease-smooth),
+    background .24s var(--ease-smooth),
+    border-color .24s var(--ease-smooth);
+}
+.workspace-back-to-top svg{
+  width:18px;
+  height:18px;
+}
+.workspace-back-to-top:hover{
+  border-color:rgba(233,201,143,.24);
+  background:rgba(27,23,18,.96);
+}
+.workspace-back-to-top.is-visible{
+  opacity:1;
+  visibility:visible;
+  pointer-events:auto;
+  transform:translateY(0);
+}
+body.has-batch-dock .workspace-back-to-top{
+  bottom:calc(148px + env(safe-area-inset-bottom, 0px));
+}
+
 .batch-dock{
   position:fixed;
   left:50%;
@@ -51,10 +96,9 @@ CSS = r""".toast{
   transform:translate(-50%,0);
 }
 .batch-dock-meta{
-  display:grid;
-  grid-template-columns:repeat(2,minmax(0,auto));
+  display:flex;
   align-items:center;
-  gap:10px 16px;
+  gap:10px;
   min-height:46px;
   padding:0 12px 0 4px;
   border-right:1px solid rgba(232,214,184,.08);
@@ -62,7 +106,6 @@ CSS = r""".toast{
 .batch-dock-count{
   display:grid;
   gap:2px;
-  min-width:0;
 }
 .batch-dock-actions{
   display:flex;

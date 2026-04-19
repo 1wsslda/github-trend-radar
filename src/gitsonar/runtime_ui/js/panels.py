@@ -125,40 +125,29 @@ function setPrimaryPanel(family){
   setPanel(family === "discover" ? DISCOVER_PANEL_KEY : UPDATE_PANEL_KEY);
 }
 
-let workspaceNavOffsetFrame = 0;
-let workspaceNavOffsetObserver = null;
+let backToTopButtonFrame = 0;
 
-function applyWorkspaceNavOffset(){
-  const page = document.querySelector(".page");
-  const navShell = document.querySelector(".workspace-nav-shell");
-  const navSection = document.querySelector(".workspace-nav");
-  if(!page || !navShell || !navSection) return;
-
-  const navTop = parseFloat(getComputedStyle(navShell).top || "0") || 0;
-  const navGap = parseFloat(getComputedStyle(navSection).marginBottom || "0") || 0;
-  const navHeight = navShell.getBoundingClientRect().height || navShell.offsetHeight || 0;
-  page.style.setProperty("--workspace-nav-offset", `${Math.ceil(navTop + navHeight + navGap)}px`);
+function scrollWorkspaceToTop(behavior = "smooth"){
+  const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const nextBehavior = prefersReducedMotion ? "auto" : behavior;
+  window.scrollTo({top:0, behavior: nextBehavior});
+  queueBackToTopButtonSync();
 }
 
-function syncWorkspaceNavOffset(){
-  if(workspaceNavOffsetFrame) cancelAnimationFrame(workspaceNavOffsetFrame);
-  workspaceNavOffsetFrame = requestAnimationFrame(() => {
-    workspaceNavOffsetFrame = 0;
-    applyWorkspaceNavOffset();
-  });
+function syncBackToTopButton(){
+  const button = document.getElementById("workspace-back-to-top");
+  if(!button) return;
+  const isVisible = window.scrollY >= 480;
+  button.classList.toggle("is-visible", isVisible);
+  button.tabIndex = isVisible ? 0 : -1;
 }
 
-function observeWorkspaceNavOffset(){
-  if(workspaceNavOffsetObserver || typeof ResizeObserver !== "function") return;
-  const navShell = document.querySelector(".workspace-nav-shell");
-  const tabsRoot = document.getElementById("tabs");
-  if(!navShell) return;
-
-  workspaceNavOffsetObserver = new ResizeObserver(() => {
-    syncWorkspaceNavOffset();
+function queueBackToTopButtonSync(){
+  if(backToTopButtonFrame) return;
+  backToTopButtonFrame = requestAnimationFrame(() => {
+    backToTopButtonFrame = 0;
+    syncBackToTopButton();
   });
-  workspaceNavOffsetObserver.observe(navShell);
-  if(tabsRoot) workspaceNavOffsetObserver.observe(tabsRoot);
 }
 
 function renderPrimaryNav(activeFamily, activeTrend, discoverTab, libraryCount, updatesTab){
@@ -233,8 +222,6 @@ function renderTabs(){
 
   renderPrimaryNav(activeFamily, activeTrend, discoverTab, libraryCount, updatesTab);
   renderWorkspaceSubnav(activeFamily, trendTabs, libraryTabs, activeTrend?.key || "", activeLibrary?.key || "");
-  observeWorkspaceNavOffset();
-  syncWorkspaceNavOffset();
 }
 
 function currentStateFilterLabel(){
@@ -305,7 +292,6 @@ function syncWorkspaceBarModes(){
   const discoverContext = document.getElementById("discover-context");
   const drawerTrigger = document.getElementById("control-drawer-trigger");
   const barMain = document.querySelector(".workspace-bar-main");
-  const controlStack = document.querySelector(".workspace-control-stack");
   if(filterGroup) filterGroup.hidden = isDiscoverPanel;
   if(actionGroup) actionGroup.hidden = isDiscoverPanel;
   if(searchWrap) searchWrap.hidden = isDiscoverPanel;
@@ -316,7 +302,6 @@ function syncWorkspaceBarModes(){
   if(discoverContext) discoverContext.hidden = !isDiscoverPanel;
   if(drawerTrigger) drawerTrigger.hidden = isDiscoverPanel;
   if(barMain) barMain.classList.toggle("workspace-bar-main--discover", isDiscoverPanel);
-  if(controlStack) controlStack.classList.toggle("workspace-control-stack--discover", isDiscoverPanel);
 }
 
 function syncWorkspaceCanvas(){
@@ -335,7 +320,6 @@ function syncWorkspaceCanvas(){
   introNode.innerHTML = introMarkup;
   cardsNode.classList.toggle("cards--discover-empty", !discoveryResults().length);
   renderWorkspaceSummaryStrip();
-  syncSelectionActionStates();
   syncAiTargetUI();
 }
 

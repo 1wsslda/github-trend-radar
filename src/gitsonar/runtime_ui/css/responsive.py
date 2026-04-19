@@ -68,9 +68,6 @@ CSS = r"""@media (min-width:1600px){
   .nav-actions{
     justify-content:flex-start;
   }
-  .workspace-nav-shell{
-    top:8px;
-  }
   .workspace-content-shell{
     padding:14px 12px 14px;
   }
@@ -135,6 +132,13 @@ CSS = r"""@media (min-width:1600px){
   }
   .panel{
     width:100vw;
+  }
+  .workspace-back-to-top{
+    right:14px;
+    bottom:calc(86px + env(safe-area-inset-bottom, 0px));
+  }
+  body.has-batch-dock .workspace-back-to-top{
+    bottom:calc(144px + env(safe-area-inset-bottom, 0px));
   }
 }
 @media (max-width:759px){
@@ -237,6 +241,15 @@ CSS = r"""@media (min-width:1600px){
   .batch-divider{
     display:none;
   }
+  .workspace-back-to-top{
+    right:12px;
+    bottom:calc(80px + env(safe-area-inset-bottom, 0px));
+    width:48px;
+    height:48px;
+  }
+  body.has-batch-dock .workspace-back-to-top{
+    bottom:calc(176px + env(safe-area-inset-bottom, 0px));
+  }
 }
 @media (prefers-reduced-motion:reduce){
   *,
@@ -245,6 +258,9 @@ CSS = r"""@media (min-width:1600px){
     animation:none !important;
     transition:none !important;
     scroll-behavior:auto !important;
+  }
+  .workspace-back-to-top{
+    transition:none !important;
   }
 }
 @keyframes card-enter {

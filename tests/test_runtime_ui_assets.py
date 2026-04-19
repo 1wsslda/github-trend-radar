@@ -172,10 +172,7 @@ class RuntimeUILayoutSmokeTests(unittest.TestCase):
 
         self.assertIn('class="workspace-summary">', html)
         self.assertIn('class="workspace-summary-copy"', html)
-        self.assertIn('id="visible-selected-count"', html)
-        self.assertIn('id="selected-count"', html)
-        self.assertIn('class="workspace-summary-line workspace-summary-line--subtle"', html)
-        self.assertIn('class="workspace-selection-actions"', html)
+        self.assertIn('class="workspace-summary-line">已选', html)
         self.assertIn('class="workspace-ai-target"', html)
         self.assertNotIn('split-main-note', analyze_section)
         self.assertNotIn('data-ai-target-label', analyze_section)
@@ -195,71 +192,24 @@ class RuntimeUILayoutSmokeTests(unittest.TestCase):
         self.assertNotIn('data-menu-id="nav-library-menu"', JS)
         self.assertNotIn('class="nav-pill', JS)
         self.assertNotIn('workspace-subnav-pill', JS)
-        self.assertIn('page.style.setProperty("--workspace-nav-offset",', JS)
         self.assertIn(".workspace-subnav-row{", CSS)
         self.assertIn(".workspace-primary-link{", CSS)
         self.assertIn(".workspace-subnav-link{", CSS)
         self.assertIn(".workspace-action-group{", CSS)
         self.assertIn('.workspace-action-group > .action-split[data-menu-id="ai-target-menu"] .split-main,', CSS)
 
-    def test_visible_selection_controls_and_counts_are_present_in_assets(self):
+    def test_back_to_top_button_contract_replaces_runtime_nav_offset_contract(self):
         html = build_fixture_html()
 
-        for token in (
-            'id="visible-selected-count"',
-            'data-selection-action="select-visible"',
-            'data-selection-action="deselect-visible"',
-            'data-selection-action="clear-all"',
-            'id="batch-dock-visible-count"',
-            'id="batch-dock-visible-total"',
-            "\u5168\u9009\u672c\u9875",
-            "\u53d6\u6d88\u672c\u9875\u5168\u9009",
-            "\u6e05\u7a7a\u5168\u90e8\u9009\u62e9",
-        ):
-            with self.subTest(token=token):
-                self.assertIn(token, html)
-
-        for token in (
-            "function visibleSelectedCount(urls = visibleLinkList()){",
-            "function allVisibleSelected(urls = visibleLinkList()){",
-            "function deselectVisible(){",
-            "function syncSelectionActionStates(",
-            'data-selection-action="select-visible"',
-            'data-selection-action="deselect-visible"',
-            'data-selection-action="clear-all"',
-            '\u672c\u9875\u5df2\u9009 <strong>${visibleSelected}</strong> / <strong>${visibleUrls.length}</strong> \u9879',
-            '\u603b\u5df2\u9009 <strong>${selected}</strong> \u9879',
-        ):
-            with self.subTest(js=token):
-                self.assertIn(token, JS)
-
-        for token in (
-            ".workspace-selection-actions{",
-            ".workspace-summary-line--subtle{",
-            ".discover-selection-meta{",
-        ):
-            with self.subTest(css=token):
-                self.assertIn(token, CSS)
-
-        self.assertNotIn('id="workspace-back-to-top"', html)
-        self.assertNotIn(".workspace-back-to-top{", CSS)
-        self.assertNotIn("function scrollWorkspaceToTop(", JS)
-        self.assertNotIn("function syncBackToTopButton(", JS)
-
-    def test_visible_selection_shortcuts_are_exposed_in_assets(self):
-        html = build_fixture_html()
-        self.assertIn("Ctrl / Cmd + A \u5168\u9009\u672c\u9875", html)
-        self.assertIn("Ctrl / Cmd + Shift + A \u53d6\u6d88\u672c\u9875\u5168\u9009", html)
-
-        for token in (
-            "function isEditableSelectionShortcutTarget(target){",
-            "function isPrioritySelectionShortcutSurface(target){",
-            "function shouldHandleVisibleSelectionShortcut(event){",
-            "function handleVisibleSelectionShortcut(event){",
-            "if(handleVisibleSelectionShortcut(event)) return;",
-        ):
-            with self.subTest(js=token):
-                self.assertIn(token, JS)
+        self.assertIn('id="workspace-back-to-top"', html)
+        self.assertIn('aria-label="回到顶部"', html)
+        self.assertIn(".workspace-back-to-top{", CSS)
+        self.assertIn(".workspace-back-to-top.is-visible{", CSS)
+        self.assertIn("body.has-batch-dock .workspace-back-to-top{", CSS)
+        self.assertIn('function scrollWorkspaceToTop(behavior = "smooth"){', JS)
+        self.assertIn("function syncBackToTopButton(){", JS)
+        self.assertNotIn("--workspace-nav-offset", CSS)
+        self.assertNotIn('page.style.setProperty("--workspace-nav-offset",', JS)
 
     def test_settings_markup_includes_sensitive_setting_controls(self):
         html = build_fixture_html(control_token="test-control-token")

@@ -55,18 +55,15 @@ def function_body(source: str, name: str) -> str:
 
 
 class UIJSSmokeTests(unittest.TestCase):
-    def test_tab_switch_closes_control_drawer(self):
+    def test_tab_switch_closes_control_drawer_and_scrolls_to_top(self):
         body = function_body(JS, "setPanel")
         self.assertIn("closeControlDrawer();", body)
         self.assertIn("render();", body)
-        self.assertNotIn("scrollWorkspaceToTop", body)
+        self.assertIn('scrollWorkspaceToTop("auto");', body)
 
     def test_selection_summary_keeps_discovery_guard_for_batch_dock(self):
         body = function_body(JS, "refreshSelectionSummary")
         self.assertIn("const isDiscoverPanel = panel === DISCOVER_PANEL_KEY;", body)
-        self.assertIn("const visibleUrls = visibleLinkList();", body)
-        self.assertIn('document.getElementById("visible-selected-count").textContent = visibleSelected;', body)
-        self.assertIn("syncSelectionActionStates(visibleUrls, visibleSelected, selected);", body)
         self.assertIn("const showBatchDock = !isDiscoverPanel && selected > 0;", body)
 
     def test_sync_card_selection_state_only_animates_new_selections(self):
@@ -83,84 +80,47 @@ class UIJSSmokeTests(unittest.TestCase):
         self.assertIn('event.animationName !== "card-selection-sheen"', body)
         self.assertIn('card.classList.add("selection-enter");', body)
 
-    def test_visible_selection_helpers_stay_scoped_to_visible_urls(self):
-        body = function_body(JS, "visibleSelectedCount")
-        self.assertIn("selectedUrls.has(url)", body)
-        self.assertIn("urls.filter(", body)
+    def test_scroll_workspace_to_top_respects_reduced_motion(self):
+        body = function_body(JS, "scrollWorkspaceToTop")
+        self.assertIn('window.matchMedia("(prefers-reduced-motion: reduce)").matches', body)
+        self.assertIn('const nextBehavior = prefersReducedMotion ? "auto" : behavior;', body)
+        self.assertIn("window.scrollTo({top:0, behavior: nextBehavior});", body)
+        self.assertIn("queueBackToTopButtonSync();", body)
 
-        body = function_body(JS, "allVisibleSelected")
-        self.assertIn("visibleSelectedCount(urls) === urls.length", body)
+    def test_back_to_top_button_visibility_uses_scroll_threshold(self):
+        body = function_body(JS, "syncBackToTopButton")
+        self.assertIn('document.getElementById("workspace-back-to-top")', body)
+        self.assertIn("window.scrollY >= 480", body)
+        self.assertIn('button.classList.toggle("is-visible", isVisible);', body)
+        self.assertIn('button.tabIndex = isVisible ? 0 : -1;', body)
 
-    def test_select_visible_is_incremental_and_deselect_visible_only_removes_visible_items(self):
-        body = function_body(JS, "selectVisible")
-        self.assertIn("const urls = visibleLinkList();", body)
-        self.assertIn("const additions = urls.filter(url => !selectedUrls.has(url));", body)
-        self.assertIn("additions.forEach(url => selectedUrls.add(url));", body)
-        self.assertNotIn("selectedUrls.clear()", body)
-
-        body = function_body(JS, "deselectVisible")
-        self.assertIn("const urls = visibleLinkList();", body)
-        self.assertIn("const removable = urls.filter(url => selectedUrls.has(url));", body)
-        self.assertIn("removable.forEach(url => selectedUrls.delete(url));", body)
-        self.assertNotIn("selectedUrls.clear()", body)
-
-    def test_workspace_nav_offset_is_computed_from_runtime_layout(self):
-        body = function_body(JS, "applyWorkspaceNavOffset")
-        self.assertIn('document.querySelector(".workspace-nav-shell")', body)
-        self.assertIn('document.querySelector(".workspace-nav")', body)
-        self.assertIn('getComputedStyle(navShell).top', body)
-        self.assertIn('getComputedStyle(navSection).marginBottom', body)
-        self.assertIn('page.style.setProperty("--workspace-nav-offset",', body)
-
-    def test_render_tabs_rebuilds_primary_nav_and_runtime_offset(self):
+    def test_render_tabs_rebuilds_primary_nav_without_runtime_offset_sync(self):
         body = function_body(JS, "renderTabs")
         self.assertIn("renderPrimaryNav(activeFamily, activeTrend, discoverTab, libraryCount, updatesTab);", body)
         self.assertIn("renderWorkspaceSubnav(activeFamily, trendTabs, libraryTabs, activeTrend?.key || \"\", activeLibrary?.key || \"\");", body)
-        self.assertIn("observeWorkspaceNavOffset();", body)
-        self.assertIn("syncWorkspaceNavOffset();", body)
+        self.assertNotIn("observeWorkspaceNavOffset();", body)
+        self.assertNotIn("syncWorkspaceNavOffset();", body)
 
-    def test_render_pipeline_updates_shell_and_canvas(self):
+    def test_render_pipeline_updates_shell_canvas_and_back_to_top_state(self):
         body = function_body(JS, "render")
         self.assertIn("syncWorkspaceCanvas();", body)
         self.assertIn("syncControlStates();", body)
-        self.assertNotIn("syncBackToTopButton();", body)
+        self.assertIn("syncBackToTopButton();", body)
 
-    def test_sync_workspace_canvas_reapplies_selection_states_after_discovery_rerender(self):
-        body = function_body(JS, "syncWorkspaceCanvas")
-        self.assertIn("syncSelectionActionStates();", body)
+    def test_filter_state_and_sort_updates_rerender_without_forcing_scroll_reset(self):
+        body = function_body(JS, "setStateFilter")
+        self.assertIn("render();", body)
+        self.assertNotIn("scrollWorkspaceToTop", body)
 
-    def test_discovery_selection_bar_renders_for_visible_results_and_separates_clear_actions(self):
-        body = function_body(JS, "renderDiscoverySelectionBar")
-        self.assertIn("const visibleUrls = visibleLinkList();", body)
-        self.assertIn('if(panel !== DISCOVER_PANEL_KEY || !visibleUrls.length) return "";', body)
-        self.assertIn("const visibleSelected = visibleSelectedCount(visibleUrls);", body)
-        self.assertIn('data-selection-action="select-visible"', body)
-        self.assertIn('data-selection-action="deselect-visible"', body)
-        self.assertIn('data-selection-action="clear-all"', body)
-        self.assertIn('onclick="clearSelected();closeMenus();"', body)
+        body = function_body(JS, "setSortPrimary")
+        self.assertIn("render();", body)
+        self.assertNotIn("scrollWorkspaceToTop", body)
 
-    def test_visible_selection_shortcuts_guard_context_and_split_select_vs_deselect(self):
-        body = function_body(JS, "shouldHandleVisibleSelectionShortcut")
-        self.assertIn("if(!(event.ctrlKey || event.metaKey) || event.altKey) return false;", body)
-        self.assertIn('if(String(event.key || "").toLowerCase() !== "a") return false;', body)
-        self.assertIn("if(OVERLAY_IDS.some(isOverlayVisible)) return false;", body)
-        self.assertIn("isEditableSelectionShortcutTarget(event.target)", body)
-        self.assertIn("isPrioritySelectionShortcutSurface(event.target)", body)
-        self.assertIn("event.shiftKey ? visibleSelectedCount(visibleUrls) > 0 : !allVisibleSelected(visibleUrls);", body)
-
-        body = function_body(JS, "handleVisibleSelectionShortcut")
-        self.assertIn("event.preventDefault();", body)
-        self.assertIn("if(event.shiftKey) deselectVisible();", body)
-        self.assertIn("else selectVisible();", body)
-
-    def test_selection_summary_tracks_visible_and_total_counts(self):
-        body = function_body(JS, "refreshSelectionSummary")
-        self.assertIn("const visibleUrls = visibleLinkList();", body)
-        self.assertIn("const visibleSelected = visibleSelectedCount(visibleUrls);", body)
-        self.assertIn('document.getElementById("batch-dock-visible-count")', body)
-        self.assertIn('document.getElementById("batch-dock-visible-total")', body)
-        self.assertIn('document.getElementById("batch-dock-visible-label")', body)
-        self.assertIn("syncSelectionActionStates(visibleUrls, visibleSelected, selected);", body)
+    def test_boot_wires_back_to_top_button_and_scroll_listener(self):
+        self.assertIn('document.getElementById("workspace-back-to-top")?.addEventListener("click", () => {', JS)
+        self.assertIn("scrollWorkspaceToTop();", JS)
+        self.assertIn('window.addEventListener("scroll", () => {', JS)
+        self.assertIn("queueBackToTopButtonSync();", JS)
 
     def test_token_status_validation_uses_dedicated_settings_endpoint(self):
         body = function_body(JS, "validateTokenStatus")

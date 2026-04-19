@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 CSS = r""".page{
-  --workspace-nav-offset:88px;
   max-width:1780px;
   padding:clamp(14px,1.9vw,24px) clamp(14px,1.6vw,24px) 140px;
 }
@@ -61,15 +60,13 @@ CSS = r""".page{
   overflow:visible;
 }
 .workspace-nav{
-  margin-bottom:12px;
+  margin-bottom:14px;
 }
 .workspace-bar{
-  margin-bottom:16px;
+  margin-bottom:18px;
 }
 .workspace-nav-shell{
-  position:sticky;
-  top:12px;
-  z-index:24;
+  position:relative;
   display:grid;
   padding:0;
   overflow:visible;
@@ -88,30 +85,15 @@ CSS = r""".page{
   overflow:visible;
 }
 .workspace-control-stack{
-  position:sticky;
-  top:var(--workspace-nav-offset);
+  position:relative;
   z-index:18;
   display:grid;
-  gap:12px;
-  padding-bottom:2px;
-}
-.workspace-control-stack::after{
-  content:"";
-  position:absolute;
-  left:0;
-  right:0;
-  bottom:0;
-  height:14px;
-  pointer-events:none;
-  background:linear-gradient(180deg, rgba(18,16,13,0), rgba(18,16,13,.72));
-}
-.workspace-control-stack--discover::after{
-  display:none;
+  gap:14px;
 }
 .workspace-context{
   position:relative;
   display:grid;
-  gap:12px;
+  gap:14px;
 }
 .tabs{
   position:relative;
@@ -198,7 +180,7 @@ CSS = r""".page{
 .workspace-subnav{
   display:grid;
   gap:6px;
-  padding-top:2px;
+  padding-top:4px;
 }
 .workspace-subnav-row{
   display:flex;
@@ -286,8 +268,8 @@ CSS = r""".page{
   box-shadow:none;
 }
 .workspace-summary-copy{
-  display:grid;
-  gap:2px;
+  display:flex;
+  align-items:center;
   min-width:0;
 }
 .workspace-summary-line{
@@ -296,19 +278,8 @@ CSS = r""".page{
   line-height:1.25;
   white-space:nowrap;
 }
-.workspace-summary-line--subtle{
-  color:var(--muted);
-  font-size:.76rem;
-}
 .workspace-summary-line .metric-number{
   color:var(--text);
-}
-.workspace-selection-actions{
-  display:flex;
-  flex-wrap:wrap;
-  gap:8px;
-  align-items:center;
-  justify-content:flex-end;
 }
 .workspace-ai-target{
   max-width:18ch;
