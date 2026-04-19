@@ -200,10 +200,10 @@ async function toggleState(key, url){
         headers:{"Content-Type":"application/json"},
         body:JSON.stringify({state:key, enabled:enabling, repo}),
       },
-      "Update failed",
+      "更新失败",
     );
     if(!resp.ok || !data.ok){
-      toast(data.error || "Update failed");
+      toast(data.error || "更新失败");
       return;
     }
     userState = data.user_state;

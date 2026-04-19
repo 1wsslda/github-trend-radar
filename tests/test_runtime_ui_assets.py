@@ -85,7 +85,7 @@ class RuntimeUILayoutSmokeTests(unittest.TestCase):
             'id="discover-limit-copy"',
             'id="discover-auto-expand-note"',
             "开始搜索 · 综合排序",
-            "会基于首轮命中的仓库名、Topics 和 README 补充相关词，覆盖更广，但会更慢。",
+            "会基于首轮命中的仓库名、主题词和 README 补充相关词，覆盖更广，但会更慢。",
             "只按你输入的关键词直接搜索，返回更快、更可控，但可能漏掉相近项目。",
         ):
             with self.subTest(token=token):

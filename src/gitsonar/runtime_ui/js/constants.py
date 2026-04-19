@@ -17,7 +17,7 @@ const SORT_LABELS = {
   stars:"总星标",
   trending:"趋势",
   gained:"增长",
-  forks:"Fork",
+  forks:"派生",
   name:"仓库名",
   language:"语言",
 };
@@ -49,7 +49,7 @@ const DISCOVERY_RANKING_DESCRIPTIONS = {
   builder:"更偏向信息完整、工程上更容易落地的项目。",
   trend:"更偏向近期增速快、话题正在上升的项目。",
 };
-const DISCOVERY_AUTO_EXPAND_NOTE_ON = "会基于首轮命中的仓库名、Topics 和 README 补充相关词，覆盖更广，但会更慢。";
+const DISCOVERY_AUTO_EXPAND_NOTE_ON = "会基于首轮命中的仓库名、主题词和 README 补充相关词，覆盖更广，但会更慢。";
 const DISCOVERY_AUTO_EXPAND_NOTE_OFF = "只按你输入的关键词直接搜索，返回更快、更可控，但可能漏掉相近项目。";
 let snapshot = INITIAL.snapshot || {};
 let userState = INITIAL.userState || {};
@@ -144,10 +144,10 @@ function normalizeUpdateEntry(payload){
     });
   }
   if(!changes.length && Number.isFinite(Number(previous.stars)) && Number(repo.stars || raw.stars || 0) !== Number(previous.stars || 0)){
-    changes.push(`Star ${Number(previous.stars || 0)} → ${Number(repo.stars || raw.stars || 0)}`);
+    changes.push(`星标 ${Number(previous.stars || 0)} → ${Number(repo.stars || raw.stars || 0)}`);
   }
   if(!changes.length && Number.isFinite(Number(previous.forks)) && Number(repo.forks || raw.forks || 0) !== Number(previous.forks || 0)){
-    changes.push(`Fork ${Number(previous.forks || 0)} → ${Number(repo.forks || raw.forks || 0)}`);
+    changes.push(`派生 ${Number(previous.forks || 0)} → ${Number(repo.forks || raw.forks || 0)}`);
   }
   const summary = String(raw.change_summary || "").trim();
   if(summary) changes.push(summary);

@@ -116,7 +116,7 @@ def build_discovery_api(*, deps, state, github_get, fetch_repo_details):
             clamp_int=clamp_int,
             as_bool=as_bool,
             default_period_key="discover",
-            default_source_label="Keyword Discovery",
+            default_source_label="关键词发现",
         )
         return repo or {}
 
@@ -419,7 +419,7 @@ def build_discovery_api(*, deps, state, github_get, fetch_repo_details):
         elif exact_phrase:
             reasons.append(f"关键词短语命中“{exact_phrase}”")
         if matched_base_topic:
-            reasons.append(f"Topic 命中“{matched_base_topic[0]}”")
+            reasons.append(f"主题命中“{matched_base_topic[0]}”")
         if matched_related:
             reasons.append(f"相关词命中“{matched_related[0]}”")
         if activity_days <= 30:
@@ -427,7 +427,7 @@ def build_discovery_api(*, deps, state, github_get, fetch_repo_details):
         if trending_hit:
             reasons.append("出现在当前热门快照")
         if stars >= 1000:
-            reasons.append(f"Stars {format_metric(stars)}")
+            reasons.append(f"星标 {format_metric(stars)}")
         if ranking_profile == "fresh" and activity_days <= 30:
             reasons.append("排序偏向最近活跃项目")
         elif ranking_profile == "builder" and (readme_available or license_score or topic_score):

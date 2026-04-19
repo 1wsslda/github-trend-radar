@@ -38,7 +38,7 @@ HTML_BODY = """</style>
             <button class="menu-item" type="button" onclick="syncGitHubStars();closeMenus();">从 GitHub 同步星标</button>
             <button class="menu-item" type="button" id="clear-updates-menu-item" onclick="clearFavoriteUpdates();closeMenus();" hidden>清空关注更新</button>
             <div class="menu-divider"></div>
-            <div class="menu-note">快捷键：↑ / ↓ 浏览，Space 选中，Shift + 1~4 批量收纳。</div>
+            <div class="menu-note">快捷键：↑ / ↓ 浏览，空格键选中，Shift + 1~4 批量收纳。</div>
           </div>
         </div>
       </div>
@@ -174,7 +174,7 @@ HTML_BODY = """</style>
             <input id="discover-auto-expand" type="checkbox">
             <span class="checkline-copy">
               <span class="checkline-title">自动扩词</span>
-              <span class="checkline-note" id="discover-auto-expand-note">会基于首轮命中的仓库名、Topics 和 README 补充相关词，覆盖更广，但会更慢。</span>
+              <span class="checkline-note" id="discover-auto-expand-note">会基于首轮命中的仓库名、主题词和 README 补充相关词，覆盖更广，但会更慢。</span>
             </span>
           </label>
         </div>
@@ -222,7 +222,7 @@ HTML_BODY = """</style>
               <div class="menu-wrap" data-menu-id="sort-more-menu">
                 <button class="seg-btn" id="sort-more-toggle" type="button" aria-haspopup="menu" aria-expanded="false" onclick="toggleMenu(event,'sort-more-menu')">更多<span class="seg-btn-note" id="sort-more-current"></span><span class="menu-caret"></span></button>
                 <div class="menu-panel align-left" id="sort-more-menu-panel">
-                  <button class="menu-item" type="button" data-sort-more="forks" onclick="setSortPrimary('forks')">Fork</button>
+                  <button class="menu-item" type="button" data-sort-more="forks" onclick="setSortPrimary('forks')">派生</button>
                   <button class="menu-item" type="button" data-sort-more="name" onclick="setSortPrimary('name')">仓库名</button>
                   <button class="menu-item" type="button" data-sort-more="language" onclick="setSortPrimary('language')">语言</button>
                 </div>
@@ -233,7 +233,7 @@ HTML_BODY = """</style>
 
         <section class="drawer-section" id="control-drawer-updates" hidden>
           <div class="drawer-note">更新页保持轻量阅读模式。主画布优先展示仓库变化，这里不提供额外筛选；需要清空更新记录时，可在右上角“更多”里处理。</div>
-          <div class="drawer-note">快捷键仍可使用：Space 勾选，Shift + 1~4 批量收纳，分析按钮在更新页会保持禁用。</div>
+          <div class="drawer-note">快捷键仍可使用：空格键勾选，Shift + 1~4 批量收纳，分析按钮在更新页会保持禁用。</div>
         </section>
       </div>
       </section>

@@ -209,11 +209,11 @@ def build_favorites_api(*, deps, github_get):
         changes: list[str] = []
         star_delta = clamp_int(after.get("stars"), 0, 0) - clamp_int(before.get("stars"), 0, 0)
         if star_delta:
-            changes.append(f"Stars {'+' if star_delta > 0 else ''}{star_delta}")
+            changes.append(f"星标 {'+' if star_delta > 0 else ''}{star_delta}")
 
         fork_delta = clamp_int(after.get("forks"), 0, 0) - clamp_int(before.get("forks"), 0, 0)
         if fork_delta:
-            changes.append(f"Forks {'+' if fork_delta > 0 else ''}{fork_delta}")
+            changes.append(f"派生 {'+' if fork_delta > 0 else ''}{fork_delta}")
 
         latest_release_tag = normalize(after.get("latest_release_tag"))
         if latest_release_tag and latest_release_tag != normalize(before.get("latest_release_tag")):
@@ -449,7 +449,7 @@ def build_favorites_api(*, deps, github_get):
                     normalize=normalize,
                     clamp_int=clamp_int,
                     as_bool=as_bool,
-                    default_source_label="GitHub Starred",
+                    default_source_label="GitHub 星标",
                 )
                 if repo:
                     repos.append(repo)

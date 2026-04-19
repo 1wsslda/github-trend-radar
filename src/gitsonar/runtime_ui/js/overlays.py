@@ -81,9 +81,9 @@ async function openCompareSelected(){
 
 function renderCompareCard(repo, detail){
   const metricMarkup = [
-    metricPillMarkup("Stars", `<span class="metric-number">${detail.stars || repo.stars || 0}</span>`),
-    metricPillMarkup("Forks", `<span class="metric-number">${detail.forks || repo.forks || 0}</span>`),
-    metricPillMarkup("Issues", `<span class="metric-number">${detail.open_issues || 0}</span>`),
+    metricPillMarkup("星标", `<span class="metric-number">${detail.stars || repo.stars || 0}</span>`),
+    metricPillMarkup("派生", `<span class="metric-number">${detail.forks || repo.forks || 0}</span>`),
+    metricPillMarkup("议题", `<span class="metric-number">${detail.open_issues || 0}</span>`),
     metricPillMarkup("语言", h(repo.language || "未知语言")),
   ].join("");
   return `<article class="compare-card">
@@ -104,7 +104,7 @@ function renderCompareCard(repo, detail){
       <div class="detail-section">
         <div class="section-label">仓库概览</div>
         <div class="detail-grid">
-          <div class="detail-item"><strong>License</strong><span>${h(detail.license || "未标注")}</span></div>
+          <div class="detail-item"><strong>许可证</strong><span>${h(detail.license || "未标注")}</span></div>
           <div class="detail-item"><strong>默认分支</strong><span>${h(detail.default_branch || "未知")}</span></div>
           <div class="detail-item"><strong>最近推送</strong><span>${h(detail.pushed_at || "未知")}</span></div>
           <div class="detail-item"><strong>仓库主页</strong><span>${detail.homepage ? `<a class="link-inline" href="${h(detail.homepage)}" target="_blank" rel="noopener" data-external-url="${h(detail.homepage)}">${h(detail.homepage)}</a>` : "未填写"}</span></div>
@@ -287,12 +287,12 @@ async function openDetail(owner, name, label){
     const detail = await fetchRepoDetails({owner, name});
     const topics = Array.isArray(detail.topics) ? detail.topics.filter(Boolean) : [];
     const metricMarkup = [
-      metricPillMarkup("Stars", `<span class="metric-number">${detail.stars || 0}</span>`),
-      metricPillMarkup("Forks", `<span class="metric-number">${detail.forks || 0}</span>`),
-      metricPillMarkup("Watchers", `<span class="metric-number">${detail.watchers || 0}</span>`),
-      metricPillMarkup("Issues", `<span class="metric-number">${detail.open_issues || 0}</span>`),
+      metricPillMarkup("星标", `<span class="metric-number">${detail.stars || 0}</span>`),
+      metricPillMarkup("派生", `<span class="metric-number">${detail.forks || 0}</span>`),
+      metricPillMarkup("关注者", `<span class="metric-number">${detail.watchers || 0}</span>`),
+      metricPillMarkup("议题", `<span class="metric-number">${detail.open_issues || 0}</span>`),
     ].join("");
-    document.getElementById("detail-body").innerHTML = `<div class="detail-hero"><div class="badges"><span class="badge source">${h(detail.license || "未标注 License")}</span><span class="badge source">${h(detail.default_branch || "未知分支")}</span>${detail.homepage ? `<a class="badge source" href="${h(detail.homepage)}" target="_blank" rel="noopener" data-external-url="${h(detail.homepage)}">Homepage</a>` : ""}</div><div class="readme-block">${h(detail.description || detail.description_raw || "暂无简介")}</div><div class="card-metrics">${metricMarkup}</div></div><div class="detail-section"><div class="section-label">仓库概览</div><div class="detail-grid"><div class="detail-item"><strong>仓库</strong><span>${h(detail.full_name || label)}</span></div><div class="detail-item"><strong>最近推送</strong><span>${h(detail.pushed_at || "未知")}</span></div><div class="detail-item"><strong>最后更新</strong><span>${h(detail.updated_at || "未知")}</span></div><div class="detail-item"><strong>默认分支</strong><span>${h(detail.default_branch || "未知")}</span></div><div class="detail-item"><strong>License</strong><span>${h(detail.license || "未标注")}</span></div><div class="detail-item"><strong>主页</strong><span>${detail.homepage ? `<a class="link-inline" href="${h(detail.homepage)}" target="_blank" rel="noopener" data-external-url="${h(detail.homepage)}">${h(detail.homepage)}</a>` : "未填写"}</span></div></div></div><div class="detail-section"><div class="section-label">README 摘要</div><div class="readme-block">${h(detail.readme_summary || detail.readme_summary_raw || "暂无 README 摘要")}</div></div>${topics.length ? `<div class="detail-section"><div class="section-label">Topics</div><div class="topic-list">${topics.map(topic => `<span class="topic">${h(topic)}</span>`).join("")}</div></div>` : ""}<div class="panel-actions"><a class="action-quiet" href="${h(detail.html_url || "#")}" target="_blank" rel="noopener" data-external-url="${h(detail.html_url || "#")}">打开 GitHub</a></div>`;
+    document.getElementById("detail-body").innerHTML = `<div class="detail-hero"><div class="badges"><span class="badge source">${h(detail.license || "未标注许可证")}</span><span class="badge source">${h(detail.default_branch || "未知分支")}</span>${detail.homepage ? `<a class="badge source" href="${h(detail.homepage)}" target="_blank" rel="noopener" data-external-url="${h(detail.homepage)}">主页</a>` : ""}</div><div class="readme-block">${h(detail.description || detail.description_raw || "暂无简介")}</div><div class="card-metrics">${metricMarkup}</div></div><div class="detail-section"><div class="section-label">仓库概览</div><div class="detail-grid"><div class="detail-item"><strong>仓库</strong><span>${h(detail.full_name || label)}</span></div><div class="detail-item"><strong>最近推送</strong><span>${h(detail.pushed_at || "未知")}</span></div><div class="detail-item"><strong>最后更新</strong><span>${h(detail.updated_at || "未知")}</span></div><div class="detail-item"><strong>默认分支</strong><span>${h(detail.default_branch || "未知")}</span></div><div class="detail-item"><strong>许可证</strong><span>${h(detail.license || "未标注")}</span></div><div class="detail-item"><strong>主页</strong><span>${detail.homepage ? `<a class="link-inline" href="${h(detail.homepage)}" target="_blank" rel="noopener" data-external-url="${h(detail.homepage)}">${h(detail.homepage)}</a>` : "未填写"}</span></div></div></div><div class="detail-section"><div class="section-label">README 摘要</div><div class="readme-block">${h(detail.readme_summary || detail.readme_summary_raw || "暂无 README 摘要")}</div></div>${topics.length ? `<div class="detail-section"><div class="section-label">主题</div><div class="topic-list">${topics.map(topic => `<span class="topic">${h(topic)}</span>`).join("")}</div></div>` : ""}<div class="panel-actions"><a class="action-quiet" href="${h(detail.html_url || "#")}" target="_blank" rel="noopener" data-external-url="${h(detail.html_url || "#")}">打开 GitHub</a></div>`;
   }catch(error){
     document.getElementById("detail-body").innerHTML = `<div class="empty">${emptyIcon}<span>${h(error.message || "详情获取失败")}</span></div>`;
   }

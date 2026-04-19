@@ -197,8 +197,8 @@ function renderRepoCards(repos, isChunk = false){
       ? `<div class="reason-strip">${(repo.match_reasons || []).map(reason => `<span class="reason-pill">${h(reason)}</span>`).join("")}</div>`
       : "";
     const metricMarkup = [
-      metricPillMarkup("Stars", `<span class="metric-number">${repo.stars || 0}</span>`),
-      metricPillMarkup("Forks", `<span class="metric-number">${repo.forks || 0}</span>`),
+      metricPillMarkup("星标", `<span class="metric-number">${repo.stars || 0}</span>`),
+      metricPillMarkup("派生", `<span class="metric-number">${repo.forks || 0}</span>`),
       metricPillMarkup("语言", h(repo.language || "未知语言")),
     ].join("");
     return `<article class="card selectable ${selected ? "selected" : ""}" data-select-url="${h(repo.url)}" tabindex="0">
@@ -243,9 +243,9 @@ function renderUpdateCards(items, isChunk = false){
     const summary = (update.changes || []).length ? (update.changes || []).join(" · ") : "最近一次检测没有整理出可展示的变化摘要。";
     const repo = repoByUrl(update.url) || synthesizeRepoFromUpdate(update);
     const metricMarkup = [
-      metricPillMarkup("Stars", `<span class="metric-number">${update.stars || 0}</span>`),
-      metricPillMarkup("Forks", `<span class="metric-number">${update.forks || 0}</span>`),
-      metricPillMarkup("Pushed", h(update.pushed_at || "未知")),
+      metricPillMarkup("星标", `<span class="metric-number">${update.stars || 0}</span>`),
+      metricPillMarkup("派生", `<span class="metric-number">${update.forks || 0}</span>`),
+      metricPillMarkup("最近推送", h(update.pushed_at || "未知")),
     ].join("");
     return `<article class="update-card selectable ${selected ? "selected" : ""}" data-select-url="${h(update.url)}" tabindex="0">
       <div class="card-head">

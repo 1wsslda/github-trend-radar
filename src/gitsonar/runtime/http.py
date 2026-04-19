@@ -45,8 +45,37 @@ class LocalAPIError(Exception):
 
 
 class InvalidJsonBodyError(LocalAPIError):
-    def __init__(self, message: str = "Request body must be valid JSON."):
+    def __init__(self, message: str = "请求体必须是合法的 JSON。"):
         super().__init__(message, status=400, code="invalid_json_body")
+
+
+LEGACY_USER_MESSAGE_MAP = {
+    "Request could not be processed.": "请求处理失败。",
+    "Import failed.": "导入失败。",
+    "Settings could not be saved.": "保存设置失败。",
+    "Refresh already in progress.": "后台刷新已在进行中。",
+    "Missing URL.": "缺少链接地址。",
+    "missing repo": "缺少仓库信息。",
+    "missing repos": "缺少仓库列表。",
+    "invalid state": "状态参数无效。",
+    "Import file does not contain any restorable user state.": "导入文件中没有可恢复的用户数据。",
+}
+
+
+def should_use_message_fallback(message: str) -> bool:
+    return bool(message) and message.isascii() and all(ch.isalnum() or ch in {"_", "-", "."} for ch in message)
+
+
+def localize_user_message(normalize, message: str, fallback: str) -> str:
+    clean = normalize(message)
+    if not clean:
+        return fallback
+    mapped = LEGACY_USER_MESSAGE_MAP.get(clean)
+    if mapped:
+        return mapped
+    if should_use_message_fallback(clean):
+        return fallback
+    return clean
 
 
 @dataclass(frozen=True, slots=True)
@@ -242,7 +271,7 @@ def build_app_handler(deps: AppHandlerDeps):
     if set_repo_state_batch is None:
         def set_repo_state_batch(state_key: str, enabled: bool, repos: object):
             if not isinstance(repos, list):
-                raise ValueError("missing repos")
+                raise ValueError("缺少仓库列表。")
             processed = []
             for repo in repos:
                 set_repo_state(state_key, enabled, repo)
@@ -282,7 +311,7 @@ def build_app_handler(deps: AppHandlerDeps):
             status = int(getattr(exc, "status", route.error_status) or route.error_status)
             code = normalize(getattr(exc, "code", "")) or ("not_found" if status == 404 else (route.error_code or "invalid_request"))
             logger.warning("http_request_rejected path=%s code=%s error=%s", path, code, raw_message)
-            return json_error(raw_message or "Request could not be processed.", status, code)
+            return json_error(localize_user_message(normalize, raw_message, "请求处理失败。"), status, code)
         code = route.error_code or ("internal_error" if route.error_status >= 500 else "request_failed")
         message = route.error_message or ("服务器内部错误。" if route.error_status >= 500 else "请求处理失败。")
         logger.exception("http_route_failed path=%s code=%s", path, code)
@@ -317,7 +346,11 @@ def build_app_handler(deps: AppHandlerDeps):
         try:
             job = get_discovery_job((params.get("id") or [""])[0])
         except ValueError as exc:
-            raise LocalAPIError(normalize(str(exc)) or "未找到对应的 discovery job。", status=404, code="not_found") from exc
+            raise LocalAPIError(
+                localize_user_message(normalize, str(exc), "未找到对应的关键词发现任务。"),
+                status=404,
+                code="not_found",
+            ) from exc
         return {"ok": True, "job": job}
 
     def handle_get_export(_handler, _parsed, _payload):
@@ -336,7 +369,7 @@ def build_app_handler(deps: AppHandlerDeps):
             try:
                 github_star_sync = sync_favorite_repo(payload.get("repo"), enabled)
             except ValueError as exc:
-                raise LocalAPIError(normalize(str(exc)) or "缺少仓库信息。") from exc
+                raise LocalAPIError(localize_user_message(normalize, str(exc), "缺少仓库信息。")) from exc
             if github_star_sync and not (
                 github_star_sync.get("ok")
                 or github_star_sync.get("already_starred")
@@ -346,7 +379,7 @@ def build_app_handler(deps: AppHandlerDeps):
         try:
             set_repo_state(state_key, enabled, payload.get("repo"))
         except ValueError as exc:
-            raise LocalAPIError(normalize(str(exc)) or "Request could not be processed.") from exc
+            raise LocalAPIError(localize_user_message(normalize, str(exc), "请求处理失败。")) from exc
         return {
             "ok": True,
             "user_state": export_user_state(),
@@ -358,7 +391,7 @@ def build_app_handler(deps: AppHandlerDeps):
         enabled = as_bool(payload.get("enabled"), True)
         repos = payload.get("repos")
         if not isinstance(repos, list):
-            raise LocalAPIError("missing repos")
+            raise LocalAPIError("缺少仓库列表。")
 
         github_star_syncs: list[dict[str, object]] = []
         processed_repos = repos
@@ -368,7 +401,7 @@ def build_app_handler(deps: AppHandlerDeps):
                 try:
                     github_star_sync = sync_favorite_repo(repo, enabled)
                 except ValueError as exc:
-                    error = normalize(str(exc)) or "Request could not be processed."
+                    error = localize_user_message(normalize, str(exc), "请求处理失败。")
                     if processed_repos:
                         set_repo_state_batch(state_key, enabled, processed_repos)
                     return JsonResult(
@@ -391,7 +424,7 @@ def build_app_handler(deps: AppHandlerDeps):
                                 "processed_count": len(processed_repos),
                                 "user_state": export_user_state(),
                                 "github_star_syncs": github_star_syncs,
-                                "error": normalize(github_star_sync.get("error")) or "Request could not be processed.",
+                                "error": localize_user_message(normalize, github_star_sync.get("error"), "请求处理失败。"),
                             },
                             400,
                         )
@@ -407,7 +440,7 @@ def build_app_handler(deps: AppHandlerDeps):
                     "processed_count": int(getattr(exc, "processed_count", 0) or 0),
                     "user_state": export_user_state(),
                     "github_star_syncs": github_star_syncs,
-                    "error": normalize(str(exc)) or "Request could not be processed.",
+                    "error": localize_user_message(normalize, str(exc), "请求处理失败。"),
                 },
                 400,
             )
@@ -423,14 +456,14 @@ def build_app_handler(deps: AppHandlerDeps):
         try:
             result = import_user_state(payload)
         except ValueError as exc:
-            raise LocalAPIError(normalize(str(exc)) or "Import failed.") from exc
-        return {"ok": True, "message": "User state imported.", **result}
+            raise LocalAPIError(localize_user_message(normalize, str(exc), "导入失败。")) from exc
+        return {"ok": True, "message": "用户数据已导入", **result}
 
     def handle_post_settings(_handler, _parsed, payload):
         try:
             requested = merge_settings(payload, settings)
         except ValueError as exc:
-            raise LocalAPIError(normalize(str(exc)) or "Settings could not be saved.") from exc
+            raise LocalAPIError(localize_user_message(normalize, str(exc), "保存设置失败。")) from exc
         with settings_lock:
             settings.clear()
             settings.update(requested)
@@ -442,9 +475,9 @@ def build_app_handler(deps: AppHandlerDeps):
             logger.warning("Failed to update auto-start entry after saving settings: %s", exc)
         restart_required = bool(clamp_int(settings.get("port", 8080), 8080, 1, 65535) != current_port())
         message = (
-            f"Settings saved. Port will switch to {settings.get('port', 8080)} after restart."
+            f"设置已保存，端口将在重启后切换为 {settings.get('port', 8080)}"
             if restart_required
-            else "Settings saved."
+            else "设置已保存"
         )
         return {"ok": True, "message": message, "settings": sanitize_settings(True)}
 
@@ -455,8 +488,8 @@ def build_app_handler(deps: AppHandlerDeps):
 
     def handle_post_refresh(_handler, _parsed, _payload):
         if start_refresh_async("manual"):
-            return {"ok": True, "message": "Background refresh started."}
-        return json_error("Refresh already in progress.", 409, "refresh_in_progress")
+            return {"ok": True, "message": "已开始后台刷新"}
+        return json_error("后台刷新已在进行中。", 409, "refresh_in_progress")
 
     def handle_post_chatgpt_open(_handler, _parsed, payload):
         ok, message = open_chatgpt_target(payload.get("mode", "web"), payload.get("prompt", ""))
@@ -465,7 +498,7 @@ def build_app_handler(deps: AppHandlerDeps):
     def handle_post_open_external(_handler, _parsed, payload):
         url = normalize(payload.get("url"))
         if not url:
-            raise LocalAPIError("Missing URL.")
+            raise LocalAPIError("缺少链接地址。")
         opened = open_external_url(url)
         return JsonResult({"ok": opened, "url": url}, 200 if opened else 500)
 
@@ -473,7 +506,7 @@ def build_app_handler(deps: AppHandlerDeps):
         clear_favorite_updates()
         return {
             "ok": True,
-            "message": "Favorite updates cleared.",
+            "message": "已清空关注更新记录",
             "user_state": export_user_state(),
         }
 
@@ -481,26 +514,26 @@ def build_app_handler(deps: AppHandlerDeps):
         try:
             job = start_discovery_job(payload)
         except ValueError as exc:
-            raise LocalAPIError(normalize(str(exc)) or "Discovery job could not be started.") from exc
-        return {"ok": True, "message": "Discovery job started.", "job": job}
+            raise LocalAPIError(localize_user_message(normalize, str(exc), "开始搜索失败。")) from exc
+        return {"ok": True, "message": "搜索已开始", "job": job}
 
     def handle_post_discovery_cancel(_handler, _parsed, payload):
         try:
             job = cancel_discovery_job(normalize(payload.get("id")))
         except ValueError as exc:
-            raise LocalAPIError(normalize(str(exc)) or "Cancellation could not be requested.") from exc
-        return {"ok": True, "message": "Cancellation requested.", "job": job}
+            raise LocalAPIError(localize_user_message(normalize, str(exc), "取消搜索失败。")) from exc
+        return {"ok": True, "message": "已发送取消请求", "job": job}
 
     def handle_post_discovery_clear(_handler, _parsed, _payload):
         discovery_state = clear_discovery_results()
-        return {"ok": True, "message": "Discovery results cleared.", "discovery_state": discovery_state}
+        return {"ok": True, "message": "已清空本次搜索结果", "discovery_state": discovery_state}
 
     def handle_post_window_open(_handler, _parsed, _payload):
         return {"ok": True, "opened": open_main_window()}
 
     def handle_post_window_exit(_handler, _parsed, _payload):
         exit_app()
-        return {"ok": True, "message": "Application exit requested."}
+        return {"ok": True, "message": "正在退出程序"}
 
     def handle_post_sync_stars(_handler, _parsed, _payload):
         try:
@@ -511,7 +544,7 @@ def build_app_handler(deps: AppHandlerDeps):
         total = int(summary.get("total") or 0)
         added = int(summary.get("added") or 0)
         removed = int(summary.get("removed") or 0)
-        message = f"GitHub stars synced: total {total}, added {added}, removed {removed}."
+        message = f"GitHub 星标已同步：共 {total} 个，新增 {added} 个，移除 {removed} 个"
         return {
             "ok": True,
             "total": total,
@@ -571,7 +604,7 @@ def build_app_handler(deps: AppHandlerDeps):
         def require_loopback(self) -> bool:
             if self.is_loopback_request():
                 return True
-            self.send_json(error_payload("This action is only available from localhost.", "loopback_only"), 403)
+            self.send_json(error_payload("该操作仅允许从本机访问。", "loopback_only"), 403)
             return False
 
         def require_control_token(self) -> bool:
@@ -581,7 +614,7 @@ def build_app_handler(deps: AppHandlerDeps):
             actual = normalize(self.headers.get("X-GitSonar-Control", ""))
             if actual == expected:
                 return True
-            self.send_json(error_payload("Missing or invalid control token.", "invalid_control_token"), 403)
+            self.send_json(error_payload("缺少控制令牌或控制令牌无效。", "invalid_control_token"), 403)
             return False
 
         def end_headers(self):
@@ -621,7 +654,7 @@ def build_app_handler(deps: AppHandlerDeps):
             except json.JSONDecodeError as exc:
                 raise InvalidJsonBodyError() from exc
             if not isinstance(payload, dict):
-                raise InvalidJsonBodyError("Request body must be a JSON object.")
+                raise InvalidJsonBodyError("请求体必须是 JSON 对象。")
             return payload
 
         def execute_route(self, route: Route, parsed):
@@ -651,14 +684,14 @@ def build_app_handler(deps: AppHandlerDeps):
                 return super().do_GET()
             route = GET_ROUTES.get(parsed.path)
             if route is None:
-                return self.send_json(error_payload("Unknown endpoint.", "not_found"), 404)
+                return self.send_json(error_payload("接口不存在。", "not_found"), 404)
             return self.execute_route(route, parsed)
 
         def do_POST(self):
             parsed = urlparse(self.path)
             route = POST_ROUTES.get(parsed.path)
             if route is None:
-                return self.send_json(error_payload("Unknown endpoint.", "not_found"), 404)
+                return self.send_json(error_payload("接口不存在。", "not_found"), 404)
             return self.execute_route(route, parsed)
 
     return AppHandler

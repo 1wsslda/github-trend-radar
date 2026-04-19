@@ -14,11 +14,14 @@ SRC = ROOT / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
-from gitsonar.runtime.http import make_app_handler
+from gitsonar.runtime.http import localize_user_message, make_app_handler
 from gitsonar.runtime.utils import as_bool, clamp_int, normalize
 
 
 class RuntimeHTTPHandlerTests(unittest.TestCase):
+    def test_localize_user_message_falls_back_for_internal_ascii_token(self):
+        self.assertEqual(localize_user_message(normalize, "missing", "请求处理失败。"), "请求处理失败。")
+
     def setUp(self):
         self.tempdir = tempfile.TemporaryDirectory()
         runtime_root = Path(self.tempdir.name)
@@ -232,7 +235,7 @@ class RuntimeHTTPHandlerTests(unittest.TestCase):
         self.assertEqual(resp.status, 403)
         self.assertFalse(payload["ok"])
         self.assertEqual(payload["code"], "invalid_control_token")
-        self.assertIn("control token", payload["error"].lower())
+        self.assertIn("控制令牌", payload["error"])
 
     def test_control_token_wrong_is_rejected(self):
         resp, data = self.request("POST", "/api/refresh", token="wrong-token")
@@ -241,7 +244,7 @@ class RuntimeHTTPHandlerTests(unittest.TestCase):
         self.assertEqual(resp.status, 403)
         self.assertFalse(payload["ok"])
         self.assertEqual(payload["code"], "invalid_control_token")
-        self.assertIn("control token", payload["error"].lower())
+        self.assertIn("控制令牌", payload["error"])
 
     def test_get_status_remains_available_without_control_token(self):
         resp, data = self.request("GET", "/api/status", include_token=False)
@@ -344,7 +347,7 @@ class RuntimeHTTPHandlerTests(unittest.TestCase):
         self.assertEqual(resp.status, 404)
         self.assertFalse(payload["ok"])
         self.assertEqual(payload["code"], "not_found")
-        self.assertIn("missing", payload["error"])
+        self.assertIn("关键词发现任务", payload["error"])
 
     def test_post_discover_passes_limit_and_ranking_profile_to_job_service(self):
         resp, data = self.request(
@@ -383,7 +386,7 @@ class RuntimeHTTPHandlerTests(unittest.TestCase):
         self.assertEqual(resp.status, 400)
         self.assertFalse(payload["ok"])
         self.assertEqual(payload["code"], "invalid_request")
-        self.assertIn("repo", payload["error"])
+        self.assertIn("仓库信息", payload["error"])
 
     def test_post_state_batch_updates_user_state_with_single_local_commit(self):
         repos = [
@@ -474,7 +477,7 @@ class RuntimeHTTPHandlerTests(unittest.TestCase):
         self.assertEqual(resp.status, 409)
         self.assertFalse(payload["ok"])
         self.assertEqual(payload["code"], "refresh_in_progress")
-        self.assertIn("Refresh already in progress.", payload["error"])
+        self.assertIn("后台刷新已在进行中", payload["error"])
 
     def test_post_settings_replaces_sensitive_values_without_echoing_plaintext(self):
         resp, data = self.request(
@@ -513,7 +516,7 @@ class RuntimeHTTPHandlerTests(unittest.TestCase):
         self.assertEqual(resp.status, 400)
         self.assertFalse(payload["ok"])
         self.assertEqual(payload["code"], "invalid_json_body")
-        self.assertIn("valid JSON", payload["error"])
+        self.assertIn("合法的 JSON", payload["error"])
 
     def test_sync_stars_unexpected_failure_is_sanitized(self):
         self.fetch_user_starred = lambda: (_ for _ in ()).throw(RuntimeError("secret backend detail"))

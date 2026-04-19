@@ -356,21 +356,21 @@ def make_discovery_job_runtime(
             active = export_active_discovery_job()
             if active:
                 return active
-            raise ValueError("缺少 discovery job 标识")
+            raise ValueError("缺少关键词发现任务标识")
         with runtime_lock:
             job = discovery_jobs.get(clean_id)
             if not isinstance(job, dict):
-                raise ValueError("未找到对应的 discovery job")
+                raise ValueError("未找到对应的关键词发现任务")
             return build_discovery_job_snapshot(job)
 
     def cancel_discovery_job(job_id: str) -> dict[str, object]:
         clean_id = normalize(job_id)
         if not clean_id:
-            raise ValueError("缺少 discovery job 标识")
+            raise ValueError("缺少关键词发现任务标识")
         with runtime_lock:
             job = discovery_jobs.get(clean_id)
             if not isinstance(job, dict):
-                raise ValueError("未找到对应的 discovery job")
+                raise ValueError("未找到对应的关键词发现任务")
             status = normalize(job.get("status"))
             if status in DISCOVERY_JOB_TERMINAL:
                 return build_discovery_job_snapshot(job)
