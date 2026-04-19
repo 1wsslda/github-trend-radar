@@ -2,11 +2,16 @@
 from __future__ import annotations
 
 import ctypes
+import logging
 import os
 import subprocess
 import sys
 import time
+from datetime import datetime
 from types import SimpleNamespace
+from urllib.parse import urlparse
+
+logger = logging.getLogger(__name__)
 
 
 def make_startup_runtime(
@@ -28,6 +33,11 @@ def make_startup_runtime(
     atomic_write_json,
     current_port_getter,
     control_token_getter=None,
+    pid_is_running=None,
+    parse_iso_timestamp=None,
+    runtime_url_parser=None,
+    time_getter=None,
+    runtime_state_max_age_seconds: int = 5 * 60,
 ):
     APP_NAME = app_name
     APP_SLUG = app_slug
@@ -40,12 +50,41 @@ def make_startup_runtime(
     LOCAL_HOST = local_host
     LOCAL_CONTROL = local_control
     control_token_getter = control_token_getter or (lambda: "")
+    runtime_url_parser = runtime_url_parser or urlparse
+    time_getter = time_getter or time.time
+    runtime_state_max_age_seconds = max(0, int(runtime_state_max_age_seconds or 0))
     state = {
         "browser_process": None,
         "browser_hidden": False,
         "main_url": "",
     }
     single_instance_mutexes: list[object] = []
+
+    def default_parse_iso_timestamp(value: object) -> int:
+        raw = normalize(value)
+        if not raw:
+            return 0
+        try:
+            return int(datetime.fromisoformat(raw.replace("Z", "+00:00")).timestamp())
+        except Exception:
+            return 0
+
+    parse_iso_timestamp = parse_iso_timestamp or default_parse_iso_timestamp
+
+    def default_pid_is_running(pid: int) -> bool | None:
+        if pid <= 0:
+            return False
+        try:
+            os.kill(pid, 0)
+        except ProcessLookupError:
+            return False
+        except PermissionError:
+            return True
+        except OSError:
+            return None
+        return True
+
+    pid_is_running = pid_is_running or default_pid_is_running
 
     def current_port():
         return current_port_getter()
@@ -162,14 +201,98 @@ def make_startup_runtime(
                 pass
         single_instance_mutexes.clear()
 
+    def runtime_url_is_loopback(host: str) -> bool:
+        return host in {"127.0.0.1", "localhost", "::1", "::ffff:127.0.0.1", normalize(LOCAL_HOST).lower()}
+
+    def validate_runtime_url(port: int, runtime: dict[str, object]) -> tuple[str, str]:
+        url = normalize(runtime.get("url"))
+        if not url:
+            return "", "missing_url"
+
+        parsed = runtime_url_parser(url)
+        scheme = normalize(getattr(parsed, "scheme", "")).lower()
+        host = normalize(getattr(parsed, "hostname", "")).lower()
+        path = normalize(getattr(parsed, "path", "")) or "/"
+        try:
+            parsed_port = getattr(parsed, "port", 0) or 0
+        except ValueError:
+            return "", "invalid_url_port"
+        url_port = clamp_int(parsed_port, 0)
+        if scheme != "http":
+            return "", "invalid_url_scheme"
+        if not runtime_url_is_loopback(host):
+            return "", "non_loopback_url"
+        if url_port < 1 or url_port > 65535 or url_port != port:
+            return "", "url_port_mismatch"
+        if path not in {"/", "/trending.html"}:
+            return "", "invalid_main_url_path"
+        return url, "ok"
+
+    def validate_runtime_state(runtime: dict[str, object]) -> tuple[dict[str, object] | None, str]:
+        port = clamp_int(runtime.get("port"), 0)
+        if port < 1 or port > 65535:
+            return None, "missing_or_invalid_port"
+
+        url, url_reason = validate_runtime_url(port, runtime)
+
+        pid = clamp_int(runtime.get("pid"), 0, 0)
+        browser_pid = clamp_int(runtime.get("browser_pid"), 0, 0)
+        live_pid = False
+        has_checkable_dead_pid = False
+        has_uncheckable_pid = False
+        for candidate in (pid, browser_pid):
+            if candidate <= 0:
+                continue
+            alive = pid_is_running(candidate)
+            if alive is True:
+                live_pid = True
+                break
+            if alive is False:
+                has_checkable_dead_pid = True
+            else:
+                has_uncheckable_pid = True
+
+        updated_at_ts = parse_iso_timestamp(runtime.get("updated_at"))
+        is_recent = bool(
+            updated_at_ts
+            and runtime_state_max_age_seconds
+            and int(time_getter()) - updated_at_ts <= runtime_state_max_age_seconds
+        )
+
+        if not live_pid:
+            if has_checkable_dead_pid:
+                return None, "stale_pid"
+            if (pid > 0 or browser_pid > 0) and not has_uncheckable_pid:
+                return None, "missing_live_pid"
+
+        allow_url_fallback = bool(url)
+        url_fallback_reason = url_reason
+        if allow_url_fallback and not (live_pid or is_recent or has_uncheckable_pid):
+            allow_url_fallback = False
+            url_fallback_reason = "stale_runtime_state"
+
+        return {
+            "port": port,
+            "url": url,
+            "url_reason": url_fallback_reason,
+            "allow_url_fallback": allow_url_fallback,
+            "control_token": normalize(runtime.get("control_token")),
+        }, "ok"
+
     def request_existing_instance_open() -> bool:
         for runtime_path in dict.fromkeys((RUNTIME_STATE_PATH, LEGACY_RUNTIME_STATE_PATH)):
             runtime = load_json_file(runtime_path, {})
             if not isinstance(runtime, dict):
                 continue
-            port = clamp_int(runtime.get('port'), 0, 1, 65535)
-            url = normalize(runtime.get('url'))
-            control_token = normalize(runtime.get('control_token'))
+            validated, reason = validate_runtime_state(runtime)
+            if not validated:
+                logger.warning("runtime_state_ignored path=%s reason=%s", runtime_path, reason)
+                continue
+            port = int(validated["port"])
+            url = str(validated["url"])
+            allow_url_fallback = bool(validated["allow_url_fallback"])
+            url_reason = str(validated["url_reason"])
+            control_token = str(validated["control_token"])
             headers = {'X-GitSonar-Control': control_token} if control_token else None
             for _ in range(8):
                 if port:
@@ -183,13 +306,15 @@ def make_startup_runtime(
                     except Exception:
                         pass
                 time.sleep(0.35)
-            if url:
+            if url and allow_url_fallback:
                 try:
                     if os.name == 'nt' and hasattr(os, 'startfile'):
                         os.startfile(url)
                         return True
                 except Exception:
                     pass
+            elif url_reason != "ok":
+                logger.warning("runtime_state_url_fallback_skipped path=%s reason=%s", runtime_path, url_reason)
         return False
 
     def show_message_box(message: str) -> None:

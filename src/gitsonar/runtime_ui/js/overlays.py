@@ -130,6 +130,8 @@ async function analyzeCompare(){
 }
 
 let tokenStatusRequestId = 0;
+let lastTokenStatusFingerprint = "";
+let lastTokenStatusResult = null;
 
 function proxySourceLabel(source){
   const key = String(source || "").trim();
@@ -170,12 +172,21 @@ function applyTokenStatus(status){
 }
 
 async function validateTokenStatus(tokenOverride){
+  const force = !!(arguments[1] && arguments[1].force);
   if(document.getElementById("setting-clear-token")?.checked){
-    applyTokenStatus({state:"idle", message:"当前会在保存时清空 GitHub Token。"});
-    return null;
+    const cleared = {state:"idle", message:"当前会在保存时清空 GitHub Token。"};
+    lastTokenStatusFingerprint = "clear";
+    lastTokenStatusResult = cleared;
+    applyTokenStatus(cleared);
+    return cleared;
   }
   const inputValue = typeof tokenOverride === "string" ? tokenOverride : (document.getElementById("setting-token")?.value || "");
   const tokenValue = String(inputValue || "").trim();
+  const fingerprint = tokenValue ? `override:${tokenValue}` : (settings.has_github_token ? "saved" : "empty");
+  if(!force && fingerprint === lastTokenStatusFingerprint && lastTokenStatusResult){
+    applyTokenStatus(lastTokenStatusResult);
+    return lastTokenStatusResult;
+  }
   const requestId = ++tokenStatusRequestId;
   applyTokenStatus({state:"checking", message:"正在校验 GitHub Token..."});
   try{
@@ -190,13 +201,19 @@ async function validateTokenStatus(tokenOverride){
     );
     if(requestId !== tokenStatusRequestId) return null;
     if(!resp.ok || !data.ok){
+      lastTokenStatusFingerprint = "";
+      lastTokenStatusResult = null;
       applyTokenStatus({state:"invalid", message:data.error || "校验 GitHub Token 失败"});
       return null;
     }
-    applyTokenStatus(data.status || null);
-    return data.status || null;
+    lastTokenStatusFingerprint = fingerprint;
+    lastTokenStatusResult = data.status || null;
+    applyTokenStatus(lastTokenStatusResult);
+    return lastTokenStatusResult;
   }catch(error){
     if(requestId !== tokenStatusRequestId) return null;
+    lastTokenStatusFingerprint = "";
+    lastTokenStatusResult = null;
     applyTokenStatus({state:"invalid", message:error.message || "校验 GitHub Token 失败"});
     return null;
   }
@@ -252,6 +269,8 @@ async function saveSettings(){
       return;
     }
     settings = data.settings;
+    lastTokenStatusFingerprint = "";
+    lastTokenStatusResult = null;
     toast(data.message || "设置已保存");
     closeSettings();
   }catch(error){

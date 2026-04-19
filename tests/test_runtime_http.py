@@ -31,6 +31,9 @@ class RuntimeHTTPHandlerTests(unittest.TestCase):
         self.validated_tokens: list[object | None] = []
         self.saved_settings: list[dict[str, object]] = []
         self.auto_start_updates: list[bool] = []
+        self.fetch_repo_details = lambda owner, name: {"full_name": f"{owner}/{name}"}
+        self.fetch_user_starred = lambda: [{"full_name": "octo/demo", "url": "https://github.com/octo/demo"}]
+        self.sync_local_favorites_with_starred = lambda _repos: {"total": 1, "added": 1, "removed": 0}
         self.runtime_settings = {
             "port": 8080,
             "refresh_hours": 1,
@@ -55,7 +58,7 @@ class RuntimeHTTPHandlerTests(unittest.TestCase):
             settings_lock=threading.RLock(),
             sanitize_settings=self._sanitize_settings,
             load_json_file=lambda _path, default: {"refreshing": False, "fetched_at": "now"} if default == {} else default,
-            fetch_repo_details=lambda owner, name: {"full_name": f"{owner}/{name}"},
+            fetch_repo_details=lambda owner, name: self.fetch_repo_details(owner, name),
             normalize=normalize,
             as_bool=as_bool,
             set_repo_state=set_repo_state,
@@ -86,8 +89,8 @@ class RuntimeHTTPHandlerTests(unittest.TestCase):
             open_main_window=lambda: True,
             exit_app=self._exit_app,
             sync_favorite_repo=lambda _repo, _enabled: None,
-            fetch_user_starred=lambda: [{"full_name": "octo/demo", "url": "https://github.com/octo/demo"}],
-            sync_local_favorites_with_starred=lambda _repos: {"total": 1, "added": 1, "removed": 0},
+            fetch_user_starred=lambda: self.fetch_user_starred(),
+            sync_local_favorites_with_starred=lambda repos: self.sync_local_favorites_with_starred(repos),
             validate_github_token=self._validate_github_token,
             control_token_getter=lambda: self.control_token,
         )
@@ -168,12 +171,33 @@ class RuntimeHTTPHandlerTests(unittest.TestCase):
         conn.close()
         return resp, data
 
+    def request_raw(
+        self,
+        method: str,
+        path: str,
+        body: bytes | str | None = None,
+        *,
+        include_token: bool = True,
+        headers: dict[str, str] | None = None,
+    ):
+        conn = http.client.HTTPConnection("127.0.0.1", self.port, timeout=5)
+        payload = body.encode("utf-8") if isinstance(body, str) else body
+        request_headers = dict(headers or {})
+        if include_token:
+            request_headers["X-GitSonar-Control"] = self.control_token
+        conn.request(method, path, body=payload, headers=request_headers)
+        resp = conn.getresponse()
+        data = resp.read()
+        conn.close()
+        return resp, data
+
     def test_control_token_missing_is_rejected(self):
         resp, data = self.request("POST", "/api/refresh", include_token=False)
         payload = json.loads(data.decode("utf-8"))
 
         self.assertEqual(resp.status, 403)
         self.assertFalse(payload["ok"])
+        self.assertEqual(payload["code"], "invalid_control_token")
         self.assertIn("control token", payload["error"].lower())
 
     def test_control_token_wrong_is_rejected(self):
@@ -182,6 +206,7 @@ class RuntimeHTTPHandlerTests(unittest.TestCase):
 
         self.assertEqual(resp.status, 403)
         self.assertFalse(payload["ok"])
+        self.assertEqual(payload["code"], "invalid_control_token")
         self.assertIn("control token", payload["error"].lower())
 
     def test_get_status_remains_available_without_control_token(self):
@@ -284,6 +309,7 @@ class RuntimeHTTPHandlerTests(unittest.TestCase):
 
         self.assertEqual(resp.status, 404)
         self.assertFalse(payload["ok"])
+        self.assertEqual(payload["code"], "not_found")
         self.assertIn("missing", payload["error"])
 
     def test_post_state_updates_user_state(self):
@@ -309,6 +335,7 @@ class RuntimeHTTPHandlerTests(unittest.TestCase):
 
         self.assertEqual(resp.status, 400)
         self.assertFalse(payload["ok"])
+        self.assertEqual(payload["code"], "invalid_request")
         self.assertIn("repo", payload["error"])
 
     def test_post_refresh_returns_409_when_refresh_in_progress(self):
@@ -318,7 +345,69 @@ class RuntimeHTTPHandlerTests(unittest.TestCase):
 
         self.assertEqual(resp.status, 409)
         self.assertFalse(payload["ok"])
+        self.assertEqual(payload["code"], "refresh_in_progress")
         self.assertIn("Refresh already in progress.", payload["error"])
+
+    def test_post_settings_replaces_sensitive_values_without_echoing_plaintext(self):
+        resp, data = self.request(
+            "POST",
+            "/api/settings",
+            {
+                "github_token": "new-token",
+                "proxy": "http://127.0.0.1:7999",
+                "refresh_hours": 2,
+                "result_limit": 30,
+                "port": 8080,
+                "auto_start": False,
+                "default_sort": "stars",
+            },
+        )
+        payload = json.loads(data.decode("utf-8"))
+
+        self.assertEqual(resp.status, 200)
+        self.assertTrue(payload["ok"])
+        self.assertEqual(self.runtime_settings["github_token"], "new-token")
+        self.assertEqual(self.runtime_settings["proxy"], "http://127.0.0.1:7999")
+        self.assertEqual(payload["settings"]["github_token"], "")
+        self.assertEqual(payload["settings"]["proxy"], "")
+        self.assertNotIn("new-token", data.decode("utf-8"))
+        self.assertNotIn("7999", payload["settings"]["proxy"])
+
+    def test_invalid_json_body_returns_stable_error_code(self):
+        resp, data = self.request_raw(
+            "POST",
+            "/api/settings/token-status",
+            "{",
+            headers={"Content-Type": "application/json"},
+        )
+        payload = json.loads(data.decode("utf-8"))
+
+        self.assertEqual(resp.status, 400)
+        self.assertFalse(payload["ok"])
+        self.assertEqual(payload["code"], "invalid_json_body")
+        self.assertIn("valid JSON", payload["error"])
+
+    def test_sync_stars_unexpected_failure_is_sanitized(self):
+        self.fetch_user_starred = lambda: (_ for _ in ()).throw(RuntimeError("secret backend detail"))
+
+        resp, data = self.request("POST", "/api/sync-stars")
+        payload = json.loads(data.decode("utf-8"))
+
+        self.assertEqual(resp.status, 400)
+        self.assertFalse(payload["ok"])
+        self.assertEqual(payload["code"], "github_star_sync_failed")
+        self.assertNotIn("secret backend detail", payload["error"])
+
+    def test_repo_details_internal_value_error_is_sanitized(self):
+        self.fetch_repo_details = lambda _owner, _name: (_ for _ in ()).throw(ValueError("secret backend detail"))
+
+        resp, data = self.request("GET", "/api/repo-details?owner=octo&name=demo")
+        payload = json.loads(data.decode("utf-8"))
+
+        self.assertEqual(resp.status, 500)
+        self.assertFalse(payload["ok"])
+        self.assertEqual(payload["code"], "repo_details_failed")
+        self.assertNotIn("secret backend detail", payload["error"])
 
     def test_make_app_handler_preserves_legacy_signature_without_optional_control_args(self):
         handler = make_app_handler(
@@ -365,6 +454,14 @@ class RuntimeHTTPHandlerTests(unittest.TestCase):
             with self.subTest(path=path):
                 resp, _data = self.request("POST", path, {"id": "legacy"})
                 self.assertEqual(resp.status, 404)
+
+    def test_unknown_endpoint_returns_not_found_code(self):
+        resp, data = self.request("POST", "/api/unknown", {"id": "missing"})
+        payload = json.loads(data.decode("utf-8"))
+
+        self.assertEqual(resp.status, 404)
+        self.assertFalse(payload["ok"])
+        self.assertEqual(payload["code"], "not_found")
 
 
 if __name__ == "__main__":

@@ -7,6 +7,7 @@ import tempfile
 import time
 import unittest
 from pathlib import Path
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "src"
@@ -32,7 +33,15 @@ class _DummyLocalControl:
         return _DummyResponse(self.ok)
 
 
-def build_runtime(tempdir: str, *, app_slug: str, legacy_slug: str, local_control, control_token_getter=lambda: "runtime-control-token"):
+def build_runtime(
+    tempdir: str,
+    *,
+    app_slug: str,
+    legacy_slug: str,
+    local_control,
+    control_token_getter=lambda: "runtime-control-token",
+    **extra_kwargs,
+):
     runtime_state_path = Path(tempdir) / "runtime-state.json"
     legacy_runtime_state_path = Path(tempdir) / "legacy-runtime-state.json"
     kwargs = dict(
@@ -55,6 +64,7 @@ def build_runtime(tempdir: str, *, app_slug: str, legacy_slug: str, local_contro
     )
     if control_token_getter is not None:
         kwargs["control_token_getter"] = control_token_getter
+    kwargs.update(extra_kwargs)
     return make_startup_runtime(**kwargs)
 
 
@@ -78,13 +88,151 @@ class StartupRuntimeTests(unittest.TestCase):
     def test_request_existing_instance_open_uses_local_control_endpoint(self):
         with tempfile.TemporaryDirectory() as tempdir:
             control = _DummyLocalControl(ok=True)
-            runtime = build_runtime(tempdir, app_slug="gitsonar-test", legacy_slug="gitsonar-test-legacy", local_control=control)
+            runtime = build_runtime(
+                tempdir,
+                app_slug="gitsonar-test",
+                legacy_slug="gitsonar-test-legacy",
+                local_control=control,
+                pid_is_running=lambda pid: pid == 4242,
+            )
             runtime_state_path = Path(tempdir) / "runtime-state.json"
             runtime_state_path.write_text(
                 json.dumps(
                     {
+                        "pid": 4242,
                         "port": 8765,
                         "url": "http://127.0.0.1:8765/trending.html",
+                        "control_token": "runtime-control-token",
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            opened = runtime.request_existing_instance_open()
+
+            self.assertTrue(opened)
+            self.assertEqual(
+                control.calls,
+                [
+                    (
+                        "http://127.0.0.1:8765/api/window/open",
+                        {"X-GitSonar-Control": "runtime-control-token"},
+                        2,
+                    )
+                ],
+            )
+
+    def test_request_existing_instance_open_ignores_dead_or_malformed_runtime_state_without_launching_url(self):
+        fixed_now = int(time.time())
+        cases = [
+            (
+                "dead_pid",
+                {
+                    "pid": 9999,
+                    "port": 8765,
+                    "url": "http://127.0.0.1:8765/trending.html",
+                    "control_token": "runtime-control-token",
+                    "updated_at": "recent",
+                },
+                lambda pid: False,
+                lambda value: fixed_now - 10,
+                False,
+            ),
+            (
+                "malformed_url",
+                {
+                    "port": 8765,
+                    "url": "https://example.com/trending.html",
+                    "control_token": "runtime-control-token",
+                    "updated_at": "recent",
+                },
+                lambda _pid: True,
+                lambda value: fixed_now - 10,
+                True,
+            ),
+        ]
+        with mock.patch("gitsonar.runtime.startup.os.startfile", create=True) as startfile:
+            for label, payload, pid_is_running, parse_iso_timestamp, expect_local_control in cases:
+                with self.subTest(label=label), tempfile.TemporaryDirectory() as tempdir:
+                    control = _DummyLocalControl(ok=False)
+                    runtime = build_runtime(
+                        tempdir,
+                        app_slug="gitsonar-test",
+                        legacy_slug="gitsonar-test-legacy",
+                        local_control=control,
+                        pid_is_running=pid_is_running,
+                        parse_iso_timestamp=parse_iso_timestamp,
+                        time_getter=lambda: fixed_now,
+                    )
+                    (Path(tempdir) / "runtime-state.json").write_text(json.dumps(payload), encoding="utf-8")
+
+                    opened = runtime.request_existing_instance_open()
+
+                    self.assertFalse(opened)
+                    expected_calls = [
+                        (
+                            "http://127.0.0.1:8765/api/window/open",
+                            {"X-GitSonar-Control": "runtime-control-token"},
+                            2,
+                        )
+                    ] * 8 if expect_local_control else []
+                    self.assertEqual(control.calls, expected_calls)
+            startfile.assert_not_called()
+
+    def test_request_existing_instance_open_accepts_recent_legacy_state_without_pid(self):
+        fixed_now = int(time.time())
+        with tempfile.TemporaryDirectory() as tempdir:
+            control = _DummyLocalControl(ok=True)
+            runtime = build_runtime(
+                tempdir,
+                app_slug="gitsonar-test",
+                legacy_slug="gitsonar-test-legacy",
+                local_control=control,
+                pid_is_running=lambda _pid: None,
+                parse_iso_timestamp=lambda value: fixed_now - 60 if value else 0,
+                time_getter=lambda: fixed_now,
+            )
+            legacy_runtime_state_path = Path(tempdir) / "legacy-runtime-state.json"
+            legacy_runtime_state_path.write_text(
+                json.dumps(
+                    {
+                        "port": 8765,
+                        "url": "http://127.0.0.1:8765/trending.html",
+                        "control_token": "runtime-control-token",
+                        "updated_at": "recent",
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            opened = runtime.request_existing_instance_open()
+
+            self.assertTrue(opened)
+            self.assertEqual(
+                control.calls,
+                [
+                    (
+                        "http://127.0.0.1:8765/api/window/open",
+                        {"X-GitSonar-Control": "runtime-control-token"},
+                        2,
+                    )
+                ],
+            )
+
+    def test_request_existing_instance_open_accepts_port_only_legacy_state(self):
+        with tempfile.TemporaryDirectory() as tempdir:
+            control = _DummyLocalControl(ok=True)
+            runtime = build_runtime(
+                tempdir,
+                app_slug="gitsonar-test",
+                legacy_slug="gitsonar-test-legacy",
+                local_control=control,
+            )
+            legacy_runtime_state_path = Path(tempdir) / "legacy-runtime-state.json"
+            legacy_runtime_state_path.write_text(
+                json.dumps(
+                    {
+                        "port": 8765,
                         "control_token": "runtime-control-token",
                     }
                 ),

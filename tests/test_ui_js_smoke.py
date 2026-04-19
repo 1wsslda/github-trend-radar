@@ -69,10 +69,18 @@ class UIJSSmokeTests(unittest.TestCase):
     def test_token_status_validation_uses_dedicated_settings_endpoint(self):
         body = function_body(JS, "validateTokenStatus")
         self.assertIn('"/api/settings/token-status"', body)
+        self.assertIn("const fingerprint = tokenValue ? `override:${tokenValue}` : (settings.has_github_token ? \"saved\" : \"empty\");", body)
+        self.assertIn("fingerprint === lastTokenStatusFingerprint && lastTokenStatusResult", body)
         self.assertIn('applyTokenStatus({state:"checking"', body)
         self.assertIn('document.getElementById("setting-clear-token")?.checked', body)
         self.assertIn("JSON.stringify(tokenValue ? {github_token:tokenValue} : {})", body)
-        self.assertIn("applyTokenStatus(data.status || null);", body)
+        self.assertIn("lastTokenStatusFingerprint = fingerprint;", body)
+        self.assertIn("applyTokenStatus(lastTokenStatusResult);", body)
+
+    def test_open_settings_reuses_cached_token_status_when_possible(self):
+        body = function_body(JS, "openSettings")
+        self.assertIn("validateTokenStatus();", body)
+        self.assertNotIn("validateTokenStatus(undefined, {force:true});", body)
 
     def test_local_api_requests_attach_runtime_control_token(self):
         body = function_body(JS, "localApiOptions")
