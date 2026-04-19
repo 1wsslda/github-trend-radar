@@ -39,7 +39,7 @@ Pick the checks that match your change:
 
 - `python scripts/verify_runtime.py`
 - `python -m unittest discover -s tests -q`
-- `python -m py_compile src\\gitsonar\\__main__.py src\\gitsonar\\runtime\\*.py src\\gitsonar\\runtime_ui\\*.py src\\gitsonar\\runtime_ui\\js\\*.py`
+- `python -m compileall -q src\\gitsonar`
 - App launch smoke test on Windows with `python src/gitsonar/__main__.py`
 - Packaging script smoke test when touching installer or build files
 - Manual verification for UI, single-instance wake-up, settings, and GitHub connectivity flows

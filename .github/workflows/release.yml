@@ -6,8 +6,30 @@ on:
       - "v*"
 
 jobs:
+  verify:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+        shell: pwsh
+
+      - name: Verify runtime
+        run: python scripts/verify_runtime.py
+        shell: pwsh
+
   build:
     runs-on: windows-latest
+    needs: verify
 
     steps:
       - uses: actions/checkout@v4

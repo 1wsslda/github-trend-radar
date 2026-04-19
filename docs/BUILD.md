@@ -67,6 +67,7 @@ Python 依赖较少，核心包括：
 ## 验证命令
 
 - `python scripts/verify_runtime.py`
+- `python -m compileall -q src\\gitsonar`
 - `python -m unittest discover -s tests -q`
 
 ## 脚本行为说明
