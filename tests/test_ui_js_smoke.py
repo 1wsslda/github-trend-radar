@@ -60,6 +60,11 @@ class UIJSSmokeTests(unittest.TestCase):
         self.assertIn("closeControlDrawer();", body)
         self.assertIn("render();", body)
 
+    def test_selection_summary_keeps_discovery_guard_for_batch_dock(self):
+        body = function_body(JS, "refreshSelectionSummary")
+        self.assertIn("const isDiscoverPanel = panel === DISCOVER_PANEL_KEY;", body)
+        self.assertIn("const showBatchDock = !isDiscoverPanel && selected > 0;", body)
+
     def test_render_pipeline_updates_shell_and_canvas(self):
         body = function_body(JS, "render")
         self.assertIn("syncWorkspaceCanvas();", body)

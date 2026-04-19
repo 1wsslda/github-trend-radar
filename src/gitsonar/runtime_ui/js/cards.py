@@ -101,6 +101,7 @@ function syncExpandableDescriptions(scope = document){
 
 function refreshSelectionSummary(){
   const isUpdatePanel = panel === UPDATE_PANEL_KEY;
+  const isDiscoverPanel = panel === DISCOVER_PANEL_KEY;
   const repos = visibleRepos();
   const updates = visibleUpdates();
   const selected = selectedCount();

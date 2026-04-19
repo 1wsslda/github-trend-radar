@@ -42,7 +42,7 @@ class RuntimeUILayoutSmokeTests(unittest.TestCase):
         self.assertIn("function render()", JS)
         self.assertIn(".workspace-header{", CSS)
 
-    def test_build_html_preserves_legacy_signature(self):
+    def test_build_html_keeps_control_token_payload_field(self):
         html = build_fixture_html()
 
         self.assertIn('"controlToken": ""', html)
