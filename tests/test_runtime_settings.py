@@ -35,7 +35,7 @@ class RuntimeSettingsTests(unittest.TestCase):
             normalize=normalize,
             clamp_int=clamp_int,
             as_bool=as_bool,
-            decrypt_secret=lambda value: str(value or ""),
+            decrypt_secret=lambda value: str(value or "")[4:] if str(value or "").startswith("enc:") else str(value or ""),
             encrypt_secret=lambda value: f"enc:{value}" if value else "",
             normalize_proxy_url=normalize_proxy_url,
             parse_proxy_endpoint=parse_proxy_endpoint,
@@ -120,6 +120,91 @@ class RuntimeSettingsTests(unittest.TestCase):
             self.assertEqual(payload["github_token"], "")
             self.assertEqual(payload["proxy"], "")
             self.assertEqual(payload["runtime_root"], tempdir)
+
+    def test_save_settings_encrypts_token_without_affecting_proxy_metadata(self):
+        with tempfile.TemporaryDirectory() as tempdir:
+            settings = {
+                "port": 8080,
+                "refresh_hours": 1,
+                "result_limit": 25,
+                "default_sort": "stars",
+                "auto_start": False,
+                "github_token": "saved-token",
+                "proxy": "http://127.0.0.1:7890",
+            }
+            runtime = self.build_runtime(settings, tempdir)
+            runtime.save_settings(settings)
+
+            saved = json.loads((Path(tempdir) / "settings.json").read_text(encoding="utf-8"))
+
+            self.assertEqual(saved["github_token"], "enc:saved-token")
+            self.assertEqual(saved["proxy"], "http://127.0.0.1:7890")
+
+    def test_save_settings_encrypts_proxy_credentials_while_preserving_runtime_value(self):
+        with tempfile.TemporaryDirectory() as tempdir:
+            settings = {
+                "port": 8080,
+                "refresh_hours": 1,
+                "result_limit": 25,
+                "default_sort": "stars",
+                "auto_start": False,
+                "github_token": "saved-token",
+                "proxy": "http://user:pass@127.0.0.1:7890",
+            }
+            runtime = self.build_runtime(settings, tempdir)
+            runtime.save_settings(settings)
+
+            saved = json.loads((Path(tempdir) / "settings.json").read_text(encoding="utf-8"))
+
+            self.assertEqual(saved["github_token"], "enc:saved-token")
+            self.assertEqual(saved["proxy"], "enc:http://user:pass@127.0.0.1:7890")
+            self.assertEqual(settings["proxy"], "http://user:pass@127.0.0.1:7890")
+
+    def test_load_settings_reads_legacy_plaintext_proxy_with_credentials(self):
+        with tempfile.TemporaryDirectory() as tempdir:
+            settings_file = Path(tempdir) / "settings.json"
+            settings_file.write_text(
+                json.dumps(
+                    {
+                        "port": 8080,
+                        "refresh_hours": 1,
+                        "result_limit": 25,
+                        "default_sort": "stars",
+                        "auto_start": False,
+                        "github_token": "",
+                        "proxy": "http://user:pass@127.0.0.1:7890",
+                    }
+                ),
+                encoding="utf-8",
+            )
+            runtime = self.build_runtime({}, tempdir)
+
+            loaded = runtime.load_settings()
+
+            self.assertEqual(loaded["proxy"], "http://user:pass@127.0.0.1:7890")
+
+    def test_load_settings_decrypts_encrypted_proxy_with_credentials(self):
+        with tempfile.TemporaryDirectory() as tempdir:
+            settings_file = Path(tempdir) / "settings.json"
+            settings_file.write_text(
+                json.dumps(
+                    {
+                        "port": 8080,
+                        "refresh_hours": 1,
+                        "result_limit": 25,
+                        "default_sort": "stars",
+                        "auto_start": False,
+                        "github_token": "",
+                        "proxy": "enc:http://user:pass@127.0.0.1:7890",
+                    }
+                ),
+                encoding="utf-8",
+            )
+            runtime = self.build_runtime({}, tempdir)
+
+            loaded = runtime.load_settings()
+
+            self.assertEqual(loaded["proxy"], "http://user:pass@127.0.0.1:7890")
 
 
 if __name__ == "__main__":

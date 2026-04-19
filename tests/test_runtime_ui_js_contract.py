@@ -1,0 +1,41 @@
+from __future__ import annotations
+
+import re
+import shutil
+import subprocess
+import sys
+import tempfile
+import unittest
+from collections import Counter
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+SRC = ROOT / "src"
+if str(SRC) not in sys.path:
+    sys.path.insert(0, str(SRC))
+
+from gitsonar.runtime_ui.assets import JS
+
+
+class RuntimeUIJSContractTests(unittest.TestCase):
+    def test_aggregate_js_has_no_duplicate_named_functions(self):
+        pattern = re.compile(r"(?m)^(?:async\s+)?function\s+([A-Za-z_$][\w$]*)\s*\(")
+        names = pattern.findall(JS)
+        duplicates = sorted(name for name, count in Counter(names).items() if count > 1)
+        self.assertEqual(duplicates, [], f"duplicate function definitions found: {duplicates}")
+
+    def test_aggregate_js_passes_node_syntax_check_when_available(self):
+        node = shutil.which("node")
+        if not node:
+            self.skipTest("node is not available")
+        with tempfile.NamedTemporaryFile("w", suffix=".js", encoding="utf-8", delete=False) as handle:
+            handle.write(JS)
+            temp_path = Path(handle.name)
+        try:
+            subprocess.run([node, "--check", str(temp_path)], check=True, capture_output=True, text=True)
+        finally:
+            temp_path.unlink(missing_ok=True)
+
+
+if __name__ == "__main__":
+    unittest.main()

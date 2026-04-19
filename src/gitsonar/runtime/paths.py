@@ -5,6 +5,7 @@ import logging
 import os
 import shutil
 import sys
+from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +31,24 @@ DEV_RUNTIME_ITEMS = (
     "repo_details_cache.json",
     "runtime_state.json",
 )
+
+
+@dataclass(frozen=True, slots=True)
+class RuntimePaths:
+    runtime_root: str
+    legacy_runtime_root: str
+    data_dir: str
+    html_path: str
+    status_path: str
+    settings_path: str
+    user_state_path: str
+    discovery_state_path: str
+    latest_snapshot_path: str
+    detail_cache_path: str
+    runtime_state_path: str
+    desktop_shell_dir: str
+    cache_path: str
+    legacy_runtime_state_path: str
 
 
 def runtime_root_for_slug(slug: str) -> str:
@@ -93,20 +112,55 @@ def merge_legacy_runtime_root() -> str:
     return preferred
 
 
-RUNTIME_ROOT = merge_legacy_runtime_root() if IS_FROZEN else merge_dev_runtime_root()
-LEGACY_RUNTIME_ROOT = runtime_root_for_slug(LEGACY_APP_SLUG) if IS_FROZEN else PROJECT_ROOT
-DATA_DIR = os.path.join(RUNTIME_ROOT, "data")
-HTML_PATH = os.path.join(RUNTIME_ROOT, "trending.html")
-STATUS_PATH = os.path.join(RUNTIME_ROOT, "status.json")
-SETTINGS_PATH = os.path.join(RUNTIME_ROOT, "settings.json")
-USER_STATE_PATH = os.path.join(RUNTIME_ROOT, "user_state.json")
-DISCOVERY_STATE_PATH = os.path.join(RUNTIME_ROOT, "discovery_state.json")
-LATEST_SNAPSHOT_PATH = os.path.join(DATA_DIR, "latest.json")
-DETAIL_CACHE_PATH = os.path.join(RUNTIME_ROOT, "repo_details_cache.json")
-RUNTIME_STATE_PATH = os.path.join(RUNTIME_ROOT, "runtime_state.json")
-DESKTOP_SHELL_DIR = os.path.join(RUNTIME_ROOT, ".desktop_shell")
-CACHE_PATH = os.path.join(RUNTIME_ROOT, ".translation_cache.json")
-LEGACY_RUNTIME_STATE_PATH = os.path.join(LEGACY_RUNTIME_ROOT, "runtime_state.json")
+def build_runtime_paths(*, migrate: bool = False) -> RuntimePaths:
+    runtime_root = (
+        merge_legacy_runtime_root()
+        if migrate and IS_FROZEN
+        else merge_dev_runtime_root()
+        if migrate
+        else runtime_root_for_slug(APP_SLUG)
+        if IS_FROZEN
+        else DEV_RUNTIME_ROOT
+    )
+    legacy_runtime_root = runtime_root_for_slug(LEGACY_APP_SLUG) if IS_FROZEN else PROJECT_ROOT
+    data_dir = os.path.join(runtime_root, "data")
+    return RuntimePaths(
+        runtime_root=runtime_root,
+        legacy_runtime_root=legacy_runtime_root,
+        data_dir=data_dir,
+        html_path=os.path.join(runtime_root, "trending.html"),
+        status_path=os.path.join(runtime_root, "status.json"),
+        settings_path=os.path.join(runtime_root, "settings.json"),
+        user_state_path=os.path.join(runtime_root, "user_state.json"),
+        discovery_state_path=os.path.join(runtime_root, "discovery_state.json"),
+        latest_snapshot_path=os.path.join(data_dir, "latest.json"),
+        detail_cache_path=os.path.join(runtime_root, "repo_details_cache.json"),
+        runtime_state_path=os.path.join(runtime_root, "runtime_state.json"),
+        desktop_shell_dir=os.path.join(runtime_root, ".desktop_shell"),
+        cache_path=os.path.join(runtime_root, ".translation_cache.json"),
+        legacy_runtime_state_path=os.path.join(legacy_runtime_root, "runtime_state.json"),
+    )
+
+
+def ensure_runtime_paths() -> RuntimePaths:
+    return build_runtime_paths(migrate=True)
+
+
+DEFAULT_RUNTIME_PATHS = build_runtime_paths()
+RUNTIME_ROOT = DEFAULT_RUNTIME_PATHS.runtime_root
+LEGACY_RUNTIME_ROOT = DEFAULT_RUNTIME_PATHS.legacy_runtime_root
+DATA_DIR = DEFAULT_RUNTIME_PATHS.data_dir
+HTML_PATH = DEFAULT_RUNTIME_PATHS.html_path
+STATUS_PATH = DEFAULT_RUNTIME_PATHS.status_path
+SETTINGS_PATH = DEFAULT_RUNTIME_PATHS.settings_path
+USER_STATE_PATH = DEFAULT_RUNTIME_PATHS.user_state_path
+DISCOVERY_STATE_PATH = DEFAULT_RUNTIME_PATHS.discovery_state_path
+LATEST_SNAPSHOT_PATH = DEFAULT_RUNTIME_PATHS.latest_snapshot_path
+DETAIL_CACHE_PATH = DEFAULT_RUNTIME_PATHS.detail_cache_path
+RUNTIME_STATE_PATH = DEFAULT_RUNTIME_PATHS.runtime_state_path
+DESKTOP_SHELL_DIR = DEFAULT_RUNTIME_PATHS.desktop_shell_dir
+CACHE_PATH = DEFAULT_RUNTIME_PATHS.cache_path
+LEGACY_RUNTIME_STATE_PATH = DEFAULT_RUNTIME_PATHS.legacy_runtime_state_path
 LOCAL_HOST = "127.0.0.1"
 SERVER_HOST = LOCAL_HOST
 
@@ -140,6 +194,10 @@ __all__ = [
     "LOCAL_HOST",
     "SERVER_HOST",
     "runtime_root_for_slug",
+    "RuntimePaths",
+    "build_runtime_paths",
+    "ensure_runtime_paths",
+    "DEFAULT_RUNTIME_PATHS",
     "merge_dev_runtime_root",
     "merge_legacy_runtime_root",
 ]

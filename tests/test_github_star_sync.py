@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import sys
 import threading
+import time
 import unittest
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -52,6 +53,41 @@ class _ScriptedSession:
         return self._request("DELETE", url, **kwargs)
 
 
+class _ConcurrentSession:
+    def __init__(self, repo_payloads: dict[str, dict[str, object]], delay: float = 0.05):
+        self.repo_payloads = repo_payloads
+        self.delay = delay
+        self.calls: list[tuple[str, str]] = []
+        self._lock = threading.Lock()
+        self._in_flight = 0
+        self.max_in_flight = 0
+
+    def get(self, url: str, **_kwargs):
+        with self._lock:
+            self.calls.append(("GET", url))
+            self._in_flight += 1
+            self.max_in_flight = max(self.max_in_flight, self._in_flight)
+        try:
+            time.sleep(self.delay)
+            suffix = "/repos/"
+            if suffix not in url:
+                raise AssertionError(f"unexpected GET {url}")
+            repo_key = url.split(suffix, 1)[1]
+            payload = self.repo_payloads.get(repo_key)
+            if payload is None:
+                raise AssertionError(f"missing payload for {repo_key}")
+            return _StubResponse(200, payload)
+        finally:
+            with self._lock:
+                self._in_flight -= 1
+
+    def put(self, url: str, **kwargs):
+        raise AssertionError(f"unexpected PUT {url} {kwargs}")
+
+    def delete(self, url: str, **kwargs):
+        raise AssertionError(f"unexpected DELETE {url} {kwargs}")
+
+
 def _normalize_repo_stub(repo):
     if not isinstance(repo, dict):
         return None
@@ -68,7 +104,15 @@ def _normalize_repo_stub(repo):
     return clean
 
 
-def build_runtime(session, token: str = "token", user_state: dict | None = None, save_user_state=None):
+def build_runtime(
+    session,
+    token: str = "token",
+    user_state: dict | None = None,
+    save_user_state=None,
+    *,
+    token_validation_time_getter=None,
+    token_validation_cache_ttl_seconds: int = 30,
+):
     return make_github_runtime(
         session=session,
         api_timeout=(1, 1),
@@ -95,13 +139,13 @@ def build_runtime(session, token: str = "token", user_state: dict | None = None,
         normalize_favorite_update=lambda entry: entry,
         translate_snapshot=lambda snapshot: snapshot,
         load_snapshot=lambda: {},
-        cached_repo_details={},
-        detail_fetch_lock=threading.RLock(),
+        cached_repo_details=lambda _cache_key: None,
+        detail_fetch_lock=lambda _cache_key: threading.RLock(),
         strip_markdown=strip_markdown,
         translate_text=lambda text: normalize(text),
         translate_query_to_en=lambda text: normalize(text),
         save_translation_cache=lambda: None,
-        save_repo_details=lambda: None,
+        save_repo_details=lambda _cache_key, _details: None,
         parse_iso_timestamp=parse_iso_timestamp,
         iso_now=iso_now,
         fetch_semaphore=threading.Semaphore(1),
@@ -111,6 +155,8 @@ def build_runtime(session, token: str = "token", user_state: dict | None = None,
         favorite_release_min_seconds_with_token=30,
         favorite_watch_max_checks_no_token=2,
         favorite_watch_max_checks_with_token=4,
+        token_validation_time_getter=token_validation_time_getter,
+        token_validation_cache_ttl_seconds=token_validation_cache_ttl_seconds,
     )
 
 
@@ -158,14 +204,8 @@ class GitHubStarSyncTests(unittest.TestCase):
                 "https://github.com/octo/new-one",
             ],
         )
-        self.assertEqual(
-            sorted(user_state["favorite_watch"].keys()),
-            ["https://github.com/octo/keep-me"],
-        )
-        self.assertEqual(
-            [item["url"] for item in user_state["favorite_updates"]],
-            ["https://github.com/octo/keep-me"],
-        )
+        self.assertEqual(sorted(user_state["favorite_watch"].keys()), ["https://github.com/octo/keep-me"])
+        self.assertEqual([item["url"] for item in user_state["favorite_updates"]], ["https://github.com/octo/keep-me"])
         self.assertIn("https://github.com/octo/new-one", user_state["repo_records"])
         self.assertEqual(save_calls, ["saved"])
 
@@ -189,13 +229,80 @@ class GitHubStarSyncTests(unittest.TestCase):
         self.assertEqual(user_state["favorite_watch"], {})
         self.assertEqual(user_state["favorite_updates"], [])
 
+    def test_track_favorite_updates_fetches_due_repos_concurrently(self):
+        old_checked_at = (datetime.now(timezone.utc) - timedelta(hours=2)).isoformat().replace("+00:00", "Z")
+        recent_release_checked_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+        repo_payloads = {
+            "octo/a": {
+                "full_name": "octo/a",
+                "html_url": "https://github.com/octo/a",
+                "stargazers_count": 12,
+                "forks_count": 2,
+                "open_issues_count": 1,
+                "updated_at": old_checked_at,
+                "pushed_at": old_checked_at,
+            },
+            "octo/b": {
+                "full_name": "octo/b",
+                "html_url": "https://github.com/octo/b",
+                "stargazers_count": 25,
+                "forks_count": 4,
+                "open_issues_count": 1,
+                "updated_at": old_checked_at,
+                "pushed_at": old_checked_at,
+            },
+            "octo/c": {
+                "full_name": "octo/c",
+                "html_url": "https://github.com/octo/c",
+                "stargazers_count": 30,
+                "forks_count": 5,
+                "open_issues_count": 1,
+                "updated_at": old_checked_at,
+                "pushed_at": old_checked_at,
+            },
+            "octo/d": {
+                "full_name": "octo/d",
+                "html_url": "https://github.com/octo/d",
+                "stargazers_count": 41,
+                "forks_count": 6,
+                "open_issues_count": 1,
+                "updated_at": old_checked_at,
+                "pushed_at": old_checked_at,
+            },
+        }
+        user_state = {
+            "favorites": [f"https://github.com/{name}" for name in repo_payloads],
+            "repo_records": {
+                f"https://github.com/{name}": {"full_name": name, "url": f"https://github.com/{name}"}
+                for name in repo_payloads
+            },
+            "favorite_watch": {
+                f"https://github.com/{name}": {
+                    "full_name": name,
+                    "url": f"https://github.com/{name}",
+                    "stars": 10,
+                    "forks": 1,
+                    "checked_at": old_checked_at,
+                    "release_checked_at": recent_release_checked_at,
+                }
+                for name in repo_payloads
+            },
+            "favorite_updates": [],
+        }
+        save_calls: list[str] = []
+        session = _ConcurrentSession(repo_payloads)
+        runtime = build_runtime(session, user_state=user_state, save_user_state=lambda: save_calls.append("saved"))
+
+        new_updates = runtime.track_favorite_updates()
+
+        self.assertGreater(session.max_in_flight, 1)
+        self.assertEqual(new_updates, 4)
+        self.assertEqual(len(user_state["favorite_watch"]), 4)
+        self.assertEqual(len(user_state["favorite_updates"]), 4)
+        self.assertEqual(save_calls, ["saved"])
+
     def test_sync_favorite_repo_stars_when_enabling(self):
-        session = _ScriptedSession(
-            {
-                "GET": [_StubResponse(404)],
-                "PUT": [_StubResponse(204)],
-            }
-        )
+        session = _ScriptedSession({"GET": [_StubResponse(404)], "PUT": [_StubResponse(204)]})
         runtime = build_runtime(session)
 
         result = runtime.sync_favorite_repo(
@@ -213,12 +320,7 @@ class GitHubStarSyncTests(unittest.TestCase):
         )
 
     def test_sync_favorite_repo_unstars_when_disabling(self):
-        session = _ScriptedSession(
-            {
-                "GET": [_StubResponse(204)],
-                "DELETE": [_StubResponse(204)],
-            }
-        )
+        session = _ScriptedSession({"GET": [_StubResponse(204)], "DELETE": [_StubResponse(204)]})
         runtime = build_runtime(session)
 
         result = runtime.sync_favorite_repo(
@@ -277,14 +379,7 @@ class GitHubStarSyncTests(unittest.TestCase):
             ],
         )
 
-        success_session = _ScriptedSession(
-            {
-                "GET": [
-                    _StubResponse(200, {"login": "octo"}),
-                    _StubResponse(200, []),
-                ]
-            }
-        )
+        success_session = _ScriptedSession({"GET": [_StubResponse(200, {"login": "octo"}), _StubResponse(200, [])]})
         success_runtime = build_runtime(success_session)
         success = success_runtime.validate_github_token("good-token")
         self.assertEqual(success["state"], "success")
@@ -292,6 +387,48 @@ class GitHubStarSyncTests(unittest.TestCase):
         self.assertIn("详情", success["message"])
         self.assertIn("发现", success["message"])
         self.assertIn("星标同步", success["message"])
+
+    def test_validate_github_token_uses_ttl_cache_until_expiry_or_token_change(self):
+        clock = [100.0]
+        session = _ScriptedSession(
+            {
+                "GET": [
+                    _StubResponse(200, {"login": "octo"}),
+                    _StubResponse(200, []),
+                    _StubResponse(200, {"login": "octo-other"}),
+                    _StubResponse(200, []),
+                    _StubResponse(200, {"login": "octo"}),
+                    _StubResponse(200, []),
+                ]
+            }
+        )
+        runtime = build_runtime(
+            session,
+            token_validation_time_getter=lambda: clock[0],
+            token_validation_cache_ttl_seconds=30,
+        )
+
+        first = runtime.validate_github_token("good-token")
+        second = runtime.validate_github_token("good-token")
+        other = runtime.validate_github_token("other-token")
+        clock[0] += 31
+        expired = runtime.validate_github_token("good-token")
+
+        self.assertEqual(first["login"], "octo")
+        self.assertEqual(second["login"], "octo")
+        self.assertEqual(other["login"], "octo-other")
+        self.assertEqual(expired["login"], "octo")
+        self.assertEqual(
+            session.calls,
+            [
+                ("GET", "https://api.github.com/user"),
+                ("GET", "https://api.github.com/user/starred"),
+                ("GET", "https://api.github.com/user"),
+                ("GET", "https://api.github.com/user/starred"),
+                ("GET", "https://api.github.com/user"),
+                ("GET", "https://api.github.com/user/starred"),
+            ],
+        )
 
     def test_unstar_repo_returns_error_when_check_fails(self):
         session = _ScriptedSession({"GET": [_StubResponse(500)]})
@@ -301,6 +438,8 @@ class GitHubStarSyncTests(unittest.TestCase):
 
         self.assertFalse(result["ok"])
         self.assertNotIn("already_unstarred", result)
+        self.assertEqual(result["code"], "github_star_update_failed")
+        self.assertNotIn("HTTP 500", result["error"])
         self.assertEqual(session.calls, [("GET", "https://api.github.com/user/starred/octo/widgets")])
 
 
