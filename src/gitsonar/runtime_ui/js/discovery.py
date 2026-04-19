@@ -33,6 +33,44 @@ function currentDiscoveryAutoExpandNote(){
   return discoverDraft.autoExpand ? DISCOVERY_AUTO_EXPAND_NOTE_ON : DISCOVERY_AUTO_EXPAND_NOTE_OFF;
 }
 
+function discoveryResultSignature(results){
+  if(!Array.isArray(results) || !results.length) return "";
+  // Keep this signature aligned with the fields surfaced by discovery top cards and repo cards.
+  return results.map(repo => [
+    String(repo?.url || ""),
+    String(repo?.full_name || ""),
+    Number(repo?.rank || 0),
+    Number(repo?.composite_score || 0),
+    Number(repo?.relevance_score || 0),
+    Number(repo?.hot_score || 0),
+    Number(repo?.stars || 0),
+    Number(repo?.forks || 0),
+    String(repo?.language || ""),
+    String(repo?.description || ""),
+    String(repo?.description_raw || ""),
+    Array.isArray(repo?.match_reasons) ? repo.match_reasons.map(reason => String(reason || "").trim()).join("\u241f") : "",
+  ].join("\u241e")).join("\u241d");
+}
+
+function renderableDiscoveryResults(job, fallbackResults){
+  const fallback = Array.isArray(fallbackResults) ? fallbackResults : [];
+  if(!job || typeof job !== "object") return fallback;
+  const previewResults = Array.isArray(job.preview_results) ? job.preview_results : [];
+  if(String(job.status || "").trim() === "completed"){
+    const finalResults = Array.isArray(job.discovery_state?.last_results) ? job.discovery_state.last_results : previewResults;
+    return finalResults.length ? finalResults : [];
+  }
+  if(previewResults.length) return previewResults;
+  return fallback;
+}
+
+function discoveryProgressEtaLabel(job = activeDiscoveryJob){
+  const etaRemainingSeconds = Number(job?.eta_remaining_seconds || 0);
+  const etaFullSeconds = Number(job?.eta_full_seconds || 0);
+  if(etaRemainingSeconds > 0) return `预计还需 ${etaRemainingSeconds} 秒`;
+  if(etaFullSeconds > 0) return `完整结果约 ${etaFullSeconds} 秒`;
+  return "正在继续处理";
+}
 const DISCOVERY_RECENT_QUERY_KEY = "gtr-discover-recent-queries";
 const MAX_DISCOVERY_RECENT_QUERIES = 6;
 let discoverySuggestionOpen = false;
@@ -241,23 +279,18 @@ function renderDiscoveryProgress(){
   if(!discoveryBusy || !activeDiscoveryJob) return "";
   const job = activeDiscoveryJob;
   const query = currentDiscoveryQueryText() || "当前关键词";
-  const etaRemainingSeconds = Number(job.eta_remaining_seconds || 0);
-  const etaFullSeconds = Number(job.eta_full_seconds || 0);
-  const etaLabel = etaRemainingSeconds > 0
-    ? `预计还需 ${etaRemainingSeconds} 秒`
-    : (etaFullSeconds > 0 ? `完整结果约 ${etaFullSeconds} 秒` : "正在继续处理");
-  return `<div class="discover-progress-strip">
+  const etaLabel = discoveryProgressEtaLabel(job);
+  return `<div class="discover-progress-strip" id="discover-progress-strip">
     <div class="discover-progress-copy">
-      <span class="discover-progress-stage">${h(job.stage_label || "搜索中")}</span>
-      <span class="discover-progress-text">${h(query)}</span>
+      <span class="discover-progress-stage" id="discover-progress-stage">${h(job.stage_label || "搜索中")}</span>
+      <span class="discover-progress-text" id="discover-progress-text">${h(query)}</span>
     </div>
     <div class="discover-progress-actions">
-      <span class="discover-progress-eta">${h(etaLabel)}</span>
+      <span class="discover-progress-eta" id="discover-progress-eta">${h(etaLabel)}</span>
       <button class="action-quiet compact danger" type="button" onclick="cancelDiscovery()">取消</button>
     </div>
   </div>`;
 }
-
 function renderDiscoveryFailureCard(){
   const job = activeDiscoveryJob;
   if(!job || job.status !== "failed") return "";
@@ -378,6 +411,15 @@ function syncDiscoveryPanel(){
   syncDiscoverDraftUI();
 }
 
+function syncDiscoveryLiveStatus(){
+  syncDiscoverDraftUI();
+  const stageNode = document.getElementById("discover-progress-stage");
+  const textNode = document.getElementById("discover-progress-text");
+  const etaNode = document.getElementById("discover-progress-eta");
+  if(stageNode) stageNode.textContent = activeDiscoveryJob?.stage_label || "搜索中";
+  if(textNode) textNode.textContent = currentDiscoveryQueryText() || "当前关键词";
+  if(etaNode) etaNode.textContent = discoveryProgressEtaLabel(activeDiscoveryJob);
+}
 function setDiscoveryRankingProfile(value){
   discoverDraft.rankingProfile = normalizeDiscoveryRankingProfile(value);
   closeMenus();
@@ -440,9 +482,16 @@ async function startDiscoveryPolling(jobId){
       return;
     }
     const job = data.job || null;
-    applyActiveDiscoveryJob(job);
-    render();
-    if(!job) return;
+    if(!job){
+      applyActiveDiscoveryJob(job);
+      render();
+      return;
+    }
+    const currentResults = discoveryResults();
+    const previousResultsSignature = discoveryResultSignature(currentResults);
+    const nextResultsSignature = discoveryResultSignature(renderableDiscoveryResults(job, currentResults));
+    const hasTerminalStatus = isTerminalDiscoveryJob(job);
+    const shouldRenderResults = hasTerminalStatus || previousResultsSignature !== nextResultsSignature;
     if(job.status === "completed"){
       if(job.discovery_state) discoveryState = job.discovery_state;
       syncDiscoverDraftFromQuery(discoveryState.last_query || job.query || {});
@@ -454,18 +503,23 @@ async function startDiscoveryPolling(jobId){
       return;
     }
     if(job.status === "failed"){
-      discoveryBusy = false;
-      discoveryStartedAt = 0;
+      applyActiveDiscoveryJob(job);
       render();
       toast(job.error || job.message || "本次搜索失败");
       return;
     }
     if(job.status === "cancelled"){
-      discoveryBusy = false;
-      discoveryStartedAt = 0;
+      applyActiveDiscoveryJob(job);
       render();
       toast(job.message || "已取消本次搜索");
       return;
+    }
+    applyActiveDiscoveryJob(job);
+    // Keep discovery cards stable during rescoring; only redraw when the visible result set changes.
+    if(shouldRenderResults){
+      render();
+    }else{
+      syncDiscoveryLiveStatus();
     }
     await sleep(900);
   }

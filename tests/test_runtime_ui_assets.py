@@ -114,6 +114,36 @@ class RuntimeUILayoutSmokeTests(unittest.TestCase):
             with self.subTest(css=token):
                 self.assertIn(token, CSS)
 
+    def test_discovery_polling_uses_stable_preview_signatures_and_live_status_hooks(self):
+        for token in (
+            "function discoveryResultSignature(results){",
+            "Keep this signature aligned with the fields surfaced by discovery top cards and repo cards.",
+            'String(repo?.url || "")',
+            'String(repo?.full_name || "")',
+            'Number(repo?.rank || 0)',
+            'Number(repo?.composite_score || 0)',
+            'Number(repo?.relevance_score || 0)',
+            'Number(repo?.hot_score || 0)',
+            'Number(repo?.stars || 0)',
+            'Number(repo?.forks || 0)',
+            'String(repo?.language || "")',
+            'String(repo?.description || "")',
+            'String(repo?.description_raw || "")',
+            "repo?.match_reasons",
+            'id="discover-progress-stage"',
+            'id="discover-progress-text"',
+            'id="discover-progress-eta"',
+            "function syncDiscoveryLiveStatus(){",
+            'const previousResultsSignature = discoveryResultSignature(currentResults);',
+            'const nextResultsSignature = discoveryResultSignature(renderableDiscoveryResults(job, currentResults));',
+            "const hasTerminalStatus = isTerminalDiscoveryJob(job);",
+            "const shouldRenderResults = hasTerminalStatus || previousResultsSignature !== nextResultsSignature;",
+            "if(shouldRenderResults){",
+            "syncDiscoveryLiveStatus();",
+        ):
+            with self.subTest(js=token):
+                self.assertIn(token, JS)
+
     def test_selection_enter_motion_hooks_are_present_in_assets(self):
         for token in (
             "let lastSelectionSyncUrls = new Set(selectedUrls);",
