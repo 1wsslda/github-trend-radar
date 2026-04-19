@@ -79,6 +79,21 @@ class UIJSSmokeTests(unittest.TestCase):
         self.assertIn('event.animationName !== "card-selection-sheen"', body)
         self.assertIn('card.classList.add("selection-enter");', body)
 
+    def test_workspace_nav_offset_is_computed_from_runtime_layout(self):
+        body = function_body(JS, "applyWorkspaceNavOffset")
+        self.assertIn('document.querySelector(".workspace-nav-shell")', body)
+        self.assertIn('document.querySelector(".workspace-nav")', body)
+        self.assertIn('getComputedStyle(navShell).top', body)
+        self.assertIn('getComputedStyle(navSection).marginBottom', body)
+        self.assertIn('page.style.setProperty("--workspace-nav-offset",', body)
+
+    def test_render_tabs_rebuilds_primary_nav_and_runtime_offset(self):
+        body = function_body(JS, "renderTabs")
+        self.assertIn("renderPrimaryNav(activeFamily, activeTrend, discoverTab, libraryCount, updatesTab);", body)
+        self.assertIn("renderWorkspaceSubnav(activeFamily, trendTabs, libraryTabs, activeTrend?.key || \"\", activeLibrary?.key || \"\");", body)
+        self.assertIn("observeWorkspaceNavOffset();", body)
+        self.assertIn("syncWorkspaceNavOffset();", body)
+
     def test_render_pipeline_updates_shell_and_canvas(self):
         body = function_body(JS, "render")
         self.assertIn("syncWorkspaceCanvas();", body)

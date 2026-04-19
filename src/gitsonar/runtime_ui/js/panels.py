@@ -125,16 +125,76 @@ function setPrimaryPanel(family){
   setPanel(family === "discover" ? DISCOVER_PANEL_KEY : UPDATE_PANEL_KEY);
 }
 
+let workspaceNavOffsetFrame = 0;
+let workspaceNavOffsetObserver = null;
+
+function applyWorkspaceNavOffset(){
+  const page = document.querySelector(".page");
+  const navShell = document.querySelector(".workspace-nav-shell");
+  const navSection = document.querySelector(".workspace-nav");
+  if(!page || !navShell || !navSection) return;
+
+  const navTop = parseFloat(getComputedStyle(navShell).top || "0") || 0;
+  const navGap = parseFloat(getComputedStyle(navSection).marginBottom || "0") || 0;
+  const navHeight = navShell.getBoundingClientRect().height || navShell.offsetHeight || 0;
+  page.style.setProperty("--workspace-nav-offset", `${Math.ceil(navTop + navHeight + navGap)}px`);
+}
+
+function syncWorkspaceNavOffset(){
+  if(workspaceNavOffsetFrame) cancelAnimationFrame(workspaceNavOffsetFrame);
+  workspaceNavOffsetFrame = requestAnimationFrame(() => {
+    workspaceNavOffsetFrame = 0;
+    applyWorkspaceNavOffset();
+  });
+}
+
+function observeWorkspaceNavOffset(){
+  if(workspaceNavOffsetObserver || typeof ResizeObserver !== "function") return;
+  const navShell = document.querySelector(".workspace-nav-shell");
+  const tabsRoot = document.getElementById("tabs");
+  if(!navShell) return;
+
+  workspaceNavOffsetObserver = new ResizeObserver(() => {
+    syncWorkspaceNavOffset();
+  });
+  workspaceNavOffsetObserver.observe(navShell);
+  if(tabsRoot) workspaceNavOffsetObserver.observe(tabsRoot);
+}
+
+function renderPrimaryNav(activeFamily, activeTrend, discoverTab, libraryCount, updatesTab){
+  const tabsRoot = document.getElementById("tabs");
+  if(!tabsRoot) return;
+
+  tabsRoot.innerHTML = `<nav class="workspace-primary-nav" aria-label="\u5de5\u4f5c\u533a\u89c6\u56fe\u5207\u6362">
+    <button class="workspace-primary-link ${activeFamily === "trend" ? "active" : ""}" type="button" onclick='setPrimaryPanel("trend")'>
+      <span class="workspace-primary-label">\u8d8b\u52bf</span>
+      ${activeTrend ? `<span class="workspace-primary-count">${activeTrend.count}</span>` : ""}
+    </button>
+    <button class="workspace-primary-link ${activeFamily === "discover" ? "active" : ""}" type="button" onclick='setPrimaryPanel("discover")'>
+      <span class="workspace-primary-label">\u53d1\u73b0</span>
+      ${discoverTab ? `<span class="workspace-primary-count">${discoverTab.count}</span>` : ""}
+    </button>
+    <button class="workspace-primary-link ${activeFamily === "library" ? "active" : ""}" type="button" onclick='setPrimaryPanel("library")'>
+      <span class="workspace-primary-label">\u6211\u7684\u5e93</span>
+      <span class="workspace-primary-count">${libraryCount}</span>
+    </button>
+    <button class="workspace-primary-link ${activeFamily === "updates" ? "active" : ""}" type="button" onclick='setPrimaryPanel("updates")'>
+      <span class="workspace-primary-label">\u66f4\u65b0</span>
+      ${updatesTab ? `<span class="workspace-primary-count">${updatesTab.count}</span>` : ""}
+    </button>
+  </nav>`;
+}
+
 function renderWorkspaceSubnav(activeFamily, trendTabs, libraryTabs, activeTrendKey, activeLibraryKey){
   const subnav = document.getElementById("workspace-subnav");
   if(!subnav) return;
 
   if(activeFamily === "trend"){
     subnav.hidden = false;
-    subnav.innerHTML = `<div class="workspace-subnav-row" aria-label="趋势时间范围">
+    subnav.innerHTML = `<div class="workspace-subnav-row" aria-label="\u8d8b\u52bf\u65f6\u95f4\u8303\u56f4">
       ${trendTabs.map(tab => `
-        <button class="workspace-subnav-pill ${tab.key === activeTrendKey ? "active" : ""}" type="button" onclick='setPanel(${JSON.stringify(tab.key)})'>
-          <span>${h(tab.label)}</span>
+        <button class="workspace-subnav-link ${tab.key === activeTrendKey ? "active" : ""}" type="button" onclick='setPanel(${JSON.stringify(tab.key)})'>
+          <span class="workspace-subnav-label">${h(tab.label)}</span>
           <span class="workspace-subnav-count">${tab.count}</span>
         </button>
       `).join("")}
@@ -144,10 +204,10 @@ function renderWorkspaceSubnav(activeFamily, trendTabs, libraryTabs, activeTrend
 
   if(activeFamily === "library"){
     subnav.hidden = false;
-    subnav.innerHTML = `<div class="workspace-subnav-row" aria-label="我的库状态">
+    subnav.innerHTML = `<div class="workspace-subnav-row" aria-label="\u6211\u7684\u5e93\u72b6\u6001">
       ${libraryTabs.map(tab => `
-        <button class="workspace-subnav-pill ${tab.key === activeLibraryKey ? "active" : ""}" type="button" onclick='setPanel(${JSON.stringify(tab.key)})'>
-          <span>${h(tab.label)}</span>
+        <button class="workspace-subnav-link ${tab.key === activeLibraryKey ? "active" : ""}" type="button" onclick='setPanel(${JSON.stringify(tab.key)})'>
+          <span class="workspace-subnav-label">${h(tab.label)}</span>
           <span class="workspace-subnav-count">${tab.count}</span>
         </button>
       `).join("")}
@@ -158,7 +218,6 @@ function renderWorkspaceSubnav(activeFamily, trendTabs, libraryTabs, activeTrend
   subnav.hidden = true;
   subnav.innerHTML = "";
 }
-
 function renderTabs(){
   const tabs = tabsData();
   const activeFamily = panelFamily();
@@ -172,25 +231,10 @@ function renderTabs(){
   const activeLibrary = libraryTabs.find(tab => tab.key === activeLibraryKey) || libraryTabs[0];
   const libraryCount = libraryTabs.reduce((sum, tab) => sum + (tab.count || 0), 0);
 
-  document.getElementById("tabs").innerHTML = `<div class="nav-main">
-    <button class="nav-pill ${activeFamily === "trend" ? "active" : ""}" type="button" onclick='setPrimaryPanel("trend")'>
-      趋势
-      ${activeTrend ? `<span class="nav-count">${activeTrend.count}</span>` : ""}
-    </button>
-    <button class="nav-pill ${panel === DISCOVER_PANEL_KEY ? "active" : ""}" type="button" onclick='setPrimaryPanel("discover")'>
-      发现
-      ${discoverTab ? `<span class="nav-count">${discoverTab.count}</span>` : ""}
-    </button>
-    <button class="nav-pill ${activeFamily === "library" ? "active" : ""}" type="button" onclick='setPrimaryPanel("library")'>
-      我的库
-      <span class="nav-count">${libraryCount}</span>
-    </button>
-    <button class="nav-pill ${panel === UPDATE_PANEL_KEY ? "active" : ""}" type="button" onclick='setPrimaryPanel("updates")'>
-      更新
-      ${updatesTab ? `<span class="nav-count">${updatesTab.count}</span>` : ""}
-    </button>
-  </div>`;
+  renderPrimaryNav(activeFamily, activeTrend, discoverTab, libraryCount, updatesTab);
   renderWorkspaceSubnav(activeFamily, trendTabs, libraryTabs, activeTrend?.key || "", activeLibrary?.key || "");
+  observeWorkspaceNavOffset();
+  syncWorkspaceNavOffset();
 }
 
 function currentStateFilterLabel(){
@@ -261,6 +305,7 @@ function syncWorkspaceBarModes(){
   const discoverContext = document.getElementById("discover-context");
   const drawerTrigger = document.getElementById("control-drawer-trigger");
   const barMain = document.querySelector(".workspace-bar-main");
+  const controlStack = document.querySelector(".workspace-control-stack");
   if(filterGroup) filterGroup.hidden = isDiscoverPanel;
   if(actionGroup) actionGroup.hidden = isDiscoverPanel;
   if(searchWrap) searchWrap.hidden = isDiscoverPanel;
@@ -271,6 +316,7 @@ function syncWorkspaceBarModes(){
   if(discoverContext) discoverContext.hidden = !isDiscoverPanel;
   if(drawerTrigger) drawerTrigger.hidden = isDiscoverPanel;
   if(barMain) barMain.classList.toggle("workspace-bar-main--discover", isDiscoverPanel);
+  if(controlStack) controlStack.classList.toggle("workspace-control-stack--discover", isDiscoverPanel);
 }
 
 function syncWorkspaceCanvas(){

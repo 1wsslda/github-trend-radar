@@ -45,11 +45,17 @@ HTML_BODY = """</style>
     </div>
   </header>
 
-  <section class="workspace-bar">
-    <div class="workspace-bar-shell">
+  <section class="workspace-nav">
+    <div class="workspace-nav-shell">
       <div class="tabs" id="tabs"></div>
-      <div class="workspace-subnav" id="workspace-subnav" hidden></div>
-      <div class="workspace-bar-main">
+    </div>
+  </section>
+
+  <section class="workspace-bar">
+    <div class="workspace-content-shell workspace-bar-shell">
+      <div class="workspace-control-stack">
+        <div class="workspace-subnav" id="workspace-subnav" hidden></div>
+        <div class="workspace-bar-main">
         <div class="workspace-filter-group">
           <div class="workspace-search-wrap">
             <label class="field search-field">
@@ -150,11 +156,11 @@ HTML_BODY = """</style>
             </div>
           </div>
         </div>
+        </div>
       </div>
-    </div>
 
-    <div class="workspace-context">
-      <div class="workspace-summary-strip" id="workspace-summary-strip" hidden></div>
+      <div class="workspace-context">
+        <div class="workspace-summary-strip" id="workspace-summary-strip" hidden></div>
       <section class="discover-context" id="discover-context" hidden>
         <div class="discover-context-grid">
           <div class="discover-limit-card">
@@ -231,11 +237,12 @@ HTML_BODY = """</style>
         </section>
       </div>
       </section>
+      </div>
+
+      <section class="canvas-intro" id="canvas-intro" hidden></section>
+      <div class="cards" id="cards"></div>
     </div>
   </section>
-
-  <section class="canvas-intro" id="canvas-intro" hidden></section>
-  <div class="cards" id="cards"></div>
 </div>
 
 <div class="batch-dock" id="batch-dock">

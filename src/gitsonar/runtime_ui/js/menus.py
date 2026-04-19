@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
-JS = r"""const MENU_HOST_SELECTOR = ".workspace-header,.workspace-bar-shell,.workspace-drawer,.card,.update-card,.panel,.batch-dock,.canvas-intro";
+JS = r"""const MENU_HOST_SELECTOR = ".workspace-header,.workspace-nav-shell,.workspace-content-shell,.workspace-control-stack,.workspace-drawer,.card,.update-card,.panel,.batch-dock,.canvas-intro";
 const MENU_VIEWPORT_MARGIN = 12;
 let menuRepositionFrame = 0;
 

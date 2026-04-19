@@ -59,8 +59,11 @@ class RuntimeUILayoutSmokeTests(unittest.TestCase):
         html = build_fixture_html(control_token="test-control-token")
         for token in (
             'class="workspace-header"',
+            'class="workspace-nav"',
+            'class="workspace-nav-shell"',
             'class="workspace-bar"',
-            'class="workspace-bar-shell"',
+            'class="workspace-content-shell workspace-bar-shell"',
+            'class="workspace-control-stack"',
             'id="workspace-subnav"',
             'class="workspace-filter-group"',
             'class="workspace-action-group"',
@@ -145,12 +148,24 @@ class RuntimeUILayoutSmokeTests(unittest.TestCase):
         self.assertNotIn('data-ai-target-label', analyze_section)
         self.assertNotIn('aria-live="polite"', summary_section)
         self.assertNotIn('role="status"', summary_section)
+        self.assertIn('function renderPrimaryNav(activeFamily, activeTrend, discoverTab, libraryCount, updatesTab){', JS)
         self.assertIn('function renderWorkspaceSubnav(activeFamily, trendTabs, libraryTabs, activeTrendKey, activeLibraryKey){', JS)
         self.assertIn("onclick='setPrimaryPanel(\"trend\")'", JS)
         self.assertIn("onclick='setPrimaryPanel(\"library\")'", JS)
+        self.assertIn('class="workspace-primary-nav"', JS)
+        self.assertIn('class="workspace-primary-link', JS)
+        self.assertIn('class="workspace-primary-label"', JS)
+        self.assertIn('class="workspace-primary-count"', JS)
+        self.assertIn('class="workspace-subnav-link', JS)
+        self.assertIn('class="workspace-subnav-label"', JS)
         self.assertNotIn('data-menu-id="nav-trend-menu"', JS)
         self.assertNotIn('data-menu-id="nav-library-menu"', JS)
+        self.assertNotIn('class="nav-pill', JS)
+        self.assertNotIn('workspace-subnav-pill', JS)
+        self.assertIn('page.style.setProperty("--workspace-nav-offset",', JS)
         self.assertIn(".workspace-subnav-row{", CSS)
+        self.assertIn(".workspace-primary-link{", CSS)
+        self.assertIn(".workspace-subnav-link{", CSS)
         self.assertIn(".workspace-action-group{", CSS)
         self.assertIn('.workspace-action-group > .action-split[data-menu-id="ai-target-menu"] .split-main,', CSS)
 

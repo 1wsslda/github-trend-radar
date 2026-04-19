@@ -65,9 +65,11 @@ CSS = r"""@media (min-width:1600px){
   .nav-actions{
     justify-content:flex-start;
   }
-  .workspace-bar-shell{
+  .workspace-nav-shell{
     top:8px;
-    padding:10px 12px 12px;
+  }
+  .workspace-content-shell{
+    padding:14px 12px 14px;
   }
   .workspace-bar-main{
     grid-template-columns:1fr;
@@ -101,7 +103,7 @@ CSS = r"""@media (min-width:1600px){
     overflow-x:auto;
     padding-bottom:2px;
   }
-  .workspace-subnav-pill{
+  .workspace-subnav-link{
     flex:0 0 auto;
   }
   .discover-top-grid,
@@ -133,7 +135,7 @@ CSS = r"""@media (min-width:1600px){
     padding:14px 12px 146px;
   }
   .workspace-header,
-  .workspace-bar-shell,
+  .workspace-content-shell,
   .card,
   .update-card,
   .compare-card{
@@ -142,13 +144,18 @@ CSS = r"""@media (min-width:1600px){
   .workspace-title{
     font-size:clamp(1.55rem,8vw,2.2rem);
   }
-  .nav-main{
+  .workspace-primary-nav{
     flex-wrap:nowrap;
     overflow-x:auto;
     padding-bottom:2px;
   }
-  .nav-pill{
+  .workspace-primary-link,
+  .workspace-subnav-link{
     flex:0 0 auto;
+  }
+  .workspace-primary-nav::-webkit-scrollbar,
+  .workspace-subnav-row::-webkit-scrollbar{
+    display:none;
   }
   .discover-query-row{
     grid-template-columns:1fr;

@@ -797,6 +797,9 @@ button[aria-haspopup]:active:not(:disabled){
 }
 
 .workspace-header.menu-host-open,
+.workspace-nav-shell.menu-host-open,
+.workspace-content-shell.menu-host-open,
+.workspace-control-stack.menu-host-open,
 .workspace-bar-shell.menu-host-open,
 .workspace-drawer.menu-host-open,
 .panel.menu-host-open,

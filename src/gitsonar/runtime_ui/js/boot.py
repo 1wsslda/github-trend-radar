@@ -155,6 +155,7 @@ document.addEventListener("click", event => {
 });
 
 window.addEventListener("resize", () => {
+  syncWorkspaceNavOffset();
   repositionOpenMenus();
   syncExpandableDescriptions();
 });
