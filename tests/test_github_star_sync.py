@@ -112,6 +112,9 @@ def build_runtime(
     *,
     token_validation_time_getter=None,
     token_validation_cache_ttl_seconds: int = 30,
+    translate_text=None,
+    save_translation_cache=None,
+    flush_translation_cache=None,
 ):
     return make_github_runtime(
         session=session,
@@ -142,9 +145,10 @@ def build_runtime(
         cached_repo_details=lambda _cache_key: None,
         detail_fetch_lock=lambda _cache_key: threading.RLock(),
         strip_markdown=strip_markdown,
-        translate_text=lambda text: normalize(text),
+        translate_text=translate_text or (lambda text: normalize(text)),
         translate_query_to_en=lambda text: normalize(text),
-        save_translation_cache=lambda: None,
+        save_translation_cache=save_translation_cache or (lambda: None),
+        flush_translation_cache=flush_translation_cache,
         save_repo_details=lambda _cache_key, _details: None,
         parse_iso_timestamp=parse_iso_timestamp,
         iso_now=iso_now,
@@ -161,6 +165,162 @@ def build_runtime(
 
 
 class GitHubStarSyncTests(unittest.TestCase):
+    def test_sync_local_favorites_with_starred_translates_english_descriptions(self):
+        user_state = {
+            "favorites": [],
+            "repo_records": {},
+            "favorite_watch": {},
+            "favorite_updates": [],
+        }
+        translate_calls: list[str] = []
+        flush_calls: list[str] = []
+
+        def fake_translate(text: str) -> str:
+            translate_calls.append(text)
+            return {
+                "Production-grade engineering skills for AI coding agents.": "AI 编码代理的生产级工程技能。",
+                "Windows desktop app for GitHub trending.": "GitHub 趋势的 Windows 桌面应用。",
+            }[text]
+
+        runtime = build_runtime(
+            _ScriptedSession(),
+            user_state=user_state,
+            translate_text=fake_translate,
+            flush_translation_cache=lambda: flush_calls.append("flush") or True,
+        )
+
+        summary = runtime.sync_local_favorites_with_starred(
+            [
+                {
+                    "full_name": "octo/skills",
+                    "url": "https://github.com/octo/skills",
+                    "description": "Production-grade engineering skills for AI coding agents.",
+                    "description_raw": "Production-grade engineering skills for AI coding agents.",
+                },
+                {
+                    "full_name": "octo/radar",
+                    "url": "https://github.com/octo/radar",
+                    "description": "Windows desktop app for GitHub trending.",
+                    "description_raw": "Windows desktop app for GitHub trending.",
+                },
+            ]
+        )
+
+        self.assertEqual(summary, {"total": 2, "added": 2, "removed": 0})
+        self.assertCountEqual(
+            translate_calls,
+            [
+                "Production-grade engineering skills for AI coding agents.",
+                "Windows desktop app for GitHub trending.",
+            ],
+        )
+        self.assertEqual(flush_calls, ["flush"])
+        self.assertEqual(
+            user_state["repo_records"]["https://github.com/octo/skills"]["description"],
+            "AI 编码代理的生产级工程技能。",
+        )
+        self.assertEqual(
+            user_state["repo_records"]["https://github.com/octo/skills"]["description_raw"],
+            "Production-grade engineering skills for AI coding agents.",
+        )
+        self.assertEqual(
+            user_state["repo_records"]["https://github.com/octo/radar"]["description"],
+            "GitHub 趋势的 Windows 桌面应用。",
+        )
+        self.assertEqual(
+            user_state["repo_records"]["https://github.com/octo/radar"]["description_raw"],
+            "Windows desktop app for GitHub trending.",
+        )
+
+    def test_sync_local_favorites_with_starred_skips_empty_and_han_descriptions(self):
+        user_state = {
+            "favorites": [],
+            "repo_records": {},
+            "favorite_watch": {},
+            "favorite_updates": [],
+        }
+        translate_calls: list[str] = []
+        flush_calls: list[str] = []
+
+        runtime = build_runtime(
+            _ScriptedSession(),
+            user_state=user_state,
+            translate_text=lambda text: translate_calls.append(text) or f"ZH::{text}",
+            flush_translation_cache=lambda: flush_calls.append("flush") or True,
+        )
+
+        summary = runtime.sync_local_favorites_with_starred(
+            [
+                {
+                    "full_name": "octo/empty",
+                    "url": "https://github.com/octo/empty",
+                    "description": "",
+                    "description_raw": "",
+                },
+                {
+                    "full_name": "octo/han",
+                    "url": "https://github.com/octo/han",
+                    "description": "已经是中文描述",
+                    "description_raw": "已经是中文描述",
+                },
+            ]
+        )
+
+        self.assertEqual(summary, {"total": 2, "added": 2, "removed": 0})
+        self.assertEqual(translate_calls, [])
+        self.assertEqual(flush_calls, [])
+        self.assertEqual(user_state["repo_records"]["https://github.com/octo/empty"]["description"], "")
+        self.assertEqual(
+            user_state["repo_records"]["https://github.com/octo/empty"]["description_raw"],
+            "",
+        )
+        self.assertEqual(
+            user_state["repo_records"]["https://github.com/octo/han"]["description"],
+            "已经是中文描述",
+        )
+        self.assertEqual(
+            user_state["repo_records"]["https://github.com/octo/han"]["description_raw"],
+            "已经是中文描述",
+        )
+
+    def test_sync_local_favorites_with_starred_continues_when_translation_cache_flush_fails(self):
+        user_state = {
+            "favorites": [],
+            "repo_records": {},
+            "favorite_watch": {},
+            "favorite_updates": [],
+        }
+        flush_calls: list[str] = []
+
+        runtime = build_runtime(
+            _ScriptedSession(),
+            user_state=user_state,
+            translate_text=lambda text: "AI 编码代理的生产级工程技能。" if text == "Production-grade engineering skills for AI coding agents." else text,
+            flush_translation_cache=lambda: flush_calls.append("flush") or (_ for _ in ()).throw(RuntimeError("disk full")),
+        )
+
+        summary = runtime.sync_local_favorites_with_starred(
+            [
+                {
+                    "full_name": "octo/skills",
+                    "url": "https://github.com/octo/skills",
+                    "description": "Production-grade engineering skills for AI coding agents.",
+                    "description_raw": "Production-grade engineering skills for AI coding agents.",
+                }
+            ]
+        )
+
+        self.assertEqual(summary, {"total": 1, "added": 1, "removed": 0})
+        self.assertEqual(flush_calls, ["flush"])
+        self.assertEqual(
+            user_state["repo_records"]["https://github.com/octo/skills"]["description"],
+            "AI 编码代理的生产级工程技能。",
+        )
+        self.assertEqual(
+            user_state["repo_records"]["https://github.com/octo/skills"]["description_raw"],
+            "Production-grade engineering skills for AI coding agents.",
+        )
+
     def test_sync_local_favorites_with_starred_replaces_local_favorites(self):
         user_state = {
             "favorites": [

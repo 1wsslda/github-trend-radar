@@ -28,6 +28,8 @@ def build_favorites_api(*, deps, github_get):
     session = deps.session
     api_timeout = deps.api_timeout
     repo_api_url = deps.repo_api_url
+    translate_text = deps.translate_text
+    flush_translation_cache = deps.flush_translation_cache
     as_bool = lambda value, default=False: default if value is None else bool(value)
     favorite_watch_min_seconds_no_token = deps.favorite_watch_min_seconds_no_token
     favorite_watch_min_seconds_with_token = deps.favorite_watch_min_seconds_with_token
@@ -48,6 +50,9 @@ def build_favorites_api(*, deps, github_get):
             headers["Authorization"] = f"Bearer {token}"
         return headers
 
+    def has_han_text(text: str) -> bool:
+        return any("\u3400" <= ch <= "\u9fff" for ch in text)
+
     def sync_local_favorites_with_starred(repos: list[dict[str, object]]) -> dict[str, int]:
         cleaned_repos: list[dict[str, object]] = []
         seen_urls: set[str] = set()
@@ -60,6 +65,46 @@ def build_favorites_api(*, deps, github_get):
                 continue
             cleaned_repos.append(clean)
             seen_urls.add(url)
+
+        pending_translations: dict[str, str] = {}
+        translated_by_raw_key: dict[str, str] = {}
+        for repo in cleaned_repos:
+            raw_description = normalize(repo.get("description_raw") or repo.get("description"))
+            current_description = normalize(repo.get("description"))
+            repo["description_raw"] = raw_description
+            if not raw_description:
+                repo["description"] = ""
+                continue
+            if current_description and current_description != raw_description:
+                repo["description"] = current_description
+                continue
+            repo["description"] = raw_description
+            if has_han_text(raw_description):
+                continue
+            pending_translations.setdefault(raw_description.lower(), raw_description)
+
+        if pending_translations:
+            with thread_pool_executor_cls(max_workers=min(4, len(pending_translations))) as executor:
+                future_map = {
+                    executor.submit(translate_text, raw_text): raw_key
+                    for raw_key, raw_text in pending_translations.items()
+                }
+                for future in as_completed(future_map):
+                    raw_key = future_map[future]
+                    raw_text = pending_translations[raw_key]
+                    try:
+                        translated_by_raw_key[raw_key] = normalize(future.result()) or raw_text
+                    except Exception as exc:
+                        logger.warning("favorite_description_translate_failed text=%s error=%s", raw_text, exc)
+                        translated_by_raw_key[raw_key] = raw_text
+            try:
+                flush_translation_cache()
+            except Exception as exc:
+                logger.warning("favorite_translation_cache_flush_failed error=%s", exc)
+            for repo in cleaned_repos:
+                raw_description = normalize(repo.get("description_raw"))
+                if raw_description and normalize(repo.get("description")) == raw_description:
+                    repo["description"] = translated_by_raw_key.get(raw_description.lower(), raw_description)
 
         favorite_urls = [normalize(repo.get("url")) for repo in cleaned_repos if normalize(repo.get("url"))]
         favorite_set = set(favorite_urls)
