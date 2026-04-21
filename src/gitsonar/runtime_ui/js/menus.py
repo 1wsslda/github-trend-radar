@@ -3,6 +3,7 @@ from __future__ import annotations
 
 JS = r"""const MENU_HOST_SELECTOR = ".workspace-header,.workspace-nav-shell,.workspace-content-shell,.workspace-control-stack,.workspace-drawer,.card,.update-card,.panel,.batch-dock,.canvas-intro";
 const MENU_VIEWPORT_MARGIN = 12;
+const MENU_PANEL_GAP = 10;
 let menuRepositionFrame = 0;
 
 function menuRoot(id){
@@ -41,6 +42,8 @@ function resetMenuPanelPosition(root){
   panel.classList.toggle("upward", panel.dataset.defaultUpward === "true");
   panel.style.left = "";
   panel.style.right = "";
+  panel.style.maxHeight = "";
+  panel.style.overflowY = "";
 }
 
 function withMeasuredMenuPanel(root, callback){
@@ -69,13 +72,29 @@ function positionMenu(root){
   withMeasuredMenuPanel(root, panel => {
     resetMenuPanelPosition(root);
 
-    let panelRect = panel.getBoundingClientRect();
     const rootRect = root.getBoundingClientRect();
-
-    if(panelRect.bottom > window.innerHeight - MENU_VIEWPORT_MARGIN){
-      panel.classList.add("upward");
-      panelRect = panel.getBoundingClientRect();
+    const naturalHeight = panel.scrollHeight;
+    const viewportHeight = Math.max(0, window.innerHeight - MENU_VIEWPORT_MARGIN * 2);
+    const spaceBelow = Math.max(0, window.innerHeight - rootRect.bottom - MENU_VIEWPORT_MARGIN - MENU_PANEL_GAP);
+    const spaceAbove = Math.max(0, rootRect.top - MENU_VIEWPORT_MARGIN - MENU_PANEL_GAP);
+    const minUsableHeight = Math.min(naturalHeight, 160);
+    let openUpward = panel.dataset.defaultUpward === "true";
+    if(!openUpward && spaceBelow < minUsableHeight && spaceAbove > spaceBelow){
+      openUpward = true;
+    }else if(openUpward && spaceAbove < minUsableHeight && spaceBelow > spaceAbove){
+      openUpward = false;
     }
+    panel.classList.toggle("upward", openUpward);
+
+    const availableHeight = Math.max(0, openUpward ? spaceAbove : spaceBelow);
+    const fallbackHeight = Math.max(spaceAbove, spaceBelow);
+    const fittedHeight = Math.floor(Math.min(naturalHeight, viewportHeight, availableHeight || fallbackHeight));
+    if(fittedHeight > 0){
+      panel.style.maxHeight = `${fittedHeight}px`;
+      panel.style.overflowY = naturalHeight > fittedHeight ? "auto" : "";
+    }
+
+    let panelRect = panel.getBoundingClientRect();
 
     const fitsLeft = rootRect.left + panelRect.width <= window.innerWidth - MENU_VIEWPORT_MARGIN;
     const fitsRight = rootRect.right - panelRect.width >= MENU_VIEWPORT_MARGIN;
@@ -231,6 +250,22 @@ function setSortPrimary(value){
   render();
 }
 
+function setPromptProfile(value){
+  promptProfile = normalizePromptProfile(value);
+  localStorage.setItem("gtr-prompt-profile", promptProfile);
+  if(compareContext){
+    comparePrompt = buildComparePrompt(
+      compareContext.repoA,
+      compareContext.repoB,
+      compareContext.detailA,
+      compareContext.detailB,
+      promptProfile,
+    );
+  }
+  closeMenus();
+  syncPromptProfileUI();
+}
+
 function toggleAiTarget(value){
   if(!VALID_AI_TARGETS.has(value)) return;
   if(value === "copy"){
@@ -264,6 +299,18 @@ function syncSortUI(){
   document.getElementById("sort-more-current").textContent = isMoreSort ? `· ${SORT_LABELS[sortPrimary] || ""}` : "";
   document.querySelectorAll("[data-sort-more]").forEach(btn => {
     btn.classList.toggle("active", btn.dataset.sortMore === sortPrimary);
+  });
+}
+
+function syncPromptProfileUI(){
+  const label = currentPromptProfileLabel();
+  const description = currentPromptProfileDescription();
+  document.querySelectorAll("[data-prompt-profile-label]").forEach(node => {
+    node.textContent = label;
+    node.title = description;
+  });
+  document.querySelectorAll("[data-prompt-profile]").forEach(btn => {
+    btn.classList.toggle("active", btn.dataset.promptProfile === promptProfile);
   });
 }
 

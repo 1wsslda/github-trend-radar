@@ -122,7 +122,7 @@ async function analyzeRepo(url){
     toast("未找到仓库信息");
     return;
   }
-  await openAiPrompts([buildRepoPrompt(repo)]);
+  await openAiPrompts([buildRepoPrompt(repo, promptProfile)]);
 }
 
 async function legacyAnalyzeVisible(){
@@ -153,33 +153,27 @@ async function fetchRepoDetails(repo){
   return data.details;
 }
 
-function buildComparePrompt(a, b, detailA, detailB){
-  return `请用中文对比下面两个 GitHub 仓库，并输出：
-1. 两个项目分别解决什么问题
-2. 功能定位和差异化对比
-3. 社区热度与活跃度对比
-4. 各自更适合哪些用户和场景
-5. 如果只能长期关注一个，更建议关注哪一个，为什么
+function buildComparePrompt(a, b, detailA, detailB, profile){
+  const activeProfile = normalizePromptProfile(profile);
+  const repoABlock = compareRepoFactsBlock("项目 A", a, detailA);
+  const repoBBlock = compareRepoFactsBlock("项目 B", b, detailB);
+  return `你是一位企业技术选型负责人。
 
-项目 A
-名称: ${a.full_name}
-链接: ${a.url}
-语言: ${a.language || "未知语言"}
-Stars: ${detailA.stars || a.stars || 0}
-Forks: ${detailA.forks || a.forks || 0}
-最近推送: ${detailA.pushed_at || "未知"}
-简介: ${detailA.description || detailA.description_raw || a.description || a.description_raw || "暂无描述"}
-README 摘要: ${detailA.readme_summary || detailA.readme_summary_raw || "暂无"}
+我会给你两个 GitHub 仓库。请你从企业落地角度做横向对比，帮助非技术背景的业务高管判断应该选哪个方向。
 
-项目 B
-名称: ${b.full_name}
-链接: ${b.url}
-语言: ${b.language || "未知语言"}
-Stars: ${detailB.stars || b.stars || 0}
-Forks: ${detailB.forks || b.forks || 0}
-最近推送: ${detailB.pushed_at || "未知"}
-简介: ${detailB.description || detailB.description_raw || b.description || b.description_raw || "暂无描述"}
-README 摘要: ${detailB.readme_summary || detailB.readme_summary_raw || "暂无"}`;
+【当前分析方式】
+${promptProfileLabel(activeProfile)}：${promptProfileDescription(activeProfile)}
+
+${compareLanguageRules(activeProfile)}
+
+${compareProfileFocus(activeProfile)}
+
+【输出结构】
+${compareProfileStructure(activeProfile)}
+
+${repoABlock}
+
+${repoBBlock}`;
 }
 
 const pendingStateRequests = new Set();
@@ -408,7 +402,7 @@ async function exportAnalysisMarkdown(markdown, filename){
 }
 
 async function analyzeRepoCollection(repos, title, filename){
-  const prompt = buildCollectionPrompt(repos, title);
+  const prompt = buildCollectionPrompt(repos, title, promptProfile);
   if(!prompt) return false;
   if(canTransportAsSinglePrompt(prompt)){
     return openAiPrompts([prompt]);

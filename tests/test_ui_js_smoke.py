@@ -106,6 +106,7 @@ class UIJSSmokeTests(unittest.TestCase):
         self.assertIn("syncWorkspaceCanvas();", body)
         self.assertIn("syncControlStates();", body)
         self.assertIn("syncBackToTopButton();", body)
+        self.assertIn("syncPromptProfileUI();", body)
 
     def test_filter_state_and_sort_updates_rerender_without_forcing_scroll_reset(self):
         body = function_body(JS, "setStateFilter")
@@ -143,6 +144,33 @@ class UIJSSmokeTests(unittest.TestCase):
         self.assertIn("new Headers(next.headers || {})", body)
         self.assertIn("headers.set(CONTROL_TOKEN_HEADER, controlToken);", body)
         self.assertIn("next.headers = headers;", body)
+
+    def test_menu_positioning_clamps_tall_panels_to_available_viewport_height(self):
+        body = function_body(JS, "positionMenu")
+        self.assertIn("const naturalHeight = panel.scrollHeight;", body)
+        self.assertIn("const spaceBelow =", body)
+        self.assertIn("const spaceAbove =", body)
+        self.assertIn('panel.style.maxHeight = `${fittedHeight}px`;', body)
+        self.assertIn('panel.style.overflowY = naturalHeight > fittedHeight ? "auto" : "";', body)
+
+    def test_prompt_profile_selection_is_persisted_and_rebuilds_compare_prompt(self):
+        body = function_body(JS, "setPromptProfile")
+        self.assertIn("promptProfile = normalizePromptProfile(value);", body)
+        self.assertIn('localStorage.setItem("gtr-prompt-profile", promptProfile);', body)
+        self.assertIn("if(compareContext){", body)
+        self.assertIn("comparePrompt = buildComparePrompt(", body)
+        self.assertIn("syncPromptProfileUI();", body)
+
+    def test_compare_overlay_keeps_profile_aware_prompt_context(self):
+        open_body = function_body(JS, "openCompareSelected")
+        self.assertIn("compareContext = {repoA, repoB, detailA, detailB};", open_body)
+        self.assertIn("buildComparePrompt(repoA, repoB, detailA, detailB, promptProfile);", open_body)
+        self.assertIn("compareContext = null;", open_body)
+
+        close_body = function_body(JS, "closeCompare")
+        self.assertIn('comparePrompt = "";', close_body)
+        self.assertIn("compareContext = null;", close_body)
+        self.assertIn('setOverlayVisible("compare-modal", false);', close_body)
 
 
 if __name__ == "__main__":

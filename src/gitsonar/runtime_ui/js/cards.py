@@ -350,6 +350,7 @@ function render(){
 
   syncStateFilterUI();
   syncSortUI();
+  syncPromptProfileUI();
   syncAiTargetUI();
   syncControlStates();
   syncDiscoveryPanel();

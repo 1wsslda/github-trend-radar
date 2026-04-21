@@ -849,6 +849,7 @@ button[aria-haspopup]:active:not(:disabled){
   right:0;
   z-index:60;
   max-width:min(360px, calc(100vw - 24px));
+  max-height:min(420px, calc(100vh - 24px));
   min-width:220px;
   padding:8px;
   border:1px solid rgba(232,214,184,.14);
@@ -865,6 +866,9 @@ button[aria-haspopup]:active:not(:disabled){
     opacity .2s var(--ease-smooth),
     transform .2s var(--ease-smooth),
     visibility .2s var(--ease-smooth);
+  overflow-x:hidden;
+  overflow-y:auto;
+  overscroll-behavior:contain;
 }
 .menu-panel.menu-panel--measuring{
   opacity:0;

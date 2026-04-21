@@ -35,6 +35,35 @@ class RuntimeUIJSContractTests(unittest.TestCase):
             with self.subTest(token=token):
                 self.assertIn(token, JS)
 
+    def test_prompt_profile_contract_uses_global_profile_state(self):
+        for token in (
+            'const PROMPT_PROFILE_ORDER = [',
+            'const PROMPT_PROFILE_MENU_GROUPS = [',
+            'const PROMPT_PROFILE_DEFINITIONS = {',
+            'const PROMPT_PROFILE_LABELS = Object.fromEntries(',
+            'const PROMPT_PROFILE_DESCRIPTIONS = Object.fromEntries(',
+            'const VALID_PROMPT_PROFILES = new Set(PROMPT_PROFILE_ORDER);',
+            'let promptProfile = normalizePromptProfile(localStorage.getItem("gtr-prompt-profile") || "j_full");',
+            "let compareContext = null;",
+            'function normalizePromptProfile(value){',
+            'function promptProfileDefinition(value){',
+            'function promptProfileLabel(value){',
+            'function promptProfileDescription(value){',
+            'function currentPromptProfileLabel(){',
+            'function currentPromptProfileDescription(){',
+            'function setPromptProfile(value){',
+            'localStorage.setItem("gtr-prompt-profile", promptProfile);',
+            'function syncPromptProfileUI(){',
+            'document.querySelectorAll("[data-prompt-profile-label]").forEach(node => {',
+            'document.querySelectorAll("[data-prompt-profile]").forEach(btn => {',
+            'function buildRepoPrompt(repo, profile){',
+            'function buildBatchPrompt(repos, title, batchIndex, batchCount, profile){',
+            'function buildCollectionPrompt(repos, title, profile){',
+            'function buildComparePrompt(a, b, detailA, detailB, profile){',
+        ):
+            with self.subTest(token=token):
+                self.assertIn(token, JS)
+
     def test_aggregate_js_passes_node_syntax_check_when_available(self):
         node = shutil.which("node")
         if not node:

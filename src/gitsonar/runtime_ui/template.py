@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 
 from .assets import CSS, JS
+from .prompt_profiles import DEFAULT_PROMPT_PROFILE, PROMPT_PROFILE_DEFINITIONS, render_prompt_profile_menu_panel
 
 HTML_HEAD = """<!DOCTYPE html>
 <html lang="zh-CN">
@@ -78,6 +79,16 @@ HTML_BODY = """</style>
           <div class="workspace-summary">
             <div class="workspace-summary-copy">
               <span class="workspace-summary-line">已选 <span class="metric-number" id="selected-count">0</span> / 共 <span class="metric-number" id="visible-count">0</span><span id="visible-label"> 项</span></span>
+            </div>
+          </div>
+          <div class="menu-wrap" data-menu-id="prompt-profile-menu">
+            <button class="action-quiet menu-toggle" id="prompt-profile-trigger" type="button" aria-label="选择分析方式" aria-haspopup="menu" aria-expanded="false" onclick="toggleMenu(event,'prompt-profile-menu')">
+              分析方式
+              <span class="workspace-ai-target" id="workspace-prompt-profile" data-prompt-profile-label>__DEFAULT_PROMPT_PROFILE_LABEL__</span>
+              <span class="menu-caret"></span>
+            </button>
+            <div class="menu-panel align-right" id="prompt-profile-menu-panel">
+__PROMPT_PROFILE_MENU_PANEL__
             </div>
           </div>
           <span class="workspace-ai-target" id="workspace-ai-target" data-ai-target-label>ChatGPT 网页版</span>
@@ -385,7 +396,16 @@ HTML_TAIL = """</script>
 </html>
 """
 
-HTML_TEMPLATE = HTML_HEAD + CSS + HTML_BODY + JS + HTML_TAIL
+HTML_TEMPLATE = (
+    HTML_HEAD
+    + CSS
+    + HTML_BODY.replace("__PROMPT_PROFILE_MENU_PANEL__", render_prompt_profile_menu_panel())
+    + JS
+    + HTML_TAIL
+)
+HTML_TEMPLATE = HTML_TEMPLATE.replace(
+    "__DEFAULT_PROMPT_PROFILE_LABEL__", str(PROMPT_PROFILE_DEFINITIONS[DEFAULT_PROMPT_PROFILE]["label"])
+)
 
 
 def build_html(

@@ -141,98 +141,329 @@ function gainLabel(repo){
   return "暂无增长数据";
 }
 
+function joinPromptSections(sections){
+  return sections.filter(section => String(section || "").trim()).join("\n\n");
+}
+
 function repoLine(repo){
   return `- ${repo.full_name} | ${repo.language || "未知语言"} | Stars ${repo.stars || 0} | ${repo.url}\n  简介: ${repo.description || repo.description_raw || "暂无描述"}`;
 }
 
 function collectionRepoLine(repo, index){
-  return `${index + 1}. ${repo.full_name} | ${repo.language || "\u672a\u77e5\u8bed\u8a00"} | Stars ${repo.stars || 0} | ${repo.url}\n   \u589e\u957f: ${gainLabel(repo)}\n   \u6765\u6e90: ${repo.source_label || "\u672a\u77e5\u6765\u6e90"}\n   \u7b80\u4ecb: ${repo.description || repo.description_raw || "\u6682\u65e0\u63cf\u8ff0"}`;
+  return `${index + 1}. ${repo.full_name} | ${repo.language || "未知语言"} | Stars ${repo.stars || 0} | ${repo.url}\n   增长: ${gainLabel(repo)}\n   来源: ${repo.source_label || "未知来源"}\n   简介: ${repo.description || repo.description_raw || "暂无描述"}`;
 }
 
-function buildRepoPrompt(repo){
-  return `你是一位资深技术总监兼产品战略专家。请阅读下方仓库信息，用中文输出一份简洁的研判报告。
-语言要求：直白、通俗，遇到复杂概念优先解释清楚，不要堆术语。
+function audienceBlock(text = "非技术背景的业务高管"){
+  return `【汇报对象】\n${text}`;
+}
 
-【仓库信息】
+function companyBackgroundBlock(){
+  return `【公司背景】\n如无特别说明，请默认按一家中大型企业评估，关注业务价值、落地成本、安全风险、团队投入和是否值得试点。`;
+}
+
+function bannedWordsLines(){
+  return [
+    "- 不要使用这些词：",
+    "  解耦、赋能、底层逻辑、抓手、闭环、范式、壁垒、飞轮、生态位、全链路",
+  ];
+}
+
+function commonLanguageRules(extraLines = [], includeWorkflowLine = true){
+  const lines = [
+    "- 必须极度通俗。",
+    "- 不讲技术黑话。",
+    "- 技术概念必须用生活化类比解释。",
+    "- AI 代理 = 像一个会按目标办事的助理。",
+    "- 大模型 = 像一个知识很广、但需要人检查的实习顾问。",
+  ];
+  if(includeWorkflowLine){
+    lines.push("- 多个工具或流程配合 = 像把员工、表格、系统和审批步骤串成一条办事线。");
+  }
+  if(Array.isArray(extraLines) && extraLines.length){
+    lines.push(...extraLines.filter(Boolean));
+  }
+  lines.push(...bannedWordsLines());
+  return `【语言要求】\n${lines.join("\n")}`;
+}
+
+function officeLanguageRules(){
+  return commonLanguageRules([
+    "- 遇到 AI 代理、大模型、自动化流程等概念时，也可以类比成办公室助理、外包团队、工厂流水线或表格审批。",
+  ]);
+}
+
+function truthRules(){
+  return `【真实性要求】
+- 只能基于给定信息做判断。
+- 如果信息不足，必须明确写“当前信息不足以确认”。
+- 不得脑补仓库没有体现的功能。
+- 不得把教程说成产品。
+- 不得把演示样例说成可直接上线系统。`;
+}
+
+function webResearchRules(){
+  return `【必须先核验的信息】
+1. README：确认项目到底是教程、样例、框架、工具还是产品。
+2. 目录结构：判断它偏教学内容、代码模板，还是可运行系统。
+3. 最近更新时间：判断项目是否活跃。
+4. Issue 和 Pull Request：判断社区问题、维护状态和风险。
+5. License：判断企业使用是否有潜在限制。
+6. 依赖和运行方式：判断落地门槛。
+7. 官方说明：确认项目作者对项目定位的描述。
+8. 如有必要，查找同类方案或替代品进行对比。
+
+【重要规则】
+- 所有关键判断必须来自你查到的信息。
+- 如果无法确认，必须写“无法从公开信息确认”。
+- 不得把教程项目说成企业级产品。
+- 不得因为星标高就判断它成熟。
+- 星标只能代表关注度，不能代表可商用程度。
+
+【引用要求】
+- 报告中涉及项目事实、活跃度、License、维护状态、替代品时，需要给出来源。
+- 如果当前环境不能联网，也必须明确写“无法从公开信息确认”。`;
+}
+
+function repoFactsBlock(repo){
+  return `【仓库信息】
 名称：${repo.full_name}
 链接：${repo.url}
 语言：${repo.language || "未知语言"}
 总星标：${repo.stars || 0}
 增长：${gainLabel(repo)}
 来源：${repo.source_label || "未知来源"}
-简介：${repo.description || repo.description_raw || "暂无描述"}
-
-【输出结构】
-1. 一句话大白话解释
-2. 核心价值（2-3 条）
-3. 坑和局限（不要客气）
-4. 一个具体使用场景
-5. 主流竞品对比
-6. 决策建议（立刻试用 / 持续观察 / 特定场景再看）`;
+简介：${repo.description || repo.description_raw || "暂无描述"}`;
 }
 
-function buildBatchPrompt(repos, title, batchIndex, batchCount){
-  const groupNote = batchCount > 1 ? `\n（当前是第 ${batchIndex}/${batchCount} 组）` : "";
-  return `你是一位资深架构师，正在帮团队快速筛选值得关注的开源项目。
-请用中文对下方每个仓库分别输出简洁研判，语言直白、不堆术语。${groupNote}
-
-分析范围：${title}
-
-仓库列表：
-${repos.map(repoLine).join("\n")}
-
-【每个仓库输出以下 4 项，用仓库名作为小标题】
-1. 一句话说清楚它是做什么的
-2. 最大的实际价值或亮点（1-2 条，带场景）
-3. 主要风险或局限
-4. 决策建议：立刻试用 / 持续观察 / 暂时忽略（附一句理由）`;
+function compareRepoFactsBlock(title, repo, detail){
+  return `【${title}】
+名称：${repo.full_name}
+链接：${repo.url}
+语言：${repo.language || "未知语言"}
+总星标：${detail.stars || repo.stars || 0}
+Forks：${detail.forks || repo.forks || 0}
+最近推送：${detail.pushed_at || "未知"}
+来源：${repo.source_label || "未知来源"}
+简介：${detail.description || detail.description_raw || repo.description || repo.description_raw || "暂无描述"}
+README 摘要：${detail.readme_summary || detail.readme_summary_raw || "暂无"}`;
 }
 
-function splitRepoPrompts(repos, title, maxEncodedLength = 2600, maxItemsPerBatch = 4){
-  const normalized = repos.filter(Boolean);
-  if(!normalized.length) return [];
-  if(normalized.length === 1) return [buildRepoPrompt(normalized[0])];
-  const batches = [];
-  let currentBatch = [];
-  const buildDraft = candidate => `你是一位资深架构师，正在帮团队快速筛选值得关注的开源项目。请用中文对下方每个仓库分别输出简洁研判。\n分析范围：${title}\n仓库列表：\n${candidate.map(repoLine).join("\n")}\n【每个仓库输出：1.一句话说明 2.亮点 3.风险 4.建议】`;
-  for(const repo of normalized){
-    const candidate = [...currentBatch, repo];
-    const encodedLength = encodeURIComponent(buildDraft(candidate)).length;
-    if(currentBatch.length && (encodedLength > maxEncodedLength || candidate.length > maxItemsPerBatch)){
-      batches.push(currentBatch);
-      currentBatch = [repo];
-    }else{
-      currentBatch = candidate;
-    }
-  }
-  if(currentBatch.length) batches.push(currentBatch);
-  return batches.map((batch, index) => buildBatchPrompt(batch, title, index + 1, batches.length));
+const DEFAULT_COLLECTION_PROMPT_CONFIG = {
+  role:"你是一位懂商业、懂技术、也懂企业落地的技术总监兼产品战略负责人。",
+  language_rules:{kind:"common", include_workflow_line:false, extra_lines:[]},
+  focus:`【当前分析重点】
+- 你的任务不是逐个做技术介绍，而是做项目筛选。
+- 重点判断它到底是什么、能解决什么业务问题、更像学习资料/演示样例/开发工具/成熟产品、是否值得企业投入人力试用，以及最大风险是什么。`,
+  structure:`第一部分：总览表
+请输出表格，字段包括：
+- 项目名称
+- 一句话说明
+- 项目类型
+- 业务价值评分
+- 落地难度评分
+- 成熟度评分
+- 最大风险
+- 建议动作
+
+建议动作只能从以下选项中选择：
+- 立即试用
+- 内部学习
+- 持续观察
+- 暂不投入
+- 特定场景再看
+
+第二部分：重点项目点评
+只挑出最值得关注的前 3 个项目，每个项目用 4 段说明：
+1. 为什么值得看
+2. 能用在哪个业务场景
+3. 最大坑在哪里
+4. 下一步怎么试
+
+第三部分：不建议投入项目
+列出不建议投入的项目，并说明一句话原因。
+
+第四部分：最终建议
+用高管能理解的话总结：
+- 哪个项目最值得近期安排人看
+- 哪个项目适合内部培训
+- 哪个项目只是热闹，不值得现在投人`,
+};
+
+const DEFAULT_COMPARE_PROMPT_CONFIG = {
+  language_rules:{kind:"common", include_workflow_line:false, extra_lines:[]},
+  focus:`【比较重点】
+请比较：
+1. 哪个更成熟？
+2. 哪个更省事？
+3. 哪个更适合企业正式使用？
+4. 哪个更适合学习和试点？
+5. 哪个风险最大？
+6. 哪个近期最值得投入？`,
+  structure:`1. 一句话结论
+直接说最推荐哪个方向，以及为什么。
+
+2. 对比表
+字段包括：
+- 方案名称
+- 更像什么
+- 适合用途
+- 成熟度
+- 使用成本
+- 最大风险
+- 适合谁
+
+3. 逐项点评
+每个方案用 3–5 句话说明：
+- 优点
+- 缺点
+- 适合场景
+- 不适合场景
+
+4. 企业选择建议
+分情况建议：
+- 只是学习：选什么
+- 做内部试点：选什么
+- 上生产：选什么
+- 没有技术团队：选什么
+
+5. 最终建议
+只能选一个：
+- 优先用项目 A
+- 优先用项目 B
+- 优先买成熟产品
+- 先学习再试点
+- 暂不投入`,
+};
+
+function mergeProfileLanguageRules(baseConfig, overrideConfig){
+  const base = baseConfig && typeof baseConfig === "object" ? baseConfig : {};
+  const override = overrideConfig && typeof overrideConfig === "object" ? overrideConfig : {};
+  return {
+    kind:String(override.kind || base.kind || "common").trim() || "common",
+    extra_lines:Array.isArray(override.extra_lines) ? override.extra_lines : (Array.isArray(base.extra_lines) ? base.extra_lines : []),
+    include_workflow_line:
+      override.include_workflow_line !== undefined
+        ? !!override.include_workflow_line
+        : (base.include_workflow_line !== undefined ? !!base.include_workflow_line : true),
+  };
 }
 
-function buildCollectionPrompt(repos, title){
+function promptProfileSectionConfig(profile, section, fallbackConfig = {}){
+  const activeDefinition = promptProfileDefinition(profile);
+  const activeConfig = activeDefinition?.[section] && typeof activeDefinition[section] === "object" ? activeDefinition[section] : {};
+  const fallback = fallbackConfig && typeof fallbackConfig === "object" ? fallbackConfig : {};
+  return {
+    ...fallback,
+    ...activeConfig,
+    language_rules: mergeProfileLanguageRules(fallback.language_rules, activeConfig.language_rules),
+  };
+}
+
+function resolvePromptProfileText(value){
+  const text = String(value || "").trim();
+  if(!text) return "";
+  if(text === "__WEB_RESEARCH_RULES__") return webResearchRules();
+  if(text === "__TRUTH_RULES__") return truthRules();
+  return text;
+}
+
+function buildPromptLanguageRules(config, fallbackKind = "common", fallbackIncludeWorkflowLine = true){
+  const merged = mergeProfileLanguageRules(
+    {kind:fallbackKind, include_workflow_line:fallbackIncludeWorkflowLine, extra_lines:[]},
+    config,
+  );
+  if(merged.kind === "office") return officeLanguageRules();
+  return commonLanguageRules(merged.extra_lines, merged.include_workflow_line);
+}
+
+function buildRepoPrompt(repo, profile){
+  const activeProfile = normalizePromptProfile(profile);
+  const repoSpec = promptProfileDefinition(activeProfile).repo || {};
+  const repoInfo = repoFactsBlock(repo);
+  return joinPromptSections([
+    resolvePromptProfileText(repoSpec.role),
+    resolvePromptProfileText(repoSpec.intro),
+    resolvePromptProfileText(repoSpec.focus),
+    buildPromptLanguageRules(repoSpec.language_rules, "common", true),
+    resolvePromptProfileText(repoSpec.rules),
+    resolvePromptProfileText(repoSpec.output),
+    resolvePromptProfileText(repoSpec.length),
+    repoInfo,
+    audienceBlock(resolvePromptProfileText(repoSpec.audience) || undefined),
+    companyBackgroundBlock(),
+  ]);
+}
+
+function batchProfileRole(profile){
+  const collectionSpec = promptProfileSectionConfig(profile, "collection", DEFAULT_COLLECTION_PROMPT_CONFIG);
+  return resolvePromptProfileText(collectionSpec.role || DEFAULT_COLLECTION_PROMPT_CONFIG.role);
+}
+
+function batchLanguageRules(profile){
+  const collectionSpec = promptProfileSectionConfig(profile, "collection", DEFAULT_COLLECTION_PROMPT_CONFIG);
+  return buildPromptLanguageRules(collectionSpec.language_rules, "common", false);
+}
+
+function batchProfileFocus(profile){
+  const collectionSpec = promptProfileSectionConfig(profile, "collection", DEFAULT_COLLECTION_PROMPT_CONFIG);
+  return resolvePromptProfileText(collectionSpec.focus || DEFAULT_COLLECTION_PROMPT_CONFIG.focus);
+}
+
+function batchProfileStructure(profile){
+  const collectionSpec = promptProfileSectionConfig(profile, "collection", DEFAULT_COLLECTION_PROMPT_CONFIG);
+  return resolvePromptProfileText(collectionSpec.structure || DEFAULT_COLLECTION_PROMPT_CONFIG.structure);
+}
+
+function buildCollectionPromptText(normalized, title, profile, groupNote = ""){
+  const activeProfile = normalizePromptProfile(profile);
+  return joinPromptSections([
+    `${batchProfileRole(activeProfile)}${groupNote}`,
+    "我会给你多个 GitHub 开源项目。请你站在企业业务高管视角，帮我快速筛选哪些值得关注、哪些只是看起来热闹。",
+    `【当前分析方式】
+${promptProfileLabel(activeProfile)}：${promptProfileDescription(activeProfile)}`,
+    `【硬性要求】
+1. 必须覆盖列表中的全部仓库，不得省略，不得合并跳过。
+2. 输出顺序必须与输入列表保持一致。
+3. 每个仓库都要单独给出结论，最后再给出一段整体建议。
+4. 星标高只代表关注度，不代表成熟度。
+5. 如果信息不足，必须明确写“当前信息不足以确认”。`,
+    batchLanguageRules(activeProfile),
+    batchProfileFocus(activeProfile),
+    `分析范围：${title}
+仓库数量：${normalized.length}`,
+    `仓库列表：
+${normalized.map(collectionRepoLine).join("\n")}`,
+    `【输出结构】
+${batchProfileStructure(activeProfile)}`,
+  ]);
+}
+
+function buildBatchPrompt(repos, title, batchIndex, batchCount, profile){
   const normalized = repos.filter(Boolean);
   if(!normalized.length) return "";
-  return `\u4f60\u662f\u4e00\u4f4d\u8d44\u6df1\u67b6\u6784\u5e08\uff0c\u6b63\u5728\u5e2e\u56e2\u961f\u5feb\u901f\u7b5b\u9009\u503c\u5f97\u5173\u6ce8\u7684 GitHub \u5f00\u6e90\u9879\u76ee\u3002
-\u8bf7\u7528\u4e2d\u6587\u4e25\u683c\u6309\u7ed9\u5b9a\u987a\u5e8f\uff0c\u9010\u4e2a\u5206\u6790\u4e0b\u9762\u7684\u4ed3\u5e93\uff0c\u8bed\u8a00\u76f4\u767d\uff0c\u4e0d\u5806\u672f\u8bed\u3002
+  const groupNote = batchCount > 1 ? `\n（当前是第 ${batchIndex}/${batchCount} 组）` : "";
+  return buildCollectionPromptText(normalized, title, profile, groupNote);
+}
 
-\u3010\u786c\u6027\u8981\u6c42\u3011
-1. \u5fc5\u987b\u8986\u76d6\u5217\u8868\u4e2d\u7684\u5168\u90e8\u4ed3\u5e93\uff0c\u4e0d\u5f97\u7701\u7565\uff0c\u4e0d\u5f97\u5408\u5e76\u8df3\u8fc7\u3002
-2. \u8f93\u51fa\u987a\u5e8f\u5fc5\u987b\u4e0e\u8f93\u5165\u5217\u8868\u4fdd\u6301\u4e00\u81f4\u3002
-3. \u6bcf\u4e2a\u4ed3\u5e93\u90fd\u8981\u5355\u72ec\u7ed9\u51fa\u7ed3\u8bba\uff0c\u6700\u540e\u518d\u7ed9\u51fa\u4e00\u6bb5\u6574\u4f53\u5efa\u8bae\u3002
+function buildCollectionPrompt(repos, title, profile){
+  const normalized = repos.filter(Boolean);
+  if(!normalized.length) return "";
+  return buildCollectionPromptText(normalized, title, profile, "");
+}
 
-\u5206\u6790\u8303\u56f4: ${title}
-\u4ed3\u5e93\u6570\u91cf: ${normalized.length}
+function compareLanguageRules(profile){
+  const compareSpec = promptProfileSectionConfig(profile, "compare", DEFAULT_COMPARE_PROMPT_CONFIG);
+  return buildPromptLanguageRules(compareSpec.language_rules, "common", false);
+}
 
-\u4ed3\u5e93\u5217\u8868:
-${normalized.map(collectionRepoLine).join("\n")}
+function compareProfileFocus(profile){
+  const compareSpec = promptProfileSectionConfig(profile, "compare", DEFAULT_COMPARE_PROMPT_CONFIG);
+  return resolvePromptProfileText(compareSpec.focus || DEFAULT_COMPARE_PROMPT_CONFIG.focus);
+}
 
-\u3010\u8f93\u51fa\u7ed3\u6784\u3011
-1. \u6309\u8f93\u5165\u987a\u5e8f\uff0c\u4e3a\u6bcf\u4e2a\u4ed3\u5e93\u5206\u522b\u8f93\u51fa:
-   - \u4e00\u53e5\u8bdd\u8bf4\u6e05\u695a\u5b83\u662f\u505a\u4ec0\u4e48\u7684
-   - \u6700\u5927\u7684\u5b9e\u9645\u4ef7\u503c\u6216\u4eae\u70b9\uff081-2 \u6761\uff0c\u5e26\u573a\u666f\uff09
-   - \u4e3b\u8981\u98ce\u9669\uff0c\u5c40\u9650\u6216\u91c7\u7528\u95e8\u69db
-   - \u51b3\u7b56\u5efa\u8bae\uff1a\u7acb\u5373\u8bd5\u7528 / \u6301\u7eed\u89c2\u5bdf / \u6682\u65f6\u5ffd\u7565\uff0c\u5e76\u9644\u4e00\u53e5\u7406\u7531
-2. \u6700\u540e\u8865\u4e00\u6bb5\u300a\u603b\u89c8\u5efa\u8bae\u300b\uff0c\u8bf4\u660e\u8fd9\u6279\u4ed3\u5e93\u91cc\u6700\u503c\u5f97\u4f18\u5148\u770b\u7684\u5bf9\u8c61\uff0c\u9002\u5408\u8c01\uff0c\u4ee5\u53ca\u4e0d\u8be5\u76f2\u76ee\u6295\u5165\u7684\u70b9\u3002`;
+function compareProfileStructure(profile){
+  const compareSpec = promptProfileSectionConfig(profile, "compare", DEFAULT_COMPARE_PROMPT_CONFIG);
+  return resolvePromptProfileText(compareSpec.structure || DEFAULT_COMPARE_PROMPT_CONFIG.structure);
 }
 
 function canTransportAsSinglePrompt(prompt){

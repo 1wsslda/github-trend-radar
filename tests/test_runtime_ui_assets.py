@@ -198,6 +198,52 @@ class RuntimeUILayoutSmokeTests(unittest.TestCase):
         self.assertIn(".workspace-action-group{", CSS)
         self.assertIn('.workspace-action-group > .action-split[data-menu-id="ai-target-menu"] .split-main,', CSS)
 
+    def test_prompt_profile_menu_exposes_full_catalog_with_default_j_label(self):
+        html = build_fixture_html()
+
+        for token in (
+            'data-menu-id="prompt-profile-menu"',
+            'id="prompt-profile-trigger"',
+            'id="workspace-prompt-profile"',
+            'data-prompt-profile-label>J 最强组合</span>',
+            "分析方式",
+            "常用",
+            "决策 / 会议",
+            "说明视角",
+            "结构化",
+            'data-prompt-profile="a_general"',
+            'data-prompt-profile="b_deep"',
+            'data-prompt-profile="c_batch"',
+            'data-prompt-profile="d1_investment"',
+            'data-prompt-profile="d2_product"',
+            'data-prompt-profile="d3_cto"',
+            'data-prompt-profile="e1_use"',
+            'data-prompt-profile="e2_value"',
+            'data-prompt-profile="e3_adoption"',
+            'data-prompt-profile="e4_detail"',
+            'data-prompt-profile="f_brief"',
+            'data-prompt-profile="g_scorecard"',
+            'data-prompt-profile="h_training"',
+            'data-prompt-profile="i_compare"',
+            'data-prompt-profile="j_full"',
+            "A 通用稳定",
+            "B 联网深度",
+            "D2 产品立项",
+            "G 表格评分",
+            "J 最强组合",
+        ):
+            with self.subTest(token=token):
+                self.assertIn(token, html)
+
+    def test_menu_panels_have_scrollable_viewport_clamps_for_tall_content(self):
+        for token in (
+            "max-height:min(420px, calc(100vh - 24px));",
+            "overflow-y:auto;",
+            "overscroll-behavior:contain;",
+        ):
+            with self.subTest(css=token):
+                self.assertIn(token, CSS)
+
     def test_back_to_top_button_contract_replaces_runtime_nav_offset_contract(self):
         html = build_fixture_html()
 
@@ -215,6 +261,7 @@ class RuntimeUILayoutSmokeTests(unittest.TestCase):
         html = build_fixture_html(control_token="test-control-token")
         for token in (
             'data-menu-id="app-more-menu"',
+            'data-menu-id="prompt-profile-menu"',
             'data-menu-id="ai-target-menu"',
             'data-menu-id="language-select-menu"',
             'data-menu-id="sort-more-menu"',
