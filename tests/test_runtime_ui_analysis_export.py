@@ -99,6 +99,24 @@ def eval_prompt_runtime(expression: str) -> object:
     return json.loads(completed.stdout)
 
 
+def eval_js_function(source: str, signature: str, expression: str) -> object:
+    node = shutil.which("node")
+    if not node:
+        raise unittest.SkipTest("node is not available")
+    name = signature.split("(", 1)[0]
+    body = function_body(source, name)
+    script = "\n".join(
+        [
+            f"function {signature}{{",
+            body,
+            "}",
+            f"console.log(JSON.stringify({expression}));",
+        ]
+    )
+    completed = subprocess.run([node, "-e", script], check=True, capture_output=True, text=True, encoding="utf-8")
+    return json.loads(completed.stdout)
+
+
 class RuntimeUIAnalysisExportTests(unittest.TestCase):
     def test_analysis_date_stamp_uses_local_calendar_date(self):
         body = function_body(JS, "analysisDateStamp")
@@ -149,6 +167,15 @@ class RuntimeUIAnalysisExportTests(unittest.TestCase):
         selected_body = function_body(JS, "analyzeSelected")
         self.assertIn("const repos = selectedRepos();", selected_body)
         self.assertIn("gitsonar-analysis-selected-", selected_body)
+
+    def test_import_user_state_file_strips_utf8_bom_before_json_parse(self):
+        self.assertIn("function stripUtf8Bom(text)", JS)
+        cleaned = eval_js_function(JS, "stripUtf8Bom(text)", 'stripUtf8Bom("\\ufeff{\\"ok\\":1}")')
+        untouched = eval_js_function(JS, "stripUtf8Bom(text)", 'stripUtf8Bom("{\\"ok\\":1}")')
+        self.assertEqual(cleaned, '{"ok":1}')
+        self.assertEqual(untouched, '{"ok":1}')
+        body = function_body(JS, "importUserStateFile")
+        self.assertIn("JSON.parse(stripUtf8Bom(await file.text()))", body)
 
     def test_learning_prompt_scaffolds_are_present(self):
         self.assertIn('const LEARNING_PROMPT_SPEC = {', JS)

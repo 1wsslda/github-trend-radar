@@ -130,7 +130,7 @@ def load_json_file(path: str, default: object) -> object:
     if not os.path.exists(path):
         return default
     try:
-        with open(path, encoding='utf-8') as f:
+        with open(path, encoding='utf-8-sig') as f:
             return json.load(f)
     except Exception as exc:
         logger.warning("json_load_failed path=%s error=%s", path, exc)

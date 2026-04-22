@@ -21,6 +21,14 @@ class RuntimeUtilsTests(unittest.TestCase):
                 payload = load_json_file(str(path), {"fallback": True})
             self.assertEqual(payload, {"fallback": True})
 
+    def test_load_json_file_accepts_utf8_bom(self):
+        with tempfile.TemporaryDirectory() as tempdir:
+            path = Path(tempdir) / "bom.json"
+            path.write_text('{"label":"中文"}', encoding="utf-8-sig")
+            with self.assertNoLogs("gitsonar.runtime.utils", level="WARNING"):
+                payload = load_json_file(str(path), {"fallback": True})
+            self.assertEqual(payload, {"label": "中文"})
+
     def test_load_json_file_logs_warning_and_returns_default_for_invalid_json(self):
         with tempfile.TemporaryDirectory() as tempdir:
             path = Path(tempdir) / "broken.json"

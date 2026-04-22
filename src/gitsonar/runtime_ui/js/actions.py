@@ -75,6 +75,10 @@ async function exportUserState(){
   }
 }
 
+function stripUtf8Bom(text){
+  return String(text || "").replace(/^\uFEFF/, "");
+}
+
 function beginImportUserState(mode = "merge"){
   pendingImportMode = String(mode || "merge").trim() === "replace" ? "replace" : "merge";
   const input = document.getElementById("import-user-state-input");
@@ -87,7 +91,7 @@ async function importUserStateFile(file){
   if(!file) return;
   let payload;
   try{
-    payload = JSON.parse(await file.text());
+    payload = JSON.parse(stripUtf8Bom(await file.text()));
   }catch(_err){
     toast("导入文件不是有效的 JSON");
     return;
