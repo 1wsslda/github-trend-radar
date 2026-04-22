@@ -157,6 +157,7 @@ def build_runtime(
     search_api_url: str = "https://example.invalid/search",
     token: str = "",
     *,
+    user_state=None,
     cached_repo_details=None,
     save_repo_details=None,
     translate_text=None,
@@ -174,7 +175,7 @@ def build_runtime(
         settings={"github_token": token},
         periods=[{"key": "daily", "label": "Today", "days": 1}],
         state_lock=threading.RLock(),
-        user_state={},
+        user_state=user_state or {},
         save_user_state=lambda: None,
         requests_module=None,
         beautifulsoup_cls=lambda *args, **kwargs: None,
@@ -522,6 +523,66 @@ class DiscoveryRankingProfileTests(unittest.TestCase):
         self.assertNotEqual(hot["composite_score"], builder["composite_score"])
         self.assertNotEqual(builder["ranking_signal_score"], hot["ranking_signal_score"])
         self.assertNotEqual(fresh["ranking_signal_score"], hot["ranking_signal_score"])
+
+    def test_scoring_surfaces_local_ignore_feedback_as_recommendation_reason(self):
+        recent_iso = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat().replace("+00:00", "Z")
+        repo = {
+            "full_name": "gamma/agent-kit",
+            "name": "agent-kit",
+            "url": "https://github.com/gamma/agent-kit",
+            "description_raw": "Agent toolkit",
+            "language": "Python",
+            "stars": 1200,
+            "forks": 90,
+            "updated_at": recent_iso,
+            "pushed_at": recent_iso,
+        }
+        details = {
+            "stars": 1200,
+            "forks": 90,
+            "updated_at": recent_iso,
+            "pushed_at": recent_iso,
+            "topics": ["agent", "toolkit"],
+            "license": "Apache-2.0",
+            "homepage": "https://example.com",
+            "readme_summary": "Agent toolkit with docs",
+            "readme_summary_raw": "Agent toolkit with docs",
+        }
+        plain_runtime = build_runtime()
+        feedback_runtime = build_runtime(
+            user_state={
+                "feedback_signals": {
+                    "https://github.com/gamma/agent-kit": {
+                        "reason": "只是 demo",
+                        "count": 2,
+                        "updated_at": "2026-04-23T00:00:00",
+                        "state": "ignored",
+                    }
+                }
+            }
+        )
+
+        plain = plain_runtime.score_discovery_repo(
+            repo,
+            details,
+            base_terms=["agent"],
+            query_variants=["agent"],
+            related_terms=["toolkit"],
+            trending_names=set(),
+            ranking_profile="balanced",
+        )
+        scored = feedback_runtime.score_discovery_repo(
+            repo,
+            details,
+            base_terms=["agent"],
+            query_variants=["agent"],
+            related_terms=["toolkit"],
+            trending_names=set(),
+            ranking_profile="balanced",
+        )
+
+        self.assertTrue(any("只是 demo" in reason for reason in scored["match_reasons"]))
+        self.assertLess(scored["composite_score"], plain["composite_score"])
 
     def test_rank_discovery_results_reuses_translated_descriptions_without_changing_preview_copy(self):
         translate_calls: list[str] = []

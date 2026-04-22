@@ -107,6 +107,10 @@ class UserStateService:
     fetch_user_starred: object
     sync_local_favorites_with_starred: object
     set_repo_state_batch: object | None = None
+    set_repo_annotation: object | None = None
+    set_favorite_update_state: object | None = None
+    set_ai_insight: object | None = None
+    delete_ai_insight: object | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -117,6 +121,8 @@ class DiscoveryService:
     clear_discovery_results: object
     export_discovery_state: object
     export_active_discovery_job: object
+    save_discovery_view: object | None = None
+    delete_discovery_view: object | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -141,6 +147,7 @@ class AppHandlerDeps:
     as_bool: object
     start_refresh_async: object
     control_token_getter: object | None = None
+    run_diagnostics: object | None = None
 
 
 def make_app_handler(
@@ -156,7 +163,11 @@ def make_app_handler(
     as_bool,
     set_repo_state,
     set_repo_state_batch=None,
+    set_repo_annotation=None,
+    set_favorite_update_state=None,
     export_user_state,
+    set_ai_insight=None,
+    delete_ai_insight=None,
     import_user_state,
     normalize_settings,
     save_settings,
@@ -171,6 +182,8 @@ def make_app_handler(
     start_discovery_job,
     get_discovery_job,
     cancel_discovery_job,
+    save_discovery_view=None,
+    delete_discovery_view=None,
     clear_discovery_results,
     export_discovery_state,
     export_active_discovery_job,
@@ -180,6 +193,7 @@ def make_app_handler(
     fetch_user_starred,
     sync_local_favorites_with_starred,
     validate_github_token,
+    run_diagnostics=None,
     merge_settings=None,
     control_token_getter=None,
 ):
@@ -202,7 +216,11 @@ def make_app_handler(
         user_state_service=UserStateService(
             set_repo_state=set_repo_state,
             set_repo_state_batch=set_repo_state_batch,
+            set_repo_annotation=set_repo_annotation,
+            set_favorite_update_state=set_favorite_update_state,
             export_user_state=export_user_state,
+            set_ai_insight=set_ai_insight,
+            delete_ai_insight=delete_ai_insight,
             import_user_state=import_user_state,
             clear_favorite_updates=clear_favorite_updates,
             sync_favorite_repo=sync_favorite_repo,
@@ -213,6 +231,8 @@ def make_app_handler(
             start_discovery_job=start_discovery_job,
             get_discovery_job=get_discovery_job,
             cancel_discovery_job=cancel_discovery_job,
+            save_discovery_view=save_discovery_view,
+            delete_discovery_view=delete_discovery_view,
             clear_discovery_results=clear_discovery_results,
             export_discovery_state=export_discovery_state,
             export_active_discovery_job=export_active_discovery_job,
@@ -229,6 +249,7 @@ def make_app_handler(
         as_bool=as_bool,
         start_refresh_async=start_refresh_async,
         control_token_getter=control_token_getter,
+        run_diagnostics=run_diagnostics,
     )
     return build_app_handler(deps)
 
@@ -249,7 +270,11 @@ def build_app_handler(deps: AppHandlerDeps):
     merge_settings = deps.settings_service.merge_settings or (lambda payload, _current=None: normalize_settings(payload))
     set_repo_state = deps.user_state_service.set_repo_state
     set_repo_state_batch = deps.user_state_service.set_repo_state_batch
+    set_repo_annotation = deps.user_state_service.set_repo_annotation
+    set_favorite_update_state = deps.user_state_service.set_favorite_update_state
     export_user_state = deps.user_state_service.export_user_state
+    set_ai_insight = deps.user_state_service.set_ai_insight
+    delete_ai_insight = deps.user_state_service.delete_ai_insight
     import_user_state = deps.user_state_service.import_user_state
     clear_favorite_updates = deps.user_state_service.clear_favorite_updates
     sync_favorite_repo = deps.user_state_service.sync_favorite_repo
@@ -258,6 +283,8 @@ def build_app_handler(deps: AppHandlerDeps):
     start_discovery_job = deps.discovery_service.start_discovery_job
     get_discovery_job = deps.discovery_service.get_discovery_job
     cancel_discovery_job = deps.discovery_service.cancel_discovery_job
+    save_discovery_view = deps.discovery_service.save_discovery_view
+    delete_discovery_view = deps.discovery_service.delete_discovery_view
     clear_discovery_results = deps.discovery_service.clear_discovery_results
     export_discovery_state = deps.discovery_service.export_discovery_state
     export_active_discovery_job = deps.discovery_service.export_active_discovery_job
@@ -271,6 +298,7 @@ def build_app_handler(deps: AppHandlerDeps):
     as_bool = deps.as_bool
     start_refresh_async = deps.start_refresh_async
     control_token_getter = deps.control_token_getter or (lambda: "")
+    run_diagnostics = deps.run_diagnostics or (lambda: {"generated_at": "", "items": [], "has_errors": False})
 
     if set_repo_state_batch is None:
         def set_repo_state_batch(state_key: str, enabled: bool, repos: object):
@@ -354,6 +382,9 @@ def build_app_handler(deps: AppHandlerDeps):
             "active_job": export_active_discovery_job(),
         }
 
+    def handle_get_diagnostics(_handler, _parsed, _payload):
+        return {"ok": True, "diagnostics": run_diagnostics()}
+
     def handle_get_discovery_job(_handler, parsed, _payload):
         params = parse_qs(parsed.query)
         try:
@@ -387,10 +418,15 @@ def build_app_handler(deps: AppHandlerDeps):
     def handle_post_state(_handler, _parsed, payload):
         state_key = normalize(payload.get("state"))
         enabled = as_bool(payload.get("enabled"), True)
+        repo_payload = dict(payload.get("repo")) if isinstance(payload.get("repo"), dict) else payload.get("repo")
+        if state_key == "ignored" and isinstance(repo_payload, dict):
+            feedback_reason = normalize(payload.get("feedback_reason"))
+            if feedback_reason:
+                repo_payload["feedback_reason"] = feedback_reason
         github_star_sync = None
         if state_key == "favorites":
             try:
-                github_star_sync = sync_favorite_repo(payload.get("repo"), enabled)
+                github_star_sync = sync_favorite_repo(repo_payload, enabled)
             except ValueError as exc:
                 raise LocalAPIError(localize_user_message(normalize, str(exc), "缺少仓库信息。")) from exc
             if github_star_sync and not (
@@ -400,7 +436,7 @@ def build_app_handler(deps: AppHandlerDeps):
             ):
                 return JsonResult(github_star_sync, 400)
         try:
-            set_repo_state(state_key, enabled, payload.get("repo"))
+            set_repo_state(state_key, enabled, repo_payload)
         except ValueError as exc:
             raise LocalAPIError(localize_user_message(normalize, str(exc), "请求处理失败。")) from exc
         return {
@@ -415,6 +451,13 @@ def build_app_handler(deps: AppHandlerDeps):
         repos = payload.get("repos")
         if not isinstance(repos, list):
             raise LocalAPIError("缺少仓库列表。")
+        if state_key == "ignored":
+            feedback_reason = normalize(payload.get("feedback_reason"))
+            if feedback_reason:
+                repos = [
+                    {**repo, "feedback_reason": feedback_reason} if isinstance(repo, dict) else repo
+                    for repo in repos
+                ]
 
         github_star_syncs: list[dict[str, object]] = []
         processed_repos = repos
@@ -474,6 +517,38 @@ def build_app_handler(deps: AppHandlerDeps):
             "user_state": export_user_state(),
             "github_star_syncs": github_star_syncs,
         }
+
+    def handle_post_repo_annotations(_handler, _parsed, payload):
+        url = normalize(payload.get("url"))
+        repo = payload.get("repo") if isinstance(payload.get("repo"), dict) else None
+        try:
+            annotation = set_repo_annotation(
+                url,
+                {
+                    "tags": payload.get("tags", []),
+                    "note": payload.get("note", ""),
+                },
+                repo=repo,
+            )
+        except ValueError as exc:
+            raise LocalAPIError(localize_user_message(normalize, str(exc), "保存标签或笔记失败。")) from exc
+        return {
+            "ok": True,
+            "annotation": annotation,
+            "user_state": export_user_state(),
+        }
+
+    def handle_post_favorite_update_state(_handler, _parsed, payload):
+        try:
+            update = set_favorite_update_state(
+                payload.get("id"),
+                read=payload.get("read") if "read" in payload else None,
+                dismissed=payload.get("dismissed") if "dismissed" in payload else None,
+                pinned=payload.get("pinned") if "pinned" in payload else None,
+            )
+        except ValueError as exc:
+            raise LocalAPIError(localize_user_message(normalize, str(exc), "更新收件箱状态保存失败。")) from exc
+        return {"ok": True, "update": update, "user_state": export_user_state()}
 
     def handle_post_import(_handler, _parsed, payload):
         try:
@@ -547,9 +622,47 @@ def build_app_handler(deps: AppHandlerDeps):
             raise LocalAPIError(localize_user_message(normalize, str(exc), "取消搜索失败。")) from exc
         return {"ok": True, "message": "已发送取消请求", "job": job}
 
+    def handle_post_discovery_view_save(_handler, _parsed, payload):
+        if save_discovery_view is None:
+            raise LocalAPIError("当前版本未启用保存发现视图。")
+        try:
+            view = save_discovery_view(payload)
+        except ValueError as exc:
+            raise LocalAPIError(localize_user_message(normalize, str(exc), "保存发现视图失败。")) from exc
+        return {"ok": True, "view": view, "discovery_state": export_discovery_state()}
+
+    def handle_post_discovery_view_delete(_handler, _parsed, payload):
+        if delete_discovery_view is None:
+            raise LocalAPIError("当前版本未启用保存发现视图。")
+        try:
+            discovery_state = delete_discovery_view(payload.get("id"))
+        except ValueError as exc:
+            raise LocalAPIError(localize_user_message(normalize, str(exc), "删除发现视图失败。")) from exc
+        return {"ok": True, "discovery_state": discovery_state}
+
     def handle_post_discovery_clear(_handler, _parsed, _payload):
         discovery_state = clear_discovery_results()
         return {"ok": True, "message": "已清空本次搜索结果", "discovery_state": discovery_state}
+
+    def handle_post_ai_insight(_handler, _parsed, payload):
+        if set_ai_insight is None:
+            raise LocalAPIError("当前版本未启用 AI Insight 本地缓存。")
+        url = normalize(payload.get("url"))
+        repo = payload.get("repo") if isinstance(payload.get("repo"), dict) else None
+        try:
+            insight = set_ai_insight(url, payload.get("insight"), repo=repo)
+        except ValueError as exc:
+            raise LocalAPIError(localize_user_message(normalize, str(exc), "保存 AI Insight 失败。")) from exc
+        return {"ok": True, "insight": insight, "user_state": export_user_state()}
+
+    def handle_post_ai_insight_delete(_handler, _parsed, payload):
+        if delete_ai_insight is None:
+            raise LocalAPIError("当前版本未启用 AI Insight 本地缓存。")
+        try:
+            user_state = delete_ai_insight(payload.get("url"))
+        except ValueError as exc:
+            raise LocalAPIError(localize_user_message(normalize, str(exc), "删除 AI Insight 失败。")) from exc
+        return {"ok": True, "user_state": user_state}
 
     def handle_post_window_open(_handler, _parsed, _payload):
         return {"ok": True, "opened": open_main_window()}
@@ -583,12 +696,15 @@ def build_app_handler(deps: AppHandlerDeps):
         "/api/repo-details": Route(handle_get_repo_details, error_status=500, error_code="repo_details_failed", error_message="仓库详情加载失败。"),
         "/api/discovery": Route(handle_get_discovery),
         "/api/discovery/job": Route(handle_get_discovery_job, error_status=404, error_code="not_found"),
+        "/api/diagnostics": Route(handle_get_diagnostics, loopback_only=True, control_only=True, error_status=500, error_code="diagnostics_failed", error_message="运行诊断失败。"),
         "/api/export": Route(handle_get_export, loopback_only=True, control_only=True, error_status=500, error_code="export_failed", error_message="导出用户数据失败。"),
     }
 
     POST_ROUTES = {
         "/api/state": Route(handle_post_state, loopback_only=True, control_only=True, json_body=True),
         "/api/state/batch": Route(handle_post_state_batch, loopback_only=True, control_only=True, json_body=True),
+        "/api/repo-annotations": Route(handle_post_repo_annotations, loopback_only=True, control_only=True, json_body=True),
+        "/api/favorite-updates/state": Route(handle_post_favorite_update_state, loopback_only=True, control_only=True, json_body=True),
         "/api/import": Route(handle_post_import, loopback_only=True, control_only=True, json_body=True),
         "/api/settings": Route(handle_post_settings, loopback_only=True, control_only=True, json_body=True),
         "/api/settings/token-status": Route(handle_post_token_status, loopback_only=True, control_only=True, json_body=True),
@@ -607,7 +723,11 @@ def build_app_handler(deps: AppHandlerDeps):
         "/api/favorite-updates/clear": Route(handle_post_clear_favorite_updates, loopback_only=True, control_only=True),
         "/api/discover": Route(handle_post_discover, loopback_only=True, control_only=True, json_body=True),
         "/api/discovery/cancel": Route(handle_post_discovery_cancel, loopback_only=True, control_only=True, json_body=True, error_code="discovery_cancel_failed"),
+        "/api/discovery/views": Route(handle_post_discovery_view_save, loopback_only=True, control_only=True, json_body=True),
+        "/api/discovery/views/delete": Route(handle_post_discovery_view_delete, loopback_only=True, control_only=True, json_body=True),
         "/api/discovery/clear": Route(handle_post_discovery_clear, loopback_only=True, control_only=True),
+        "/api/ai-insights": Route(handle_post_ai_insight, loopback_only=True, control_only=True, json_body=True),
+        "/api/ai-insights/delete": Route(handle_post_ai_insight_delete, loopback_only=True, control_only=True, json_body=True),
         "/api/window/open": Route(handle_post_window_open, loopback_only=True, control_only=True),
         "/api/window/exit": Route(handle_post_window_exit, loopback_only=True, control_only=True),
         "/api/sync-stars": Route(

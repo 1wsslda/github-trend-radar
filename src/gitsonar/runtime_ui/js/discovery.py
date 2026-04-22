@@ -1,20 +1,48 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
-JS = r"""function currentDiscoveryQuery(){
-  return (activeDiscoveryJob && activeDiscoveryJob.query) || discoveryState.last_query || {};
+JS = r"""function completedDiscoveryQuery(){
+  return discoveryState.last_query || {};
+}
+
+function activeOrLastDiscoveryQuery(){
+  return (activeDiscoveryJob && activeDiscoveryJob.query) || completedDiscoveryQuery();
+}
+
+function currentDiscoveryDraftQuery(){
+  const baseQuery = activeOrLastDiscoveryQuery();
+  return {
+    id:String(discoverDraft.viewId || baseQuery.id || "").trim(),
+    query:String(discoverDraft.query || "").trim(),
+    limit:currentDiscoveryDraftLimit(),
+    auto_expand:!!discoverDraft.autoExpand,
+    ranking_profile:normalizeDiscoveryRankingProfile(discoverDraft.rankingProfile || baseQuery.ranking_profile),
+  };
+}
+
+function isDiscoveryDraftSyncedToLastRun(){
+  const draft = currentDiscoveryDraftQuery();
+  const completedQuery = normalizeDiscoveryQueryPayload(completedDiscoveryQuery());
+  if(!draft.query) return !String(completedQuery.query || "").trim();
+  return (
+    draft.query === String(completedQuery.query || "").trim()
+    && draft.limit === normalizeDiscoveryLimit(completedQuery.limit, currentDiscoveryLimit())
+    && draft.auto_expand === (completedQuery.auto_expand !== false)
+    && draft.ranking_profile === normalizeDiscoveryRankingProfile(completedQuery.ranking_profile)
+  );
 }
 
 function currentDiscoveryQueryText(){
-  return String(currentDiscoveryQuery().query || discoverDraft.query || "").trim();
+  return String(currentDiscoveryDraftQuery().query || "").trim();
 }
 
 function currentDiscoveryStatusLabel(){
   if(discoveryBusy) return activeDiscoveryJob?.stage_label || "搜索中";
   if(activeDiscoveryJob?.status === "failed") return "搜索失败";
   if(activeDiscoveryJob?.status === "cancelled") return "已取消";
+  if(String(discoverDraft.query || "").trim() && !isDiscoveryDraftSyncedToLastRun()) return "尚未开始";
   if(discoveryResults().length) return "已找到结果";
-  if(String(discoveryState.last_query?.query || "").trim() && discoveryState.last_run_at) return "未找到结果";
+  if(String(completedDiscoveryQuery().query || "").trim() && discoveryState.last_run_at) return "未找到结果";
   return "尚未开始";
 }
 
@@ -31,6 +59,101 @@ function currentDiscoveryAiTargetLabel(){
 
 function currentDiscoveryAutoExpandNote(){
   return discoverDraft.autoExpand ? DISCOVERY_AUTO_EXPAND_NOTE_ON : DISCOVERY_AUTO_EXPAND_NOTE_OFF;
+}
+
+function currentDiscoveryViewPayload(name = ""){
+  const draftQuery = currentDiscoveryDraftQuery();
+  const completedQuery = completedDiscoveryQuery();
+  const shouldCarryRunMetadata = !discoveryBusy && isDiscoveryDraftSyncedToLastRun();
+  return {
+    id:String(draftQuery.id || "").trim(),
+    name:String(name || currentDiscoveryQueryText() || "未命名视图").trim(),
+    query:String(draftQuery.query || "").trim(),
+    limit:Number(draftQuery.limit || currentDiscoveryLimit()) || currentDiscoveryLimit(),
+    auto_expand:draftQuery.auto_expand !== false,
+    ranking_profile:normalizeDiscoveryRankingProfile(draftQuery.ranking_profile),
+    last_run_at:shouldCarryRunMetadata ? String(discoveryState.last_run_at || completedQuery.last_run_at || "").trim() : "",
+    last_result_count:shouldCarryRunMetadata ? discoveryResults().length : 0,
+  };
+}
+
+async function saveCurrentDiscoveryView(){
+  const query = currentDiscoveryQueryText();
+  if(!query){
+    toast("先运行一次搜索，再保存发现视图");
+    return;
+  }
+  const current = currentDiscoveryViewPayload();
+  const name = window.prompt("给这个发现视图起个名字：", current.name || query);
+  if(name === null) return;
+  try{
+    const {resp, data} = await requestJson(
+      "/api/discovery/views",
+      {
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify(currentDiscoveryViewPayload(name)),
+      },
+      "保存发现视图失败",
+    );
+    if(!resp.ok || !data.ok){
+      toast(data.error || "保存发现视图失败");
+      return;
+    }
+    discoveryState = normalizeDiscoveryStatePayload(data.discovery_state || discoveryState);
+    render();
+    toast(`已保存视图：${String(name || "").trim() || query}`);
+  }catch(error){
+    toast(error.message || "保存发现视图失败");
+  }
+}
+
+function applySavedDiscoveryView(viewId){
+  const view = savedDiscoveryViews().find(item => item.id === String(viewId || "").trim());
+  if(!view) return;
+  syncDiscoverDraftFromQuery(view);
+  closeMenus();
+  render();
+}
+
+async function runSavedDiscoveryView(viewId){
+  const view = savedDiscoveryViews().find(item => item.id === String(viewId || "").trim());
+  if(!view){
+    toast("未找到这个发现视图");
+    return;
+  }
+  syncDiscoverDraftFromQuery(view);
+  closeMenus();
+  await runDiscovery();
+}
+
+async function deleteSavedDiscoveryView(viewId){
+  const view = savedDiscoveryViews().find(item => item.id === String(viewId || "").trim());
+  if(!view){
+    toast("未找到这个发现视图");
+    return;
+  }
+  if(!window.confirm(`确认删除发现视图“${view.name}”吗？`)) return;
+  try{
+    const {resp, data} = await requestJson(
+      "/api/discovery/views/delete",
+      {
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({id:view.id}),
+      },
+      "删除发现视图失败",
+    );
+    if(!resp.ok || !data.ok){
+      toast(data.error || "删除发现视图失败");
+      return;
+    }
+    discoveryState = normalizeDiscoveryStatePayload(data.discovery_state || discoveryState);
+    render();
+    toast(`已删除视图：${view.name}`);
+  }catch(error){
+    toast(error.message || "删除发现视图失败");
+  }
 }
 
 function discoveryResultSignature(results){
@@ -219,7 +342,7 @@ function syncDiscoveryRankingMenuUI(){
 function syncDiscoveryContextUI(){
   const limitCopyNode = document.getElementById("discover-limit-copy");
   const autoExpandNoteNode = document.getElementById("discover-auto-expand-note");
-  if(limitCopyNode) limitCopyNode.textContent = `结果上限 ${currentDiscoveryLimit()}`;
+  if(limitCopyNode) limitCopyNode.textContent = `结果上限 ${currentDiscoveryDraftLimit()}`;
   if(autoExpandNoteNode) autoExpandNoteNode.textContent = currentDiscoveryAutoExpandNote();
 }
 
@@ -271,6 +394,34 @@ function renderDiscoveryTop(){
         <div class="discover-chip-note">综合 ${repo.composite_score || 0} · 相关 ${repo.relevance_score || 0} · 热度 ${repo.hot_score || 0}</div>
         <div class="reason-strip">${(repo.match_reasons || []).slice(0, 2).map(reason => `<span class="reason-pill">${h(reason)}</span>`).join("")}</div>
       </article>`).join("")}
+    </div>
+  </section>`;
+}
+
+function renderSavedDiscoveryViews(){
+  const views = savedDiscoveryViews();
+  const canSave = !!currentDiscoveryQueryText();
+  if(!views.length && !canSave) return "";
+  return `<section class="discover-results-toolbar">
+    <div class="discover-results-toolbar-main">
+      <div class="discover-results-toolbar-pills">
+        <span class="summary-strip-item">已保存视图 <strong>${views.length}</strong></span>
+      </div>
+      <span class="discover-toolbar-note">把一次性搜索保存成可复用的本地发现入口。</span>
+    </div>
+    <div class="discover-results-toolbar-actions">
+      <button class="action-primary" type="button" onclick="saveCurrentDiscoveryView()"${canSave ? "" : " disabled"}>保存当前视图</button>
+      ${views.length ? `<div class="menu-wrap" data-menu-id="discover-saved-views-menu">
+        <button class="action-quiet menu-toggle" type="button" aria-haspopup="menu" aria-expanded="false" onclick="toggleMenu(event,'discover-saved-views-menu')">已保存视图<span class="menu-caret"></span></button>
+        <div class="menu-panel align-right" id="discover-saved-views-menu-panel">
+          ${views.map(view => `
+            <button class="menu-item" type="button" onclick='runSavedDiscoveryView(${JSON.stringify(view.id)});closeMenus();'>运行 · ${h(view.name)}</button>
+            <button class="menu-item" type="button" onclick='applySavedDiscoveryView(${JSON.stringify(view.id)});closeMenus();'>载入配置</button>
+            <button class="menu-item" type="button" onclick='deleteSavedDiscoveryView(${JSON.stringify(view.id)});closeMenus();'>删除</button>
+            <div class="menu-divider"></div>
+          `).join("")}
+        </div>
+      </div>` : ""}
     </div>
   </section>`;
 }
@@ -330,8 +481,9 @@ function renderDiscoveryNoResultsNotice(){
 function renderDiscoveryResultsToolbar(){
   const results = discoveryResults();
   if(!results.length) return "";
-  const ranking = discoveryRankingLabel(currentDiscoveryQuery().ranking_profile || discoverDraft.rankingProfile);
-  const rankingDescription = discoveryRankingDescription(currentDiscoveryQuery().ranking_profile || discoverDraft.rankingProfile);
+  const query = activeOrLastDiscoveryQuery();
+  const ranking = discoveryRankingLabel(query.ranking_profile || discoverDraft.rankingProfile);
+  const rankingDescription = discoveryRankingDescription(query.ranking_profile || discoverDraft.rankingProfile);
   return `<section class="discover-results-toolbar">
     <div class="discover-results-toolbar-main">
       <div class="discover-results-toolbar-pills">
@@ -400,6 +552,7 @@ function renderDiscoverCanvasIntro(){
     renderDiscoveryFailureCard(),
     renderDiscoveryNoResultsNotice(),
     renderDiscoveryHint(),
+    renderSavedDiscoveryViews(),
     renderDiscoveryTop(),
     renderDiscoveryResultsToolbar(),
     renderDiscoverySelectionBar(),
@@ -421,6 +574,8 @@ function syncDiscoveryLiveStatus(){
   if(etaNode) etaNode.textContent = discoveryProgressEtaLabel(activeDiscoveryJob);
 }
 function setDiscoveryRankingProfile(value){
+  discoverDraft.viewId = "";
+  discoverDraft.limit = currentDiscoveryLimit();
   discoverDraft.rankingProfile = normalizeDiscoveryRankingProfile(value);
   closeMenus();
   syncDiscoverDraftUI();
@@ -428,7 +583,9 @@ function setDiscoveryRankingProfile(value){
 
 function syncDiscoverDraftFromQuery(lastQuery){
   discoverDraft = {
+    viewId:String(lastQuery?.id || "").trim(),
     query:lastQuery?.query || discoverDraft.query,
+    limit:normalizeDiscoveryLimit(lastQuery?.limit, currentDiscoveryLimit()),
     autoExpand:lastQuery?.auto_expand !== false,
     rankingProfile:normalizeDiscoveryRankingProfile(lastQuery?.ranking_profile || discoverDraft.rankingProfile),
   };
@@ -583,8 +740,9 @@ async function beginDiscoveryJob(endpoint, body, requestError, startMessage){
 
 async function runDiscovery(){
   const payload = {
+    id:String(discoverDraft.viewId || "").trim(),
     query:String(discoverDraft.query || "").trim(),
-    limit:currentDiscoveryLimit(),
+    limit:currentDiscoveryDraftLimit(),
     auto_expand:!!discoverDraft.autoExpand,
     ranking_profile:normalizeDiscoveryRankingProfile(discoverDraft.rankingProfile),
   };

@@ -28,7 +28,11 @@ def make_state_store(
     normalize_discovery_query,
     normalize_repo,
     normalize_watch_entry,
+    normalize_repo_annotation,
     normalize_favorite_update,
+    normalize_feedback_signal,
+    normalize_ai_insight,
+    normalize_saved_view,
     normalize_discovery_state,
     normalize_user_state,
     state_counts,
@@ -56,17 +60,36 @@ def make_state_store(
     def save_user_state() -> None:
         atomic_write_json(USER_STATE_PATH, USER_STATE)
 
+    def upsert_repo_record(repo: object) -> dict[str, object] | None:
+        clean = normalize_repo(repo)
+        if not clean:
+            return None
+        USER_STATE.setdefault("repo_records", {})[clean["url"]] = clean
+        return clean
+
     def mutate_repo_state(state_key: str, enabled: bool, repo: object) -> dict[str, object]:
         if state_key not in {"favorites", "watch_later", "read", "ignored"}:
             raise ValueError("invalid state")
-        clean = normalize_repo(repo)
+        raw_repo = repo if isinstance(repo, dict) else {}
+        clean = upsert_repo_record(raw_repo)
         if not clean:
             raise ValueError("missing repo")
         url = clean["url"]
-        USER_STATE.setdefault("repo_records", {})[url] = clean
         USER_STATE[state_key] = [item for item in USER_STATE.get(state_key, []) if item != url]
         if enabled:
             USER_STATE[state_key].insert(0, url)
+            if state_key == "ignored":
+                previous_signal = (USER_STATE.get("feedback_signals", {}) or {}).get(url, {})
+                signal = normalize_feedback_signal(
+                    {
+                        "reason": normalize(raw_repo.get("feedback_reason") or raw_repo.get("ignore_reason")),
+                        "count": int((previous_signal or {}).get("count") or 0) + 1,
+                        "updated_at": iso_now(),
+                        "state": "ignored",
+                    }
+                )
+                if signal:
+                    USER_STATE.setdefault("feedback_signals", {})[url] = signal
         elif state_key == "favorites":
             USER_STATE.get("favorite_watch", {}).pop(url, None)
         return clean
@@ -96,9 +119,74 @@ def make_state_store(
                 save_user_state()
             return processed
 
+    def set_repo_annotation(url: object, payload: object, repo: object | None = None) -> dict[str, object] | None:
+        clean_url = normalize(url)
+        if not clean_url:
+            raise ValueError("missing repo")
+        annotation = normalize_repo_annotation(payload)
+        with STATE_LOCK:
+            if repo is not None:
+                upsert_repo_record(repo)
+            annotations = USER_STATE.setdefault("repo_annotations", {})
+            if annotation:
+                annotations[clean_url] = annotation
+            else:
+                annotations.pop(clean_url, None)
+            save_user_state()
+            return annotations.get(clean_url)
+
+    def set_favorite_update_state(
+        update_id: object,
+        *,
+        read: object | None = None,
+        dismissed: object | None = None,
+        pinned: object | None = None,
+    ) -> dict[str, object]:
+        clean_id = normalize(update_id)
+        if not clean_id:
+            raise ValueError("missing favorite update")
+        with STATE_LOCK:
+            for index, item in enumerate(USER_STATE.get("favorite_updates", [])):
+                clean = normalize_favorite_update(item)
+                if not clean or clean["id"] != clean_id:
+                    continue
+                if read is not None:
+                    clean["read_at"] = iso_now() if bool(read) else ""
+                if dismissed is not None:
+                    clean["dismissed_at"] = iso_now() if bool(dismissed) else ""
+                if pinned is not None:
+                    clean["pinned"] = bool(pinned)
+                USER_STATE["favorite_updates"][index] = clean
+                save_user_state()
+                return clean
+        raise ValueError("favorite update not found")
+
     def export_user_state() -> dict[str, object]:
         with STATE_LOCK:
             return json.loads(json.dumps(USER_STATE, ensure_ascii=False))
+
+    def set_ai_insight(url: object, payload: object, repo: object | None = None) -> dict[str, object]:
+        clean_url = normalize(url)
+        if not clean_url:
+            raise ValueError("missing repo")
+        insight = normalize_ai_insight(payload)
+        if not insight:
+            raise ValueError("invalid ai insight")
+        with STATE_LOCK:
+            if repo is not None:
+                upsert_repo_record(repo)
+            USER_STATE.setdefault("ai_insights", {})[clean_url] = insight
+            save_user_state()
+            return insight
+
+    def delete_ai_insight(url: object) -> dict[str, object]:
+        clean_url = normalize(url)
+        if not clean_url:
+            raise ValueError("missing repo")
+        with STATE_LOCK:
+            USER_STATE.setdefault("ai_insights", {}).pop(clean_url, None)
+            save_user_state()
+            return export_user_state()
 
     def coerce_import_user_state(payload: object) -> dict[str, object]:
         if isinstance(payload, dict):
@@ -130,12 +218,18 @@ def make_state_store(
                     next_state[key] = ordered_unique_urls(imported.get(key, []), USER_STATE.get(key, []))
                 next_state["repo_records"] = dict(USER_STATE.get("repo_records", {}))
                 next_state["repo_records"].update(imported.get("repo_records", {}))
+                next_state["repo_annotations"] = dict(USER_STATE.get("repo_annotations", {}))
+                next_state["repo_annotations"].update(imported.get("repo_annotations", {}))
                 next_state["favorite_watch"] = dict(USER_STATE.get("favorite_watch", {}))
                 next_state["favorite_watch"].update(imported.get("favorite_watch", {}))
                 next_state["favorite_updates"] = merge_favorite_updates(
                     imported.get("favorite_updates", []),
                     USER_STATE.get("favorite_updates", []),
                 )
+                next_state["feedback_signals"] = dict(USER_STATE.get("feedback_signals", {}))
+                next_state["feedback_signals"].update(imported.get("feedback_signals", {}))
+                next_state["ai_insights"] = dict(USER_STATE.get("ai_insights", {}))
+                next_state["ai_insights"].update(imported.get("ai_insights", {}))
 
             favorite_urls = set(next_state.get("favorites", []))
             next_state["favorite_watch"] = {
@@ -148,6 +242,21 @@ def make_state_store(
                 for item in next_state.get("favorite_updates", [])
                 if item.get("url") in favorite_urls
             ][:100]
+            next_state["repo_annotations"] = {
+                url: item
+                for url, item in next_state.get("repo_annotations", {}).items()
+                if normalize(url) and normalize_repo_annotation(item)
+            }
+            next_state["feedback_signals"] = {
+                url: item
+                for url, item in next_state.get("feedback_signals", {}).items()
+                if normalize(url) and normalize_feedback_signal(item)
+            }
+            next_state["ai_insights"] = {
+                url: item
+                for url, item in next_state.get("ai_insights", {}).items()
+                if normalize(url) and normalize_ai_insight(item)
+            }
             USER_STATE.clear()
             USER_STATE.update(normalize_user_state(next_state))
             save_user_state()
@@ -175,6 +284,31 @@ def make_state_store(
     def export_discovery_state() -> dict[str, object]:
         with DISCOVERY_LOCK:
             return json.loads(json.dumps(DISCOVERY_STATE, ensure_ascii=False))
+
+    def save_discovery_view(payload: object) -> dict[str, object]:
+        clean = normalize_saved_view(payload)
+        if not clean:
+            raise ValueError("missing discovery view")
+        with DISCOVERY_LOCK:
+            views = [item for item in DISCOVERY_STATE.get("saved_views", []) if item.get("id") != clean["id"]]
+            views.insert(0, clean)
+            DISCOVERY_STATE["saved_views"] = views[:20]
+            save_discovery_state()
+            return clean
+
+    def delete_discovery_view(view_id: object) -> dict[str, object]:
+        clean_id = normalize(view_id)
+        if not clean_id:
+            raise ValueError("missing discovery view")
+        with DISCOVERY_LOCK:
+            before = len(DISCOVERY_STATE.get("saved_views", []))
+            DISCOVERY_STATE["saved_views"] = [
+                item for item in DISCOVERY_STATE.get("saved_views", []) if item.get("id") != clean_id
+            ]
+            if len(DISCOVERY_STATE["saved_views"]) == before:
+                raise ValueError("discovery view not found")
+            save_discovery_state()
+            return export_discovery_state()
 
     def clear_discovery_results() -> dict[str, object]:
         with DISCOVERY_LOCK:
@@ -216,6 +350,17 @@ def make_state_store(
                 remembered_query = dict(query_payload)
                 remembered_query["last_run_at"] = last_run_at
                 DISCOVERY_STATE["remembered_query"] = remembered_query
+            updated_views: list[dict[str, object]] = []
+            current_view_id = normalize(query_payload.get("id"))
+            for item in DISCOVERY_STATE.get("saved_views", []):
+                view = normalize_saved_view(item)
+                if not view:
+                    continue
+                if view["id"] == current_view_id:
+                    view["last_run_at"] = last_run_at
+                    view["last_result_count"] = len(results)
+                updated_views.append(view)
+            DISCOVERY_STATE["saved_views"] = updated_views[:20]
             save_discovery_state()
             return export_discovery_state()
 
@@ -245,11 +390,17 @@ def make_state_store(
         save_user_state=save_user_state,
         set_repo_state=set_repo_state,
         set_repo_state_batch=set_repo_state_batch,
+        set_repo_annotation=set_repo_annotation,
+        set_favorite_update_state=set_favorite_update_state,
         export_user_state=export_user_state,
+        set_ai_insight=set_ai_insight,
+        delete_ai_insight=delete_ai_insight,
         import_user_state=import_user_state,
         load_discovery_state=load_discovery_state,
         save_discovery_state=save_discovery_state,
         export_discovery_state=export_discovery_state,
+        save_discovery_view=save_discovery_view,
+        delete_discovery_view=delete_discovery_view,
         clear_discovery_results=clear_discovery_results,
         remember_discovery_query=remember_discovery_query,
         apply_discovery_result=apply_discovery_result,

@@ -6,7 +6,7 @@ const CONTROL_TOKEN_HEADER = "X-GitSonar-Control";
 const controlToken = String(INITIAL.controlToken || "").trim();
 const DISCOVER_PANEL_KEY = "discover";
 const UPDATE_PANEL_KEY = "favorite-updates";
-const OVERLAY_IDS = ["settings-modal", "detail-modal", "compare-modal"];
+const OVERLAY_IDS = ["settings-modal", "detail-modal", "compare-modal", "diagnostics-modal"];
 const INTERACTIVE_SELECTOR = "button,a,input,select,label,textarea";
 const SORT_KEYS = new Set(["stars","trending","gained","forks","name","language"]);
 const PRIMARY_SORT_KEYS = ["stars","trending","gained"];
@@ -121,6 +121,10 @@ function currentDiscoveryLimit(){
   return Number.isFinite(raw) ? Math.max(10, Math.min(100, raw)) : 25;
 }
 
+function currentDiscoveryDraftLimit(){
+  return normalizeDiscoveryLimit(discoverDraft?.limit, currentDiscoveryLimit());
+}
+
 function normalizePanelKey(value){
   const key = String(value || "").trim();
   if(!key) return "daily";
@@ -176,6 +180,28 @@ function normalizeUpdateEntry(payload){
     forks:Number(raw.forks || repo.forks || 0) || 0,
     latest_release_tag:String(raw.latest_release_tag || repo.latest_release_tag || "").trim(),
     pushed_at:String(raw.pushed_at || repo.pushed_at || "").trim(),
+    read_at:String(raw.read_at || "").trim(),
+    dismissed_at:String(raw.dismissed_at || "").trim(),
+    pinned:!!raw.pinned,
+    priority_score:Number(raw.priority_score || 0) || 0,
+  };
+}
+
+function normalizeSavedDiscoveryView(payload){
+  const raw = payload && typeof payload === "object" ? payload : {};
+  const name = String(raw.name || "").trim();
+  const query = normalizeDiscoveryQueryPayload(raw);
+  if(!name || !String(query.query || "").trim()) return null;
+  return {
+    id:String(raw.id || query.id || `${query.query}:${query.ranking_profile}`).trim(),
+    name,
+    query:query.query,
+    limit:query.limit,
+    auto_expand:query.auto_expand !== false,
+    ranking_profile:normalizeDiscoveryRankingProfile(query.ranking_profile),
+    created_at:String(raw.created_at || query.created_at || "").trim(),
+    last_run_at:String(raw.last_run_at || query.last_run_at || "").trim(),
+    last_result_count:Number(raw.last_result_count || 0) || 0,
   };
 }
 
@@ -206,6 +232,7 @@ function normalizeDiscoveryStatePayload(payload){
     last_warnings:Array.isArray(raw.last_warnings) ? raw.last_warnings.filter(Boolean).slice(0, 8) : [],
     last_run_at:String(raw.last_run_at || "").trim(),
     last_error:String(raw.last_error || "").trim(),
+    saved_views:Array.isArray(raw.saved_views) ? raw.saved_views.map(normalizeSavedDiscoveryView).filter(Boolean).slice(0, 20) : [],
   };
 }
 
@@ -213,6 +240,9 @@ function normalizeRuntimePayload(){
   if(!snapshot || typeof snapshot !== "object") snapshot = {};
   if(!userState || typeof userState !== "object") userState = {};
   if(!userState.repo_records || typeof userState.repo_records !== "object") userState.repo_records = {};
+  if(!userState.repo_annotations || typeof userState.repo_annotations !== "object") userState.repo_annotations = {};
+  if(!userState.feedback_signals || typeof userState.feedback_signals !== "object") userState.feedback_signals = {};
+  if(!userState.ai_insights || typeof userState.ai_insights !== "object") userState.ai_insights = {};
   if(!Array.isArray(userState.favorite_updates)) userState.favorite_updates = [];
   if(!discoveryState || typeof discoveryState !== "object") discoveryState = {};
   discoveryState = normalizeDiscoveryStatePayload(discoveryState);
@@ -292,7 +322,9 @@ function loadDiscoverDraft(){
   const legacyDraft = loadLegacyDiscoverDraft();
   clearLegacyDiscoverDraftStorage();
   return {
+    viewId:String(rememberedQuery.id || "").trim(),
     query:rememberedQuery.query || legacyDraft.query || "",
+    limit:rememberedQuery.query ? rememberedQuery.limit : legacyDraft.limit,
     autoExpand:(rememberedQuery.query ? rememberedQuery.auto_expand : legacyDraft.auto_expand) !== false,
     rankingProfile:normalizeDiscoveryRankingProfile(rememberedQuery.ranking_profile || legacyDraft.ranking_profile || "balanced"),
   };

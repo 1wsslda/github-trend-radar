@@ -114,6 +114,33 @@ class RuntimeUILayoutSmokeTests(unittest.TestCase):
             with self.subTest(css=token):
                 self.assertIn(token, CSS)
 
+    def test_discovery_saved_view_helpers_use_draft_state_without_reusing_stale_run_metadata(self):
+        for token in (
+            "function currentDiscoveryDraftQuery(){",
+            "function isDiscoveryDraftSyncedToLastRun(){",
+            'query:String(discoverDraft.query || "").trim(),',
+            "const shouldCarryRunMetadata = !discoveryBusy && isDiscoveryDraftSyncedToLastRun();",
+            'last_run_at:shouldCarryRunMetadata ? String(discoveryState.last_run_at || completedQuery.last_run_at || "").trim() : "",',
+            "last_result_count:shouldCarryRunMetadata ? discoveryResults().length : 0,",
+            'if(String(discoverDraft.query || "").trim() && !isDiscoveryDraftSyncedToLastRun()) return "尚未开始";',
+            "const draftQuery = currentDiscoveryDraftQuery();",
+        ):
+            with self.subTest(js=token):
+                self.assertIn(token, JS)
+
+    def test_discovery_limit_and_diagnostics_contracts_are_present(self):
+        for token in (
+            "function currentDiscoveryDraftLimit(){",
+            "limit:rememberedQuery.query ? rememberedQuery.limit : legacyDraft.limit,",
+            "discoverDraft.limit = currentDiscoveryLimit();",
+            "limit:currentDiscoveryDraftLimit(),",
+            'document.getElementById("diagnostics-modal").addEventListener("click", event => {',
+            'if(event.target.id === "diagnostics-modal") closeDiagnostics();',
+            "closeDiagnostics();",
+        ):
+            with self.subTest(js=token):
+                self.assertIn(token, JS)
+
     def test_discovery_polling_uses_stable_preview_signatures_and_live_status_hooks(self):
         for token in (
             "function discoveryResultSignature(results){",
@@ -254,6 +281,21 @@ class RuntimeUILayoutSmokeTests(unittest.TestCase):
         self.assertNotIn("隐藏到托盘", html)
         self.assertIn("主窗口关闭会直接退出程序", html)
         self.assertIn('"controlToken": "test-control-token"', html)
+
+    def test_top10_mvp_markup_contracts_are_present(self):
+        html = build_fixture_html()
+
+        for token in (
+            'id="diagnostics-modal"',
+            'onclick="openDiagnostics()"',
+            "运行诊断",
+            "AI Insight Schema MVP",
+            "复制 Markdown 摘要",
+            "保存当前视图",
+            "为什么推荐",
+        ):
+            with self.subTest(token=token):
+                self.assertIn(token, html if token.startswith("id=") or token.startswith("onclick=") or token == "运行诊断" else JS)
 
 
 if __name__ == "__main__":

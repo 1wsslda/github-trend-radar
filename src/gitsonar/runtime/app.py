@@ -21,6 +21,7 @@ from bs4 import BeautifulSoup
 
 from ..runtime_github import make_github_runtime
 from ..runtime_ui import build_html as build_runtime_html
+from .diagnostics import make_diagnostics_runtime
 from .detail_cache import make_detail_cache_runtime
 from .discovery_jobs import make_discovery_job_runtime
 from .http import make_app_handler
@@ -172,6 +173,7 @@ startup_runtime = None
 shell_runtime = None
 github_runtime = None
 discovery_job_runtime = None
+diagnostics_runtime = None
 ServerAppHandler = None
 
 load_translation_cache = None
@@ -203,11 +205,17 @@ normalize_user_state = None
 load_user_state = None
 save_user_state = None
 set_repo_state_batch = None
+set_repo_annotation = None
+set_favorite_update_state = None
 export_user_state = None
+set_ai_insight = None
+delete_ai_insight = None
 import_user_state = None
 load_discovery_state = None
 save_discovery_state = None
 export_discovery_state = None
+save_discovery_view = None
+delete_discovery_view = None
 clear_discovery_results = None
 apply_discovery_result = None
 discovery_warning_list = None
@@ -243,6 +251,7 @@ start_discovery_job = None
 get_discovery_job = None
 cancel_discovery_job = None
 export_active_discovery_job = None
+run_diagnostics = None
 
 if os.name == "nt":
     TH32CS_SNAPPROCESS = 0x00000002
@@ -424,19 +433,20 @@ def current_port() -> int:
 
 def build_runtime_context(*, rebuild: bool = False) -> RuntimeAppContext:
     global translation_runtime, settings_runtime, state_runtime, startup_runtime
-    global shell_runtime, github_runtime, discovery_job_runtime, ServerAppHandler
+    global shell_runtime, github_runtime, discovery_job_runtime, diagnostics_runtime, ServerAppHandler
     global load_translation_cache, save_translation_cache, flush_translation_cache, translate_text, translate_query_to_en, apply_repo_translation, translate_snapshot
     global normalize_settings, sanitize_settings, save_settings, load_settings, merge_settings, apply_runtime_settings
     global default_user_state, default_discovery_state, normalize_discovery_ranking_profile, discovery_query_id, normalize_discovery_query
     global normalize_repo, repo_from_url, normalize_watch_entry, normalize_favorite_update, normalize_discovery_state, normalize_user_state
-    global load_user_state, save_user_state, set_repo_state_batch, export_user_state, import_user_state, load_discovery_state, save_discovery_state
-    global export_discovery_state, clear_discovery_results, apply_discovery_result, discovery_warning_list, empty_snapshot, load_snapshot
+    global load_user_state, save_user_state, set_repo_state_batch, set_repo_annotation, set_favorite_update_state
+    global export_user_state, set_ai_insight, delete_ai_insight, import_user_state, load_discovery_state, save_discovery_state
+    global export_discovery_state, save_discovery_view, delete_discovery_view, clear_discovery_results, apply_discovery_result, discovery_warning_list, empty_snapshot, load_snapshot
     global save_snapshot, state_counts, ordered_unique_urls, merge_favorite_updates
     global startup_dir, startup_launcher_path, startup_cmd_path, startup_launch_command, startup_launcher_script
     global update_auto_start, write_runtime_state, get_main_url, get_browser_process, set_browser_process, set_browser_hidden
     global clear_runtime_state, acquire_single_instance, release_single_instance, request_existing_instance_open, show_message_box, set_main_url
     global estimate_discovery_eta, update_discovery_job, run_discovery_search, start_discovery_job, get_discovery_job, cancel_discovery_job
-    global export_active_discovery_job
+    global export_active_discovery_job, run_diagnostics
 
     if _RUNTIME_CONTEXT is not None and not rebuild:
         return _RUNTIME_CONTEXT
@@ -448,6 +458,7 @@ def build_runtime_context(*, rebuild: bool = False) -> RuntimeAppContext:
         shell_runtime = None
         github_runtime = None
         discovery_job_runtime = None
+        diagnostics_runtime = None
         ServerAppHandler = None
 
     paths = ensure_runtime_paths()
@@ -563,11 +574,17 @@ def build_runtime_context(*, rebuild: bool = False) -> RuntimeAppContext:
     load_user_state = state_runtime.load_user_state
     save_user_state = state_runtime.save_user_state
     set_repo_state_batch = state_runtime.set_repo_state_batch
+    set_repo_annotation = state_runtime.set_repo_annotation
+    set_favorite_update_state = state_runtime.set_favorite_update_state
     export_user_state = state_runtime.export_user_state
+    set_ai_insight = state_runtime.set_ai_insight
+    delete_ai_insight = state_runtime.delete_ai_insight
     import_user_state = state_runtime.import_user_state
     load_discovery_state = state_runtime.load_discovery_state
     save_discovery_state = state_runtime.save_discovery_state
     export_discovery_state = state_runtime.export_discovery_state
+    save_discovery_view = state_runtime.save_discovery_view
+    delete_discovery_view = state_runtime.delete_discovery_view
     clear_discovery_results = state_runtime.clear_discovery_results
     apply_discovery_result = state_runtime.apply_discovery_result
     discovery_warning_list = state_runtime.discovery_warning_list
@@ -757,9 +774,9 @@ def start_refresh_async(source: str) -> bool:
 
 
 def _build_runtime_services() -> None:
-    global shell_runtime, github_runtime, discovery_job_runtime, ServerAppHandler
+    global shell_runtime, github_runtime, discovery_job_runtime, diagnostics_runtime, ServerAppHandler
     global estimate_discovery_eta, update_discovery_job, run_discovery_search, start_discovery_job, get_discovery_job
-    global cancel_discovery_job, export_active_discovery_job
+    global cancel_discovery_job, export_active_discovery_job, run_diagnostics
 
     if shell_runtime is None:
         shell_runtime = make_shell_runtime(
@@ -844,6 +861,22 @@ def _build_runtime_services() -> None:
         get_discovery_job = discovery_job_runtime.get_discovery_job
         cancel_discovery_job = discovery_job_runtime.cancel_discovery_job
         export_active_discovery_job = discovery_job_runtime.export_active_discovery_job
+    if diagnostics_runtime is None:
+        diagnostics_runtime = make_diagnostics_runtime(
+            app_name=APP_NAME,
+            runtime_root=runtime_paths().runtime_root,
+            status_path=runtime_paths().status_path,
+            sanitize_settings=sanitize_settings,
+            current_port=current_port,
+            validate_github_token=github_runtime.validate_github_token,
+            load_json_file=load_json_file,
+            session=SESSION,
+            api_timeout=API_TIMEOUT,
+            trending_timeout=TRENDING_TIMEOUT,
+            tcp_port_open=tcp_port_open,
+            iso_now=iso_now,
+        )
+        run_diagnostics = diagnostics_runtime.run_diagnostics
     if ServerAppHandler is None:
         ServerAppHandler = make_app_handler(
             runtime_root=runtime_paths().runtime_root,
@@ -857,7 +890,11 @@ def _build_runtime_services() -> None:
             as_bool=as_bool,
             set_repo_state=set_repo_state,
             set_repo_state_batch=set_repo_state_batch,
+            set_repo_annotation=set_repo_annotation,
+            set_favorite_update_state=set_favorite_update_state,
             export_user_state=export_user_state,
+            set_ai_insight=set_ai_insight,
+            delete_ai_insight=delete_ai_insight,
             import_user_state=import_user_state,
             normalize_settings=normalize_settings,
             merge_settings=merge_settings,
@@ -873,6 +910,8 @@ def _build_runtime_services() -> None:
             start_discovery_job=start_discovery_job,
             get_discovery_job=get_discovery_job,
             cancel_discovery_job=cancel_discovery_job,
+            save_discovery_view=save_discovery_view,
+            delete_discovery_view=delete_discovery_view,
             clear_discovery_results=clear_discovery_results,
             export_discovery_state=export_discovery_state,
             export_active_discovery_job=export_active_discovery_job,
@@ -880,6 +919,7 @@ def _build_runtime_services() -> None:
             fetch_user_starred=github_runtime.fetch_user_starred,
             sync_local_favorites_with_starred=github_runtime.sync_local_favorites_with_starred,
             validate_github_token=github_runtime.validate_github_token,
+            run_diagnostics=run_diagnostics,
             open_main_window=shell_runtime.open_main_window,
             exit_app=shell_runtime.exit_app,
             control_token_getter=lambda: CONTROL_TOKEN,

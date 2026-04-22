@@ -28,8 +28,11 @@ def build_state_runtime(*, user_state: dict[str, object] | None = None, write_ca
             "read": [],
             "ignored": [],
             "repo_records": {},
+            "repo_annotations": {},
             "favorite_watch": {},
             "favorite_updates": [],
+            "feedback_signals": {},
+            "ai_insights": {},
         },
         discovery_state={},
         state_lock=threading.RLock(),
@@ -104,6 +107,135 @@ class RuntimeStateBatchTests(unittest.TestCase):
         self.assertEqual(getattr(ctx.exception, "processed_count", 0), 1)
         self.assertEqual(len(write_calls), 1)
         self.assertEqual(runtime.export_user_state()["favorites"], ["https://github.com/octo/one"])
+
+
+class RuntimeStateFeatureTests(unittest.TestCase):
+    def test_set_repo_annotation_round_trip_and_clear(self):
+        runtime = build_state_runtime()
+        repo = {"full_name": "octo/demo", "url": "https://github.com/octo/demo"}
+
+        annotation = runtime.set_repo_annotation(
+            "https://github.com/octo/demo",
+            {"tags": ["agent", "tooling", "agent"], "note": "  值得二刷  "},
+            repo=repo,
+        )
+
+        self.assertEqual(annotation["tags"], ["agent", "tooling"])
+        self.assertEqual(annotation["note"], "值得二刷")
+        self.assertEqual(runtime.export_user_state()["repo_annotations"]["https://github.com/octo/demo"]["note"], "值得二刷")
+
+        cleared = runtime.set_repo_annotation("https://github.com/octo/demo", {"tags": [], "note": ""})
+
+        self.assertIsNone(cleared)
+        self.assertEqual(runtime.export_user_state()["repo_annotations"], {})
+
+    def test_set_repo_state_ignored_records_feedback_signal(self):
+        runtime = build_state_runtime()
+
+        runtime.set_repo_state(
+            "ignored",
+            True,
+            {
+                "full_name": "octo/demo",
+                "url": "https://github.com/octo/demo",
+                "feedback_reason": "只是 demo",
+            },
+        )
+
+        signal = runtime.export_user_state()["feedback_signals"]["https://github.com/octo/demo"]
+        self.assertEqual(signal["reason"], "只是 demo")
+        self.assertEqual(signal["count"], 1)
+        self.assertEqual(signal["state"], "ignored")
+
+    def test_set_favorite_update_state_updates_flags(self):
+        runtime = build_state_runtime(
+            user_state={
+                "favorites": ["https://github.com/octo/demo"],
+                "watch_later": [],
+                "read": [],
+                "ignored": [],
+                "repo_records": {
+                    "https://github.com/octo/demo": {
+                        "full_name": "octo/demo",
+                        "url": "https://github.com/octo/demo",
+                    }
+                },
+                "repo_annotations": {},
+                "favorite_watch": {},
+                "favorite_updates": [
+                    {
+                        "id": "update-1",
+                        "full_name": "octo/demo",
+                        "url": "https://github.com/octo/demo",
+                        "checked_at": "2026-04-23T00:00:00",
+                        "changes": ["release"],
+                        "read_at": "",
+                        "dismissed_at": "",
+                        "pinned": False,
+                    }
+                ],
+                "feedback_signals": {},
+                "ai_insights": {},
+            }
+        )
+
+        update = runtime.set_favorite_update_state("update-1", read=True, dismissed=True, pinned=True)
+
+        self.assertTrue(update["read_at"])
+        self.assertTrue(update["dismissed_at"])
+        self.assertTrue(update["pinned"])
+
+    def test_save_discovery_view_updates_last_run_metadata_after_results_apply(self):
+        runtime = build_state_runtime()
+
+        runtime.save_discovery_view(
+            {
+                "id": "view-1",
+                "name": "Agent Builder",
+                "query": "agent",
+                "limit": 25,
+                "auto_expand": True,
+                "ranking_profile": "builder",
+            }
+        )
+        runtime.apply_discovery_result(
+            {"id": "view-1", "query": "agent", "limit": 25, "auto_expand": True, "ranking_profile": "builder"},
+            {
+                "run_at": "2026-04-23T10:00:00",
+                "results": [
+                    {
+                        "full_name": "octo/demo",
+                        "url": "https://github.com/octo/demo",
+                    }
+                ],
+            },
+            save_query=True,
+        )
+
+        saved_view = runtime.export_discovery_state()["saved_views"][0]
+        self.assertEqual(saved_view["last_run_at"], "2026-04-23T10:00:00")
+        self.assertEqual(saved_view["last_result_count"], 1)
+
+    def test_set_ai_insight_round_trip_and_delete(self):
+        runtime = build_state_runtime()
+        repo = {"full_name": "octo/demo", "url": "https://github.com/octo/demo"}
+
+        insight = runtime.set_ai_insight(
+            "https://github.com/octo/demo",
+            {
+                "summary": "适合学习工程结构",
+                "best_for": ["学习目录划分"],
+                "next_actions": ["先看 README"],
+            },
+            repo=repo,
+        )
+
+        self.assertEqual(insight["schema_version"], "gitsonar.repo_insight.v1")
+        self.assertEqual(runtime.export_user_state()["ai_insights"]["https://github.com/octo/demo"]["provider"], "manual")
+
+        state = runtime.delete_ai_insight("https://github.com/octo/demo")
+
+        self.assertEqual(state["ai_insights"], {})
 
 
 class RuntimeStateImportTests(unittest.TestCase):

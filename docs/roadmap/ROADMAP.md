@@ -1,94 +1,152 @@
 # GitSonar Roadmap
 
-This roadmap is extracted from `docs/strategy/GITSONAR_STRATEGY.md` and is the default priority guide for follow-up implementation work.
+本文件从 `docs/strategy/GITSONAR_STRATEGY.md` 提炼默认优先级，并作为后续实施的阶段性指引。
 
-## Execution Principles
+## 文档分工
 
-- Keep GitSonar Windows-first, local-first, and privacy-first.
-- Do not do big-bang rewrites.
-- Prefer small, reversible steps with clear rollback points.
-- Any AI, cloud API, sync, token, or user-data transmission must be opt-in by default.
-- Any architecture migration must start with a written plan in `docs/plans/PLAN_TEMPLATE.md`.
+- `docs/strategy/GITSONAR_STRATEGY.md`：产品和架构长期方向。
+- `docs/roadmap/ROADMAP.md`：`P0 / P1 / P2` 优先级、阶段目标和默认顺序。
+- `TASKS.md`：任务当前状态、计划文件、分支、commit / PR 的主索引。
+- `docs/progress/PROGRESS.md`：按时间记录状态变化和里程碑。
+- `PLANS.md` 与 `docs/plans/*.md`：计划编写、验收、验证和回滚规范。
+
+## 执行原则
+
+- 保持 GitSonar 的 Windows-first、local-first、privacy-first 定位。
+- 不做 big-bang rewrite。
+- 优先做小步、可回滚、边界清晰的变更。
+- 任何 AI、云 API、同步、Token 或用户数据外发都必须默认 opt-in。
+- 任何架构迁移都必须先写计划，再实施。
+- 路线图负责优先级，不负责 commit 级追踪；状态细节统一写进 `TASKS.md` 和 `docs/progress/PROGRESS.md`。
+
+## 当前优先级快照
+
+| Priority | 目标 | 对应任务 | 当前说明 |
+|---|---|---|---|
+| `P0` | 先补齐“发现之后的管理”闭环 | `GS-P0-001` ~ `GS-P0-008` | 当前已建立追踪体系，业务任务尚未开始。 |
+| `P1` | 在 P0 稳定后再整理 API、持久化和事件流 | `GS-P1-001` ~ `GS-P1-007` | 启动前需要逐项计划，避免混合迁移。 |
+| `P2` | 等工作流和数据边界稳定后再做差异化能力 | `GS-P2-001` ~ `GS-P2-006` | 不作为默认下一步。 |
 
 ## P0
 
-Goal: strengthen the existing product loop without changing the stack.
+目标：在不改变当前运行栈的前提下，强化现有产品闭环。
 
-Primary outcomes:
+主要产出：
 
-- Save discovery views so repeated research becomes persistent rather than one-off search.
-- Add tags for long-term organization beyond the current four-state workflow.
-- Add per-repo notes to preserve judgment and research context.
-- Introduce `Update Inbox v1` on top of current update tracking.
-- Show ranking / recommendation reasons so discovery is explainable.
-- Add a diagnostics surface for GitHub API, token, proxy, local port, runtime state, and related failures.
-- Keep Markdown export and external analysis handoff as a supported workflow.
+- 保存发现视角，让重复研究从一次性搜索变成长期跟踪。
+- 增加标签体系，补足当前四态之外的组织能力。
+- 增加仓库笔记，用于沉淀判断与上下文。
+- 在现有更新跟踪基础上建立 `Update Inbox v1`。
+- 展示推荐 / 排名原因，提升可解释性。
+- 建立诊断面板，覆盖 GitHub API、Token、代理、本地端口和运行时状态。
+- 保留 Markdown 导出与外部分析交接工作流。
 
-P0 delivery rules:
+任务映射：
 
-- Stay on the current Python + local HTTP + desktop shell + embedded HTML/CSS/JS stack.
-- Do not combine P0 with React, FastAPI, SQLite, or AI-provider migration work.
-- Ship P0 as multiple small steps, not one large branch.
+| Task ID | 任务主题 | 说明 |
+|---|---|---|
+| `GS-P0-001` | 建立仓库任务追踪体系 | 已完成，用于承接后续所有任务管理。 |
+| `GS-P0-002` | 保存发现视角 | 建议优先启动。 |
+| `GS-P0-003` | 增加标签体系 | 解决长期组织问题。 |
+| `GS-P0-004` | 增加仓库笔记 | 沉淀判断依据。 |
+| `GS-P0-005` | 建立 Update Inbox v1 | 强化更新处理入口。 |
+| `GS-P0-006` | 展示推荐 / 排名原因 | 提升发现结果可解释性。 |
+| `GS-P0-007` | 建立诊断面板 | 降低失败排查成本。 |
+| `GS-P0-008` | 保持 Markdown 导出工作流 | 保留与外部分析工具的联动。 |
+
+P0 执行规则：
+
+- 继续使用当前 Python + 本地 HTTP + 桌面壳 + 内嵌 HTML/CSS/JS 形态。
+- 不要把 P0 和 React、FastAPI、SQLite、AI provider 迁移混在同一个实现回合。
+- 用多个小步骤推进，不要用一个大分支吞掉全部 P0。
 
 ## P1
 
-Goal: stabilize data flow, background workflows, and AI-ready interfaces after P0 proves the product model.
+目标：在 P0 验证产品闭环后，再稳定数据流、后台任务和 AI-ready 边界。
 
-Primary outcomes:
+主要产出：
 
-- Move toward a static shell plus clearer JSON API boundaries.
-- Introduce SQLite only after state model expansion is clear and migration is planned.
-- Add a unified Job / Event model for long-running operations.
-- Add SSE for progress and event push once the job model exists.
-- Add `Repo Insight` and other structured AI outputs through explicit provider abstractions.
-- Add AI artifact caching with deletion, regeneration, and opt-in visibility.
-- Add discovery clustering and related structure that reduces cognitive load.
+- 向静态壳 + 更清晰的 JSON API 边界演进。
+- 在状态模型明确后，规划并推进 SQLite 迁移。
+- 引入统一的 Job / Event 模型。
+- 在 Job / Event 模型之上再增加 SSE。
+- 通过明确的 provider 抽象接入 `Repo Insight` 等结构化 AI 输出。
+- 增加 AI artifact 缓存、删除、重生成和可见性规则。
+- 增加发现结果聚类，降低认知负担。
 
-P1 delivery rules:
+任务映射：
 
-- Do not migrate persistence, API shape, and frontend rendering all at once.
-- Do not ship AI as a default-on black box.
-- Keep prompt handoff available while AI integration is still maturing.
+| Task ID | 任务主题 | 说明 |
+|---|---|---|
+| `GS-P1-001` | 清理静态壳与 JSON API 边界 | 计划先行。 |
+| `GS-P1-002` | SQLite 迁移 | 先定义迁移和回滚。 |
+| `GS-P1-003` | Job / Event 模型 | 为后续进度与事件流奠基。 |
+| `GS-P1-004` | SSE 推送 | 依赖 Job / Event 模型。 |
+| `GS-P1-005` | Repo Insight Provider 抽象 | AI 必须显式 opt-in。 |
+| `GS-P1-006` | AI Artifact 缓存与生命周期 | 要求可追溯和可删除。 |
+| `GS-P1-007` | 发现结果聚类 | 在基础闭环稳定后推进。 |
+
+P1 执行规则：
+
+- 不要同时迁移持久化、API 形态和前端渲染。
+- 不要把 AI 做成默认开启的黑盒。
+- 在 AI 集成成熟前，保留现有 prompt handoff 路径。
 
 ## P2
 
-Goal: add differentiated capabilities after the workflow, data model, and migration path are stable.
+目标：在工作流、数据模型和迁移路径稳定后，再补差异化能力。
 
-Primary outcomes:
+主要产出：
 
-- Repository map / visual clustering experiences.
-- Optional local translation model support.
-- Encrypted multi-device sync or backup flows.
-- Packaging hardening, AV false-positive mitigation, and code signing.
-- Longer-term frontend modernization only if earlier boundaries justify it.
+- 仓库地图 / 可视聚类体验。
+- 可选本地翻译模型支持。
+- 加密多设备同步或备份。
+- 发布加固、AV 误报缓解和代码签名。
+- 仅在前序边界稳定后再评估前端现代化路径。
 
-P2 delivery rules:
+任务映射：
 
-- Do not prioritize visual novelty over research efficiency.
-- Do not make cloud sync or AI mandatory.
-- Do not introduce centralized account infrastructure as a default direction.
+| Task ID | 任务主题 | 说明 |
+|---|---|---|
+| `GS-P2-001` | 仓库地图 / 可视聚类 | 差异化能力，后置。 |
+| `GS-P2-002` | 可选本地翻译模型 | 不能影响默认开箱体验。 |
+| `GS-P2-003` | 加密多设备同步 / 备份 | 触及隐私和同步边界，必须先写计划。 |
+| `GS-P2-004` | 发布加固与 AV 误报缓解 | 偏发布层优化。 |
+| `GS-P2-005` | 代码签名 | 偏信任建设。 |
+| `GS-P2-006` | 前端现代化路径评估 | 不是默认下一步。 |
 
-## Suggested Sequencing
+P2 执行规则：
 
-1. P0 foundation:
-   save discovery views, tags, notes, ranking reasons
-2. P0 operations:
-   diagnostics, Update Inbox v1, Markdown workflow polish
-3. P1 architecture:
-   plan-first API boundary cleanup, persistence migration design, job model
-4. P1 intelligence:
-   Repo Insight, AI artifacts, structured event delivery
-5. P2 differentiation:
-   clustering, map views, optional local models, encrypted sync, release hardening
+- 不要为视觉新奇牺牲研究效率。
+- 不要让云同步或 AI 成为强制依赖。
+- 不要把中心化账号体系作为默认方向。
 
-## Out Of Scope By Default
+## 默认顺序
 
-These are not default next steps unless a dedicated plan says otherwise:
+1. `P0 foundation`
+   保存发现视角、标签、笔记、推荐原因。
+2. `P0 operations`
+   诊断面板、`Update Inbox v1`、Markdown 工作流整理。
+3. `P1 architecture`
+   计划先行的 API 边界整理、持久化迁移设计、Job 模型。
+4. `P1 intelligence`
+   `Repo Insight`、AI artifact、结构化事件流。
+5. `P2 differentiation`
+   聚类、地图、可选本地模型、加密同步、发布加固。
 
-- full React rewrite
-- immediate FastAPI rewrite
-- immediate SQLite rewrite
+## 默认不做
+
+除非有单独计划文件明确说明，否则以下不是默认下一步：
+
+- 完整 React 重写
+- 立即切到 FastAPI
+- 立即切到 SQLite
 - AI Agent orchestration
-- centralized SaaS backend
-- mandatory cloud sync
+- 中心化 SaaS 后端
+- 强制云同步
 
+## 路线图维护规则
+
+- 当优先级或阶段目标变化时，更新 `docs/roadmap/ROADMAP.md`。
+- 当任务状态、分支、commit / PR 变化时，更新 `TASKS.md` 和 `docs/progress/PROGRESS.md`。
+- 当某个任务需要明确范围、回滚和验收时，创建或更新对应的 `docs/plans/*.md`。

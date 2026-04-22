@@ -1,142 +1,162 @@
-# Plan Template
+# 计划模板
 
-Use this template before any complex feature, migration, or refactor.
+在复杂功能、迁移任务或 Auto Top 10 Sprint 任务开始前，优先使用这个模板。
 
 ---
 
-## Title
+## 任务元信息
 
-`<short task title>`
+- 任务 ID：
+- 优先级：
+- 当前状态：
+- Sprint 排名：
+- 推荐 commit message：
 
-## Summary
+## 标题
 
-- What problem is being solved?
-- Why now?
-- What user-facing outcome should exist after this work?
+`<简短任务标题>`
 
-## Strategy Mapping
+## 摘要
 
-- Strategy reference:
+- 这个任务要解决什么问题？
+- 为什么现在做？
+- 做完后用户能看到什么结果？
+
+## 战略映射
+
+- 战略文档：
   - `docs/strategy/GITSONAR_STRATEGY.md`
-- Roadmap reference:
+- 路线图文档：
   - `docs/roadmap/ROADMAP.md`
-- Priority bucket:
-  - `P0` / `P1` / `P2`
-- Related current-state docs:
+- 对应 Sprint 队列：
+  - `docs/sprints/CURRENT_TOP10.md`
+- 当前状态参考：
   - `docs/ARCHITECTURE.md`
   - `docs/SECURITY.md`
 
-## Current State
+## 当前状态
 
-- Current behavior:
-- Current technical shape:
-- Known pain points:
-- Existing constraints:
-- Relevant code paths inspected:
+- 当前行为：
+- 当前技术形态：
+- 已知痛点：
+- 现有约束：
+- 需要检查的文件或区域：
 
-## Goals
+## 目标
 
-- Primary goal:
-- Secondary goals:
-- Success criteria:
+- 主要目标：
+- 次要目标：
+- 成功标准：
 
-## Non-Goals
+## 非目标
 
-- Explicitly state what this work will not do.
-- State what migrations or redesigns are intentionally deferred.
+- 明确这个任务不做什么。
+- 明确哪些迁移或重构被有意推迟。
 
-## User Impact
+## 用户影响
 
-- Who benefits?
-- What changes in the UI or workflow?
-- What remains unchanged?
+- 谁会受益？
+- UI 或工作流会发生什么变化？
+- 哪些行为保持不变？
 
-## Privacy And Opt-In
+## 隐私与显式同意
 
-- Does this touch AI, cloud APIs, sync, tokens, or user data?
-- What data leaves the machine, if any?
-- Is the feature opt-in?
-- What user-visible consent or preview is required?
+- 是否涉及 AI、云 API、同步、Token 或用户数据？
+- 是否有数据离开本机？
+- 是否需要显式 opt-in？
+- 是否需要用户可见的确认或预览？
 
-## Scope
+## 范围
 
-### In Scope
-
-- `<item>`
-
-### Out Of Scope
+### 范围内
 
 - `<item>`
 
-## Architecture Touchpoints
+### 范围外
 
-- Runtime modules involved:
-- HTTP/API changes:
-- State/persistence changes:
-- UI changes:
-- Background job changes:
-- Packaging/startup/shell changes:
+- `<item>`
 
-## Data Model
+## 架构触点
 
-- New fields:
-- New files or tables:
-- Migration needs:
-- Import/export implications:
+- 涉及的运行时模块：
+- HTTP / API 变更：
+- 状态 / 持久化变更：
+- UI 变更：
+- 后台任务变更：
+- 打包 / 启动 / 壳层变更：
 
-## API And Contracts
+## 数据模型
 
-- Endpoints to add/change:
-- Request/response shape:
-- Error behavior:
-- Compatibility notes:
+- 新字段：
+- 新文件或新表：
+- 迁移需求：
+- 导入 / 导出影响：
 
-## Execution Plan
+## API 与契约
 
-Break work into small, reversible steps.
+- 要新增或修改的端点：
+- 请求 / 响应结构：
+- 错误行为：
+- 兼容性说明：
 
-1. Step 1:
-   expected outcome:
-   rollback path:
-2. Step 2:
-   expected outcome:
-   rollback path:
-3. Step 3:
-   expected outcome:
-   rollback path:
+## 执行步骤
 
-## Risks
+把工作拆成小步、可回滚的步骤。
 
-- Technical risks:
-- Product risks:
-- Privacy/security risks:
-- Rollout risks:
+1. 第一步：
+   预期结果：
+   回滚路径：
+2. 第二步：
+   预期结果：
+   回滚路径：
+3. 第三步：
+   预期结果：
+   回滚路径：
 
-## Validation
+## 风险
 
-- Unit tests:
-- Integration tests:
-- Manual checks:
-- Performance or reliability checks:
-- Logging/diagnostics to verify:
+- 技术风险：
+- 产品风险：
+- 隐私 / 安全风险：
+- 发布风险：
 
-## Rollout
+## 验证
 
-- How will this ship incrementally?
-- What feature flags or guarded states are needed?
-- How will users recover if the feature fails?
+- 单元测试：
+- 集成测试：
+- 手动检查：
+- 性能或可靠性检查：
+- 需要关注的日志 / 诊断信号：
 
-## Documentation Updates
+## 发布与回滚
 
-- Docs to update:
-- User-facing copy to update:
-- Internal maintenance notes to update:
+- 如何增量发布？
+- 是否需要开关或受控状态？
+- 如果失败，用户如何恢复？
 
-## Acceptance Checklist
+## 文档更新
 
-- [ ] Scope is small and reversible
-- [ ] No big-bang migration is hidden inside the task
-- [ ] Privacy / opt-in behavior is explicit
-- [ ] Rollback path is defined
-- [ ] Validation steps are concrete
-- [ ] Strategy and roadmap mapping are documented
+- 需要更新的文档：
+- 需要更新的用户可见文案：
+- 需要更新的内部维护说明：
+
+## 进度记录
+
+| 日期 | 状态 | 备注 |
+|---|---|---|
+| `YYYY-MM-DD` | `[ ]` | 已创建计划。 |
+
+## 验证记录
+
+- 已运行测试：
+- 手动验证：
+- 尚未覆盖的缺口：
+
+## 验收清单
+
+- [ ] 范围小且可回滚
+- [ ] 没有隐藏的大迁移
+- [ ] 隐私 / opt-in 行为明确
+- [ ] 回滚路径已定义
+- [ ] 验证步骤具体可执行
+- [ ] 已写明战略与路线图映射

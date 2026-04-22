@@ -18,7 +18,7 @@ function visibleRepos(){
   const query = panel === DISCOVER_PANEL_KEY ? "" : (searchNode?.value || "").trim().toLowerCase();
   const language = panel === DISCOVER_PANEL_KEY ? "" : (languageNode?.value || "");
   const repos = raw.filter(repo => {
-    const haystack = `${repo.full_name} ${repo.description || ""} ${repo.description_raw || ""} ${repo.language || ""} ${repo.source_label || ""}`.toLowerCase();
+    const haystack = `${repo.full_name} ${repo.description || ""} ${repo.description_raw || ""} ${repo.language || ""} ${repo.source_label || ""} ${repoTagsForUrl(repo.url).join(" ")} ${repoNoteForUrl(repo.url)}`.toLowerCase();
     if(query && !haystack.includes(query)) return false;
     if(language && (repo.language || "") !== language) return false;
     if(panel === DISCOVER_PANEL_KEY) return true;
@@ -48,10 +48,23 @@ function visibleUpdates(){
   if(panel !== UPDATE_PANEL_KEY) return [];
   const searchNode = document.getElementById("search");
   const query = (searchNode?.value || "").trim().toLowerCase();
-  return (userState.favorite_updates || []).filter(update => {
-    const haystack = `${update.full_name || ""} ${(update.changes || []).join(" ")} ${update.latest_release_tag || ""}`.toLowerCase();
-    return !query || haystack.includes(query);
-  });
+  return (userState.favorite_updates || [])
+    .filter(update => !String(update.dismissed_at || "").trim())
+    .filter(update => {
+      const haystack = `${update.full_name || ""} ${(update.changes || []).join(" ")} ${update.latest_release_tag || ""}`.toLowerCase();
+      return !query || haystack.includes(query);
+    })
+    .sort((a, b) => {
+      const aPinned = a.pinned ? 1 : 0;
+      const bPinned = b.pinned ? 1 : 0;
+      if(bPinned !== aPinned) return bPinned - aPinned;
+      const aUnread = String(a.read_at || "").trim() ? 0 : 1;
+      const bUnread = String(b.read_at || "").trim() ? 0 : 1;
+      if(bUnread !== aUnread) return bUnread - aUnread;
+      const priority = Number(b.priority_score || 0) - Number(a.priority_score || 0);
+      if(priority) return priority;
+      return String(b.checked_at || "").localeCompare(String(a.checked_at || ""), "zh-Hans-CN");
+    });
 }
 
 function visibleLinkList(){
@@ -59,6 +72,7 @@ function visibleLinkList(){
 }
 
 function tabsData(){
+  const actionableUpdateCount = (userState.favorite_updates || []).filter(update => !String(update.dismissed_at || "").trim()).length;
   return [
     ...periodDefs().map(period => ({
       key:period.key,
@@ -73,7 +87,7 @@ function tabsData(){
       count:(userState[state.key] || []).length,
       family:"library",
     })),
-    {key:UPDATE_PANEL_KEY, label:"更新", count:(userState.favorite_updates || []).length, family:"updates"},
+    {key:UPDATE_PANEL_KEY, label:"更新", count:actionableUpdateCount, family:"updates"},
   ];
 }
 
@@ -238,22 +252,25 @@ function renderWorkspaceSummaryStrip(){
   if(!strip) return;
 
   if(panel === DISCOVER_PANEL_KEY){
+    const draftQuery = currentDiscoveryDraftQuery();
     const query = currentDiscoveryQueryText();
     if(!query && !discoveryResults().length && !activeDiscoveryJob){
       strip.hidden = true;
       strip.innerHTML = "";
       return;
     }
-    const ranking = discoveryRankingLabel(currentDiscoveryQuery().ranking_profile || discoverDraft.rankingProfile);
+    const ranking = discoveryRankingLabel(draftQuery.ranking_profile);
     const status = currentDiscoveryStatusLabel();
+    const views = savedDiscoveryViews();
     strip.hidden = false;
     strip.innerHTML = `
       <div class="summary-strip-row">
         <span class="summary-strip-label">当前搜索</span>
         ${query ? `<span class="summary-strip-item">关键词 <strong>${h(query)}</strong></span>` : ""}
         <span class="summary-strip-item">当前排序 <strong>${h(ranking)}</strong></span>
-        <span class="summary-strip-item">结果上限 <strong>${currentDiscoveryLimit()}</strong></span>
+        <span class="summary-strip-item">结果上限 <strong>${currentDiscoveryDraftLimit()}</strong></span>
         <span class="summary-strip-item">状态 <strong>${h(status)}</strong></span>
+        <span class="summary-strip-item">保存视图 <strong>${views.length}</strong></span>
       </div>
     `;
     return;

@@ -186,6 +186,7 @@ function renderRepoCards(repos, isChunk = false){
     const selected = selectedIdx !== -1;
     const descriptionText = repo.description || repo.description_raw || "暂无描述";
     const isDiscoverCard = panel === DISCOVER_PANEL_KEY;
+    const tags = repoTagsForUrl(repo.url);
     const badgeMarkup = isDiscoverCard
       ? `${selected ? selectedBadgeMarkup(selectedIdx) : ""}
          <span class="badge gain">综合 ${repo.composite_score || 0}</span>
@@ -196,6 +197,9 @@ function renderRepoCards(repos, isChunk = false){
          <span class="badge source">${h(repo.source_label || "GitHub 来源")}</span>`;
     const reasonMarkup = isDiscoverCard && (repo.match_reasons || []).length
       ? `<div class="reason-strip">${(repo.match_reasons || []).map(reason => `<span class="reason-pill">${h(reason)}</span>`).join("")}</div>`
+      : "";
+    const tagMarkup = tags.length
+      ? `<div class="reason-strip">${tags.map(tag => `<span class="reason-pill">${h(tag)}</span>`).join("")}</div>`
       : "";
     const metricMarkup = [
       metricPillMarkup("星标", `<span class="metric-number">${repo.stars || 0}</span>`),
@@ -220,11 +224,13 @@ function renderRepoCards(repos, isChunk = false){
       <div class="card-body">
         ${descBlockMarkup(descriptionText)}
         ${reasonMarkup}
+        ${tagMarkup}
         <div class="card-footer">
           <div class="card-state-row">
             <div class="card-state-actions">${repoStateActionsMarkup(repo)}</div>
             <div class="card-utility-actions">
               <button class="action-quiet compact" type="button" onclick='analyzeRepo(${JSON.stringify(repo.url)})'>分析</button>
+              <button class="action-quiet compact" type="button" onclick='copyRepoMarkdownSummary(${JSON.stringify(repo.url)})'>复制摘要</button>
               <button class="action-quiet compact" type="button" onclick='openDetail(${JSON.stringify(repo.owner)}, ${JSON.stringify(repo.name)}, ${JSON.stringify(repo.full_name)})'>详情</button>
             </div>
           </div>
@@ -243,6 +249,7 @@ function renderUpdateCards(items, isChunk = false){
     const changeBadges = (update.changes || []).map(change => `<span class="badge gain">${h(change)}</span>`).join("");
     const summary = (update.changes || []).length ? (update.changes || []).join(" · ") : "最近一次检测没有整理出可展示的变化摘要。";
     const repo = repoByUrl(update.url) || synthesizeRepoFromUpdate(update);
+    const inboxBadgeMarkup = `${update.pinned ? '<span class="badge gain">置顶</span>' : ""}${String(update.read_at || "").trim() ? '<span class="badge source">已读</span>' : '<span class="badge gain">未读</span>'}`;
     const metricMarkup = [
       metricPillMarkup("星标", `<span class="metric-number">${update.stars || 0}</span>`),
       metricPillMarkup("派生", `<span class="metric-number">${update.forks || 0}</span>`),
@@ -255,6 +262,7 @@ function renderUpdateCards(items, isChunk = false){
             <div class="badges">
               ${selected ? selectedBadgeMarkup(selectedIdx) : ""}
               <span class="badge source">收藏更新</span>
+              ${inboxBadgeMarkup}
               ${update.latest_release_tag ? `<span class="badge source">${h(update.latest_release_tag)}</span>` : ""}
             </div>
             <div class="card-metrics">${metricMarkup}</div>
@@ -272,7 +280,10 @@ function renderUpdateCards(items, isChunk = false){
           <div class="card-state-row">
             <div class="card-state-actions">${repoStateActionsMarkup(repo)}</div>
             <div class="card-utility-actions">
-              <button class="action-quiet compact" type="button" onclick='analyzeRepo(${JSON.stringify(update.url)})'>分析</button>
+              <button class="action-quiet compact" type="button" onclick='setFavoriteUpdateRead(${JSON.stringify(update.id)}, ${JSON.stringify(!String(update.read_at || "").trim())})'>${String(update.read_at || "").trim() ? "标未读" : "标已读"}</button>
+              <button class="action-quiet compact" type="button" onclick='setFavoriteUpdatePinned(${JSON.stringify(update.id)}, ${JSON.stringify(!update.pinned)})'>${update.pinned ? "取消置顶" : "置顶"}</button>
+              <button class="action-quiet compact" type="button" onclick='dismissFavoriteUpdate(${JSON.stringify(update.id)})'>忽略</button>
+              <button class="action-quiet compact" type="button" onclick='copyRepoMarkdownSummary(${JSON.stringify(update.url)})'>复制摘要</button>
               <button class="action-quiet compact" type="button" onclick='openDetailFromRecord(${JSON.stringify(update.full_name)}, ${JSON.stringify(update.url)})'>详情</button>
             </div>
           </div>

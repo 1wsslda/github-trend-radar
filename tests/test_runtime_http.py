@@ -35,7 +35,13 @@ class RuntimeHTTPHandlerTests(unittest.TestCase):
             "read": [],
             "ignored": [],
             "repo_records": {},
+            "repo_annotations": {},
+            "favorite_watch": {},
+            "favorite_updates": [],
+            "feedback_signals": {},
+            "ai_insights": {},
         }
+        self.discovery_state = {"remembered_query": {}, "last_results": [], "saved_views": []}
         self.state_updates: list[tuple[str, bool, dict[str, object] | None]] = []
         self.batch_state_calls: list[tuple[str, bool, list[dict[str, object]]]] = []
         self.discovery_job_payloads: list[dict[str, object]] = []
@@ -44,6 +50,7 @@ class RuntimeHTTPHandlerTests(unittest.TestCase):
         self.validated_tokens: list[object | None] = []
         self.saved_settings: list[dict[str, object]] = []
         self.auto_start_updates: list[bool] = []
+        self.diagnostics_runs = 0
         self.fetch_repo_details = lambda owner, name: {"full_name": f"{owner}/{name}"}
         self.fetch_user_starred = lambda: [{"full_name": "octo/demo", "url": "https://github.com/octo/demo"}]
         self.sync_local_favorites_with_starred = lambda _repos: {"total": 1, "added": 1, "removed": 0}
@@ -82,6 +89,104 @@ class RuntimeHTTPHandlerTests(unittest.TestCase):
             self.batch_state_calls.append((state_key, enabled, processed))
             return processed
 
+        def set_repo_annotation(url: object, payload: object, repo: object | None = None):
+            clean_url = normalize(url)
+            if not clean_url:
+                raise ValueError("missing repo")
+            if isinstance(repo, dict) and repo.get("url"):
+                self.user_state["repo_records"][str(repo["url"])] = dict(repo)
+            raw = payload if isinstance(payload, dict) else {}
+            tags = list(dict.fromkeys(normalize(item) for item in raw.get("tags", []) if normalize(item)))
+            note = normalize(raw.get("note"))
+            if not tags and not note:
+                self.user_state["repo_annotations"].pop(clean_url, None)
+                return None
+            annotation = {"tags": tags[:12], "note": note, "updated_at": "now"}
+            self.user_state["repo_annotations"][clean_url] = annotation
+            return annotation
+
+        def set_favorite_update_state(
+            update_id: object,
+            *,
+            read: object | None = None,
+            dismissed: object | None = None,
+            pinned: object | None = None,
+        ):
+            clean_id = normalize(update_id)
+            for index, item in enumerate(self.user_state["favorite_updates"]):
+                if item.get("id") != clean_id:
+                    continue
+                update = dict(item)
+                if read is not None:
+                    update["read_at"] = "now" if bool(read) else ""
+                if dismissed is not None:
+                    update["dismissed_at"] = "now" if bool(dismissed) else ""
+                if pinned is not None:
+                    update["pinned"] = bool(pinned)
+                self.user_state["favorite_updates"][index] = update
+                return update
+            raise ValueError("favorite update not found")
+
+        def set_ai_insight(url: object, payload: object, repo: object | None = None):
+            clean_url = normalize(url)
+            if not clean_url:
+                raise ValueError("missing repo")
+            if not isinstance(payload, dict) or not normalize(payload.get("summary")):
+                raise ValueError("invalid ai insight")
+            if isinstance(repo, dict) and repo.get("url"):
+                self.user_state["repo_records"][str(repo["url"])] = dict(repo)
+            insight = dict(payload)
+            insight.setdefault("schema_version", "gitsonar.repo_insight.v1")
+            insight.setdefault("provider", "manual")
+            self.user_state["ai_insights"][clean_url] = insight
+            return insight
+
+        def delete_ai_insight(url: object):
+            clean_url = normalize(url)
+            if not clean_url:
+                raise ValueError("missing repo")
+            self.user_state["ai_insights"].pop(clean_url, None)
+            return json.loads(json.dumps(self.user_state))
+
+        def save_discovery_view(payload: object):
+            raw = dict(payload) if isinstance(payload, dict) else {}
+            if not normalize(raw.get("id")) or not normalize(raw.get("name")) or not normalize(raw.get("query")):
+                raise ValueError("missing discovery view")
+            view = {
+                "id": normalize(raw.get("id")),
+                "name": normalize(raw.get("name")),
+                "query": normalize(raw.get("query")),
+                "limit": clamp_int(raw.get("limit"), 25, 5, 100),
+                "auto_expand": as_bool(raw.get("auto_expand"), True),
+                "ranking_profile": normalize(raw.get("ranking_profile")) or "balanced",
+                "last_run_at": normalize(raw.get("last_run_at")),
+                "last_result_count": clamp_int(raw.get("last_result_count"), 0, 0, 999),
+            }
+            remaining = [item for item in self.discovery_state["saved_views"] if item.get("id") != view["id"]]
+            self.discovery_state["saved_views"] = [view, *remaining][:20]
+            return view
+
+        def delete_discovery_view(view_id: object):
+            clean_id = normalize(view_id)
+            before = len(self.discovery_state["saved_views"])
+            self.discovery_state["saved_views"] = [
+                item for item in self.discovery_state["saved_views"] if item.get("id") != clean_id
+            ]
+            if len(self.discovery_state["saved_views"]) == before:
+                raise ValueError("discovery view not found")
+            return json.loads(json.dumps(self.discovery_state))
+
+        def run_diagnostics():
+            self.diagnostics_runs += 1
+            return {
+                "generated_at": "now",
+                "items": [
+                    {"key": "github_api", "title": "GitHub API", "state": "ok", "summary": "reachable"},
+                    {"key": "proxy", "title": "代理配置", "state": "warn", "summary": "not set"},
+                ],
+                "has_errors": False,
+            }
+
 
         def start_discovery_job(payload: object) -> dict[str, object]:
             clean = dict(payload) if isinstance(payload, dict) else {}
@@ -100,7 +205,11 @@ class RuntimeHTTPHandlerTests(unittest.TestCase):
             as_bool=as_bool,
             set_repo_state=set_repo_state,
             set_repo_state_batch=set_repo_state_batch,
+            set_repo_annotation=set_repo_annotation,
+            set_favorite_update_state=set_favorite_update_state,
             export_user_state=lambda: json.loads(json.dumps(self.user_state)),
+            set_ai_insight=set_ai_insight,
+            delete_ai_insight=delete_ai_insight,
             import_user_state=lambda payload: {
                 "mode": payload.get("mode", "merge"),
                 "before_counts": {},
@@ -121,8 +230,10 @@ class RuntimeHTTPHandlerTests(unittest.TestCase):
             start_discovery_job=start_discovery_job,
             get_discovery_job=lambda job_id: {"id": job_id, "status": "completed"} if job_id != "missing" else (_ for _ in ()).throw(ValueError("missing")),
             cancel_discovery_job=lambda job_id: {"id": job_id, "status": "cancelled"},
+            save_discovery_view=save_discovery_view,
+            delete_discovery_view=delete_discovery_view,
             clear_discovery_results=lambda: {"last_results": []},
-            export_discovery_state=lambda: {"remembered_query": {}, "last_results": []},
+            export_discovery_state=lambda: json.loads(json.dumps(self.discovery_state)),
             export_active_discovery_job=lambda: {"id": "job-active", "status": "running"},
             open_main_window=lambda: True,
             exit_app=self._exit_app,
@@ -130,6 +241,7 @@ class RuntimeHTTPHandlerTests(unittest.TestCase):
             fetch_user_starred=lambda: self.fetch_user_starred(),
             sync_local_favorites_with_starred=lambda repos: self.sync_local_favorites_with_starred(repos),
             validate_github_token=self._validate_github_token,
+            run_diagnostics=run_diagnostics,
             control_token_getter=lambda: self.control_token,
         )
         self.server = ThreadingHTTPServer(("127.0.0.1", 0), handler)
@@ -334,6 +446,16 @@ class RuntimeHTTPHandlerTests(unittest.TestCase):
         self.assertEqual(payload["active_job"]["id"], "job-active")
         self.assertIn("remembered_query", payload["discovery_state"])
 
+    def test_get_diagnostics_returns_local_runtime_report(self):
+        resp, data = self.request("GET", "/api/diagnostics")
+        payload = json.loads(data.decode("utf-8"))
+
+        self.assertEqual(resp.status, 200)
+        self.assertTrue(payload["ok"])
+        self.assertEqual(payload["diagnostics"]["generated_at"], "now")
+        self.assertEqual(self.diagnostics_runs, 1)
+        self.assertEqual(payload["diagnostics"]["items"][0]["key"], "github_api")
+
     def test_get_export_returns_attachment(self):
         resp, data = self.request("GET", "/api/export")
 
@@ -440,6 +562,70 @@ class RuntimeHTTPHandlerTests(unittest.TestCase):
         self.assertEqual(payload["code"], "invalid_request")
         self.assertIn("仓库信息", payload["error"])
 
+    def test_post_state_ignored_includes_feedback_reason(self):
+        resp, data = self.request(
+            "POST",
+            "/api/state",
+            {
+                "state": "ignored",
+                "enabled": True,
+                "feedback_reason": "只是 demo",
+                "repo": {"full_name": "octo/demo", "url": "https://github.com/octo/demo"},
+            },
+        )
+        payload = json.loads(data.decode("utf-8"))
+
+        self.assertEqual(resp.status, 200)
+        self.assertTrue(payload["ok"])
+        self.assertEqual(self.state_updates[-1][0], "ignored")
+        self.assertEqual(self.state_updates[-1][2]["feedback_reason"], "只是 demo")
+
+    def test_post_repo_annotations_persists_tags_and_note(self):
+        resp, data = self.request(
+            "POST",
+            "/api/repo-annotations",
+            {
+                "url": "https://github.com/octo/demo",
+                "repo": {"full_name": "octo/demo", "url": "https://github.com/octo/demo"},
+                "tags": ["agent", "tooling", "agent"],
+                "note": "  值得后续复看  ",
+            },
+        )
+        payload = json.loads(data.decode("utf-8"))
+
+        self.assertEqual(resp.status, 200)
+        self.assertTrue(payload["ok"])
+        self.assertEqual(payload["annotation"]["tags"], ["agent", "tooling"])
+        self.assertEqual(payload["annotation"]["note"], "值得后续复看")
+        self.assertIn("https://github.com/octo/demo", payload["user_state"]["repo_annotations"])
+
+    def test_post_favorite_update_state_marks_read_dismissed_and_pinned(self):
+        self.user_state["favorite_updates"] = [
+            {
+                "id": "update-1",
+                "full_name": "octo/demo",
+                "url": "https://github.com/octo/demo",
+                "checked_at": "2026-04-23T00:00:00",
+                "changes": ["release"],
+                "read_at": "",
+                "dismissed_at": "",
+                "pinned": False,
+            }
+        ]
+
+        resp, data = self.request(
+            "POST",
+            "/api/favorite-updates/state",
+            {"id": "update-1", "read": True, "dismissed": True, "pinned": True},
+        )
+        payload = json.loads(data.decode("utf-8"))
+
+        self.assertEqual(resp.status, 200)
+        self.assertTrue(payload["ok"])
+        self.assertEqual(payload["update"]["read_at"], "now")
+        self.assertEqual(payload["update"]["dismissed_at"], "now")
+        self.assertTrue(payload["update"]["pinned"])
+
     def test_post_state_batch_updates_user_state_with_single_local_commit(self):
         repos = [
             {"full_name": "octo/one", "url": "https://github.com/octo/one"},
@@ -520,6 +706,62 @@ class RuntimeHTTPHandlerTests(unittest.TestCase):
         self.assertEqual(sync_calls, ["octo/one", "octo/two", "octo/three"])
         self.assertEqual(payload["processed_count"], 3)
         self.assertEqual(len(payload["github_star_syncs"]), 3)
+
+    def test_post_discovery_view_save_and_delete_round_trip(self):
+        resp, data = self.request(
+            "POST",
+            "/api/discovery/views",
+            {
+                "id": "view-1",
+                "name": "Agent Builder",
+                "query": "agent",
+                "limit": 25,
+                "auto_expand": True,
+                "ranking_profile": "builder",
+                "last_result_count": 12,
+            },
+        )
+        payload = json.loads(data.decode("utf-8"))
+
+        self.assertEqual(resp.status, 200)
+        self.assertTrue(payload["ok"])
+        self.assertEqual(payload["view"]["id"], "view-1")
+        self.assertEqual(payload["discovery_state"]["saved_views"][0]["name"], "Agent Builder")
+
+        resp, data = self.request("POST", "/api/discovery/views/delete", {"id": "view-1"})
+        payload = json.loads(data.decode("utf-8"))
+
+        self.assertEqual(resp.status, 200)
+        self.assertTrue(payload["ok"])
+        self.assertEqual(payload["discovery_state"]["saved_views"], [])
+
+    def test_post_ai_insight_save_and_delete_round_trip(self):
+        resp, data = self.request(
+            "POST",
+            "/api/ai-insights",
+            {
+                "url": "https://github.com/octo/demo",
+                "repo": {"full_name": "octo/demo", "url": "https://github.com/octo/demo"},
+                "insight": {
+                    "summary": "适合学习仓库组织方式",
+                    "best_for": ["学习结构"],
+                    "next_actions": ["先读 README"],
+                },
+            },
+        )
+        payload = json.loads(data.decode("utf-8"))
+
+        self.assertEqual(resp.status, 200)
+        self.assertTrue(payload["ok"])
+        self.assertEqual(payload["insight"]["schema_version"], "gitsonar.repo_insight.v1")
+        self.assertEqual(payload["user_state"]["ai_insights"]["https://github.com/octo/demo"]["summary"], "适合学习仓库组织方式")
+
+        resp, data = self.request("POST", "/api/ai-insights/delete", {"url": "https://github.com/octo/demo"})
+        payload = json.loads(data.decode("utf-8"))
+
+        self.assertEqual(resp.status, 200)
+        self.assertTrue(payload["ok"])
+        self.assertEqual(payload["user_state"]["ai_insights"], {})
 
     def test_post_refresh_returns_409_when_refresh_in_progress(self):
         self.refresh_started = False

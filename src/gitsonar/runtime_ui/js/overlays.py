@@ -271,6 +271,10 @@ async function saveSettings(){
       return;
     }
     settings = data.settings;
+    if(!String(discoverDraft.viewId || "").trim()){
+      discoverDraft.limit = currentDiscoveryLimit();
+      if(panel === DISCOVER_PANEL_KEY) syncDiscoverDraftUI();
+    }
     lastTokenStatusFingerprint = "";
     lastTokenStatusResult = null;
     closeSettings();
@@ -281,21 +285,176 @@ async function saveSettings(){
   }
 }
 
+async function openDiagnostics(){
+  setOverlayVisible("diagnostics-modal", true);
+  document.getElementById("diagnostics-body").innerHTML = `<div class="empty">${emptyIcon}<span>正在运行本地诊断...</span></div>`;
+  try{
+    const {resp, data} = await requestJson("/api/diagnostics", {cache:"no-store"}, "运行诊断失败");
+    if(!resp.ok || !data.ok){
+      document.getElementById("diagnostics-body").innerHTML = `<div class="empty">${emptyIcon}<span>${h(data.error || "运行诊断失败")}</span></div>`;
+      return;
+    }
+    const diagnostics = data.diagnostics || {};
+    const items = Array.isArray(diagnostics.items) ? diagnostics.items : [];
+    document.getElementById("diagnostics-body").innerHTML = `
+      <div class="notice">诊断结果只在本机生成，不会上报到任何远端服务。生成时间：${h(diagnostics.generated_at || "未知")}</div>
+      ${items.map(item => `
+        <div class="detail-section">
+          <div class="section-label">${h(item.title || item.key || "诊断项")}</div>
+          <div class="detail-grid">
+            <div class="detail-item"><strong>状态</strong><span>${h(item.state || "unknown")}</span></div>
+            <div class="detail-item"><strong>摘要</strong><span>${h(item.summary || "")}</span></div>
+            <div class="detail-item"><strong>细节</strong><span>${h(item.detail || "无")}</span></div>
+            <div class="detail-item"><strong>建议</strong><span>${h(item.suggestion || "无")}</span></div>
+          </div>
+        </div>
+      `).join("") || `<div class="empty">${emptyIcon}<span>当前没有可显示的诊断项。</span></div>`}
+    `;
+  }catch(error){
+    document.getElementById("diagnostics-body").innerHTML = `<div class="empty">${emptyIcon}<span>${h(error.message || "运行诊断失败")}</span></div>`;
+  }
+}
+
+function closeDiagnostics(){
+  setOverlayVisible("diagnostics-modal", false);
+}
+
+let currentDetailUrl = "";
+let currentDetailRepo = null;
+let currentDetailData = null;
+
+function renderCurrentDetailPanel(){
+  if(!currentDetailRepo || !currentDetailData){
+    document.getElementById("detail-body").innerHTML = `<div class="empty">${emptyIcon}<span>详情尚未加载完成。</span></div>`;
+    return;
+  }
+  const repo = currentDetailRepo;
+  const detail = currentDetailData;
+  const topics = Array.isArray(detail.topics) ? detail.topics.filter(Boolean) : [];
+  const tags = repoTagsForUrl(repo.url);
+  const note = repoNoteForUrl(repo.url);
+  const insight = aiInsightByUrl(repo.url);
+  const matchReasons = Array.isArray(repo.match_reasons) ? repo.match_reasons.filter(Boolean) : [];
+  const insightText = insight ? JSON.stringify(insight, null, 2) : "";
+  const metricMarkup = [
+    metricPillMarkup("星标", `<span class="metric-number">${detail.stars || 0}</span>`),
+    metricPillMarkup("派生", `<span class="metric-number">${detail.forks || 0}</span>`),
+    metricPillMarkup("关注者", `<span class="metric-number">${detail.watchers || 0}</span>`),
+    metricPillMarkup("议题", `<span class="metric-number">${detail.open_issues || 0}</span>`),
+  ].join("");
+  document.getElementById("detail-title").textContent = repo.full_name || detail.full_name || "";
+  document.getElementById("detail-body").innerHTML = `
+    <div class="detail-hero">
+      <div class="badges">
+        <span class="badge source">${h(detail.license || "未标注许可证")}</span>
+        <span class="badge source">${h(detail.default_branch || "未知分支")}</span>
+        ${detail.homepage ? `<a class="badge source" href="${h(detail.homepage)}" target="_blank" rel="noopener" data-external-url="${h(detail.homepage)}">主页</a>` : ""}
+      </div>
+      <div class="readme-block">${h(detail.description || detail.description_raw || "暂无简介")}</div>
+      <div class="card-metrics">${metricMarkup}</div>
+    </div>
+    ${matchReasons.length ? `<div class="detail-section"><div class="section-label">为什么推荐</div><div class="reason-strip">${matchReasons.map(reason => `<span class="reason-pill">${h(reason)}</span>`).join("")}</div></div>` : ""}
+    <div class="detail-section">
+      <div class="section-label">仓库概览</div>
+      <div class="detail-grid">
+        <div class="detail-item"><strong>仓库</strong><span>${h(detail.full_name || repo.full_name)}</span></div>
+        <div class="detail-item"><strong>最近推送</strong><span>${h(detail.pushed_at || "未知")}</span></div>
+        <div class="detail-item"><strong>最后更新</strong><span>${h(detail.updated_at || "未知")}</span></div>
+        <div class="detail-item"><strong>默认分支</strong><span>${h(detail.default_branch || "未知")}</span></div>
+        <div class="detail-item"><strong>许可证</strong><span>${h(detail.license || "未标注")}</span></div>
+        <div class="detail-item"><strong>主页</strong><span>${detail.homepage ? `<a class="link-inline" href="${h(detail.homepage)}" target="_blank" rel="noopener" data-external-url="${h(detail.homepage)}">${h(detail.homepage)}</a>` : "未填写"}</span></div>
+      </div>
+    </div>
+    <div class="detail-section">
+      <div class="section-label">本地标签与笔记</div>
+      ${tags.length ? `<div class="reason-strip">${tags.map(tag => `<span class="reason-pill">${h(tag)}</span>`).join("")}</div>` : `<div class="sub">还没有本地标签。</div>`}
+      <div class="readme-block">${h(note || "还没有本地笔记。")}</div>
+      <div class="panel-actions">
+        <button class="action-quiet compact" type="button" onclick='editRepoTags(${JSON.stringify(repo.url)})'>编辑标签</button>
+        <button class="action-quiet compact" type="button" onclick='editRepoNote(${JSON.stringify(repo.url)})'>编辑笔记</button>
+      </div>
+    </div>
+    <div class="detail-section">
+      <div class="section-label">README 摘要</div>
+      <div class="readme-block">${h(detail.readme_summary || detail.readme_summary_raw || "暂无 README 摘要")}</div>
+    </div>
+    ${topics.length ? `<div class="detail-section"><div class="section-label">主题</div><div class="topic-list">${topics.map(topic => `<span class="topic">${h(topic)}</span>`).join("")}</div></div>` : ""}
+    <div class="detail-section">
+      <div class="section-label">AI Insight Schema MVP</div>
+      <div class="sub">显式 opt-in：这里不会自动调用云端 AI。你可以复制 RepoContext JSON，去外部工具生成结构化结果后再手动贴回本地。</div>
+      <textarea id="detail-ai-insight-input" class="field-input" style="min-height:180px;">${h(insightText)}</textarea>
+      <div class="panel-actions">
+        <button class="action-quiet compact" type="button" onclick='copyAiInsightContext(${JSON.stringify(repo.url)}, currentDetailData)'>复制 RepoContext JSON</button>
+        <button class="action-primary compact" type="button" onclick="saveCurrentDetailAiInsight()">保存 Insight JSON</button>
+        <button class="action-quiet compact" type="button" onclick="clearCurrentDetailAiInsight()">清除 Insight</button>
+      </div>
+    </div>
+    <div class="panel-actions">
+      <button class="action-quiet" type="button" onclick='copyRepoMarkdownSummary(${JSON.stringify(repo.url)})'>复制 Markdown 摘要</button>
+      <a class="action-quiet" href="${h(detail.html_url || repo.url || "#")}" target="_blank" rel="noopener" data-external-url="${h(detail.html_url || repo.url || "#")}">打开 GitHub</a>
+    </div>
+  `;
+}
+
+async function saveCurrentDetailAiInsight(){
+  if(!currentDetailRepo || !currentDetailUrl){
+    toast("当前没有可保存的 AI Insight");
+    return;
+  }
+  const raw = document.getElementById("detail-ai-insight-input")?.value || "";
+  try{
+    await saveAiInsight(currentDetailUrl, raw, currentDetailRepo);
+    render();
+    renderCurrentDetailPanel();
+    toast("AI Insight 已保存到本地");
+  }catch(error){
+    toast(error.message || "保存 AI Insight 失败");
+  }
+}
+
+async function clearCurrentDetailAiInsight(){
+  if(!currentDetailUrl){
+    toast("当前没有可清除的 AI Insight");
+    return;
+  }
+  if(!window.confirm("确认清除这个仓库的 AI Insight 吗？")) return;
+  try{
+    await removeAiInsight(currentDetailUrl);
+    render();
+    renderCurrentDetailPanel();
+    toast("AI Insight 已清除");
+  }catch(error){
+    toast(error.message || "删除 AI Insight 失败");
+  }
+}
+
 async function openDetail(owner, name, label){
   setOverlayVisible("detail-modal", true);
   document.getElementById("detail-title").textContent = label;
   document.getElementById("detail-body").innerHTML = `<div class="empty">${emptyIcon}<span>正在拉取仓库详情...</span></div>`;
   try{
     const detail = await fetchRepoDetails({owner, name});
-    const topics = Array.isArray(detail.topics) ? detail.topics.filter(Boolean) : [];
-    const metricMarkup = [
-      metricPillMarkup("星标", `<span class="metric-number">${detail.stars || 0}</span>`),
-      metricPillMarkup("派生", `<span class="metric-number">${detail.forks || 0}</span>`),
-      metricPillMarkup("关注者", `<span class="metric-number">${detail.watchers || 0}</span>`),
-      metricPillMarkup("议题", `<span class="metric-number">${detail.open_issues || 0}</span>`),
-    ].join("");
-    document.getElementById("detail-body").innerHTML = `<div class="detail-hero"><div class="badges"><span class="badge source">${h(detail.license || "未标注许可证")}</span><span class="badge source">${h(detail.default_branch || "未知分支")}</span>${detail.homepage ? `<a class="badge source" href="${h(detail.homepage)}" target="_blank" rel="noopener" data-external-url="${h(detail.homepage)}">主页</a>` : ""}</div><div class="readme-block">${h(detail.description || detail.description_raw || "暂无简介")}</div><div class="card-metrics">${metricMarkup}</div></div><div class="detail-section"><div class="section-label">仓库概览</div><div class="detail-grid"><div class="detail-item"><strong>仓库</strong><span>${h(detail.full_name || label)}</span></div><div class="detail-item"><strong>最近推送</strong><span>${h(detail.pushed_at || "未知")}</span></div><div class="detail-item"><strong>最后更新</strong><span>${h(detail.updated_at || "未知")}</span></div><div class="detail-item"><strong>默认分支</strong><span>${h(detail.default_branch || "未知")}</span></div><div class="detail-item"><strong>许可证</strong><span>${h(detail.license || "未标注")}</span></div><div class="detail-item"><strong>主页</strong><span>${detail.homepage ? `<a class="link-inline" href="${h(detail.homepage)}" target="_blank" rel="noopener" data-external-url="${h(detail.homepage)}">${h(detail.homepage)}</a>` : "未填写"}</span></div></div></div><div class="detail-section"><div class="section-label">README 摘要</div><div class="readme-block">${h(detail.readme_summary || detail.readme_summary_raw || "暂无 README 摘要")}</div></div>${topics.length ? `<div class="detail-section"><div class="section-label">主题</div><div class="topic-list">${topics.map(topic => `<span class="topic">${h(topic)}</span>`).join("")}</div></div>` : ""}<div class="panel-actions"><a class="action-quiet" href="${h(detail.html_url || "#")}" target="_blank" rel="noopener" data-external-url="${h(detail.html_url || "#")}">打开 GitHub</a></div>`;
+    currentDetailUrl = detail.html_url || `https://github.com/${owner}/${name}`;
+    currentDetailRepo = repoByUrl(currentDetailUrl) || {
+      full_name:detail.full_name || label,
+      owner,
+      name,
+      url:currentDetailUrl,
+      description:detail.description || detail.description_raw || "",
+      description_raw:detail.description_raw || detail.description || "",
+      language:detail.language || "",
+      stars:detail.stars || 0,
+      forks:detail.forks || 0,
+      source_label:"GitHub 详情",
+      topics:Array.isArray(detail.topics) ? detail.topics : [],
+      match_reasons:[],
+    };
+    currentDetailData = detail;
+    renderCurrentDetailPanel();
   }catch(error){
+    currentDetailUrl = "";
+    currentDetailRepo = null;
+    currentDetailData = null;
     document.getElementById("detail-body").innerHTML = `<div class="empty">${emptyIcon}<span>${h(error.message || "详情获取失败")}</span></div>`;
   }
 }
@@ -313,6 +472,9 @@ function openDetailFromRecord(fullName, url){
 }
 
 function closeDetail(){
+  currentDetailUrl = "";
+  currentDetailRepo = null;
+  currentDetailData = null;
   setOverlayVisible("detail-modal", false);
 }
 

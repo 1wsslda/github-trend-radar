@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 def build_discovery_api(*, deps, state, github_get, fetch_repo_details):
     settings = deps.settings
     periods = deps.periods
+    user_state = deps.user_state
     normalize = deps.normalize
     clamp_int = deps.clamp_int
     translate_query_to_en = deps.translate_query_to_en
@@ -387,6 +388,8 @@ def build_discovery_api(*, deps, state, github_get, fetch_repo_details):
         forks = clamp_int(details.get("forks"), clamp_int(repo.get("forks"), 0, 0), 0)
         activity_days = days_since_repo_activity(repo, details)
         trending_hit = full_name.lower() in trending_names
+        feedback_signal = (user_state.get("feedback_signals", {}) or {}).get(normalize(repo.get("url")))
+        feedback_reason = normalize((feedback_signal or {}).get("reason"))
         license_id = normalize(details.get("license"))
         homepage = normalize(details.get("homepage"))
         readme_available = bool(readme_raw or readme_text)
@@ -412,6 +415,8 @@ def build_discovery_api(*, deps, state, github_get, fetch_repo_details):
             composite_score = min(100, int(round(relevance_score * 0.24 + trendiness_score * 0.54 + hot_score * 0.22)))
         else:
             composite_score = min(100, int(round(relevance_score * 0.58 + hot_score * 0.42)))
+        if feedback_signal:
+            composite_score = max(0, composite_score - min(18, 6 + int((feedback_signal or {}).get("count") or 0) * 2))
 
         reasons: list[str] = []
         if matched_base_name:
@@ -422,6 +427,8 @@ def build_discovery_api(*, deps, state, github_get, fetch_repo_details):
             reasons.append(f"主题命中“{matched_base_topic[0]}”")
         if matched_related:
             reasons.append(f"相关词命中“{matched_related[0]}”")
+        if feedback_reason:
+            reasons.append(f"你曾因“{feedback_reason}”忽略过它")
         if activity_days <= 30:
             reasons.append(f"最近 {max(1, activity_days)} 天仍有提交")
         if trending_hit:

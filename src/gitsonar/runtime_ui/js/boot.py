@@ -64,6 +64,8 @@ document.querySelectorAll("#discover-query").forEach(node => {
     openDiscoverySuggestions();
   });
   node.addEventListener("input", event => {
+    discoverDraft.viewId = "";
+    discoverDraft.limit = currentDiscoveryLimit();
     discoverDraft.query = event.target.value;
     openDiscoverySuggestions();
     syncDiscoverDraftUI();
@@ -84,6 +86,8 @@ document.querySelectorAll("#discover-query").forEach(node => {
 });
 
 document.getElementById("discover-auto-expand").addEventListener("change", event => {
+  discoverDraft.viewId = "";
+  discoverDraft.limit = currentDiscoveryLimit();
   discoverDraft.autoExpand = !!event.target.checked;
   syncDiscoverDraftUI();
 });
@@ -145,6 +149,9 @@ document.getElementById("detail-modal").addEventListener("click", event => {
 document.getElementById("compare-modal").addEventListener("click", event => {
   if(event.target.id === "compare-modal") closeCompare();
 });
+document.getElementById("diagnostics-modal").addEventListener("click", event => {
+  if(event.target.id === "diagnostics-modal") closeDiagnostics();
+});
 
 document.addEventListener("click", event => {
   const externalTarget = event.target.closest("[data-external-url]");
@@ -181,6 +188,7 @@ window.addEventListener("keydown", event => {
   closeSettings();
   closeDetail();
   closeCompare();
+  closeDiagnostics();
 });
 
 async function resumeDiscoveryRuntime(){

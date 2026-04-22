@@ -273,6 +273,13 @@ def build_favorites_api(*, deps, github_get):
             return None
 
         checked_at = normalize(after.get("checked_at")) or iso_now()
+        priority_score = min(
+            100,
+            len(changes) * 18
+            + (28 if latest_release_tag else 0)
+            + (16 if "最近有新提交" in changes else 0)
+            + min(24, max(0, star_delta) * 2),
+        )
         return {
             "id": f"{normalize(after.get('full_name'))}:{checked_at}",
             "full_name": normalize(after.get("full_name")),
@@ -283,6 +290,7 @@ def build_favorites_api(*, deps, github_get):
             "forks": clamp_int(after.get("forks"), 0, 0),
             "latest_release_tag": latest_release_tag,
             "pushed_at": normalize(after.get("pushed_at")),
+            "priority_score": priority_score,
         }
 
     def track_favorite_updates() -> int:

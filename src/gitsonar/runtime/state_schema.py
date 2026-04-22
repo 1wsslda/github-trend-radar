@@ -5,6 +5,7 @@ import hashlib
 from types import SimpleNamespace
 from urllib.parse import urlparse
 
+from .ai_insight import normalize_ai_insight as normalize_ai_insight_payload
 from .repo_records import build_repo_record
 
 DISCOVERY_RANKING_PROFILES = {"balanced", "hot", "fresh", "builder", "trend"}
@@ -33,8 +34,11 @@ def make_state_schema(
             "read": [],
             "ignored": [],
             "repo_records": {},
+            "repo_annotations": {},
             "favorite_watch": {},
             "favorite_updates": [],
+            "feedback_signals": {},
+            "ai_insights": {},
         }
 
     def default_discovery_state() -> dict[str, object]:
@@ -48,6 +52,7 @@ def make_state_schema(
             "last_warnings": [],
             "last_run_at": "",
             "last_error": "",
+            "saved_views": [],
         }
 
     def normalize_discovery_ranking_profile(value: object) -> str:
@@ -129,6 +134,18 @@ def make_state_schema(
             "checked_at": normalize(raw.get("checked_at")),
         }
 
+    def normalize_repo_annotation(payload: object) -> dict[str, object] | None:
+        raw = payload if isinstance(payload, dict) else {}
+        tags = [normalize(item) for item in raw.get("tags", []) if normalize(item)]
+        note = normalize(raw.get("note"))
+        if not tags and not note:
+            return None
+        return {
+            "tags": list(dict.fromkeys(tags))[:12],
+            "note": note,
+            "updated_at": normalize(raw.get("updated_at")) or iso_now(),
+        }
+
     def normalize_favorite_update(payload: object) -> dict[str, object] | None:
         raw = payload if isinstance(payload, dict) else {}
         full_name = normalize(raw.get("full_name"))
@@ -148,6 +165,41 @@ def make_state_schema(
             "forks": clamp_int(raw.get("forks"), 0, 0),
             "latest_release_tag": normalize(raw.get("latest_release_tag")),
             "pushed_at": normalize(raw.get("pushed_at")),
+            "read_at": normalize(raw.get("read_at")),
+            "dismissed_at": normalize(raw.get("dismissed_at")),
+            "pinned": as_bool(raw.get("pinned"), False),
+            "priority_score": clamp_int(raw.get("priority_score"), 0, 0, 100),
+        }
+
+    def normalize_feedback_signal(payload: object) -> dict[str, object] | None:
+        raw = payload if isinstance(payload, dict) else {}
+        reason = normalize(raw.get("reason"))
+        count = clamp_int(raw.get("count"), 0, 0, 9999)
+        if not reason and count <= 0:
+            return None
+        return {
+            "reason": reason,
+            "count": count or 1,
+            "updated_at": normalize(raw.get("updated_at")) or iso_now(),
+            "state": normalize(raw.get("state")) or "ignored",
+        }
+
+    def normalize_saved_view(payload: object) -> dict[str, object] | None:
+        raw = payload if isinstance(payload, dict) else {}
+        query_payload = normalize_discovery_query(raw)
+        name = normalize(raw.get("name"))
+        if not query_payload or not name:
+            return None
+        return {
+            "id": normalize(raw.get("id")) or query_payload["id"],
+            "name": name,
+            "query": query_payload["query"],
+            "limit": query_payload["limit"],
+            "auto_expand": query_payload["auto_expand"],
+            "ranking_profile": query_payload["ranking_profile"],
+            "created_at": normalize(raw.get("created_at")) or query_payload.get("created_at") or iso_now(),
+            "last_run_at": normalize(raw.get("last_run_at")) or query_payload.get("last_run_at"),
+            "last_result_count": clamp_int(raw.get("last_result_count"), 0, 0, 999),
         }
 
     def normalize_discovery_state(payload: object) -> dict[str, object]:
@@ -162,6 +214,14 @@ def make_state_schema(
         state["last_warnings"] = discovery_warning_list(normalize, raw.get("last_warnings"), limit=8)
         state["last_run_at"] = normalize(raw.get("last_run_at"))
         state["last_error"] = normalize(raw.get("last_error"))
+        saved_views: list[dict[str, object]] = []
+        seen_view_ids: set[str] = set()
+        for item in raw.get("saved_views", []):
+            clean = normalize_saved_view(item)
+            if clean and clean["id"] not in seen_view_ids:
+                saved_views.append(clean)
+                seen_view_ids.add(clean["id"])
+        state["saved_views"] = saved_views[:20]
         return state
 
     def normalize_user_state(payload: object) -> dict[str, object]:
@@ -174,6 +234,12 @@ def make_state_schema(
             url: clean
             for url, repo in records.items()
             if (clean := normalize_repo(repo))
+        }
+        annotations = raw.get("repo_annotations", {}) if isinstance(raw.get("repo_annotations"), dict) else {}
+        state["repo_annotations"] = {
+            url: clean
+            for url, item in annotations.items()
+            if normalize(url) and (clean := normalize_repo_annotation(item))
         }
         watch = raw.get("favorite_watch", {}) if isinstance(raw.get("favorite_watch"), dict) else {}
         state["favorite_watch"] = {
@@ -189,6 +255,25 @@ def make_state_schema(
                 favorite_updates.append(clean)
                 seen_update_ids.add(clean["id"])
         state["favorite_updates"] = favorite_updates
+        feedback_signals = raw.get("feedback_signals", {}) if isinstance(raw.get("feedback_signals"), dict) else {}
+        state["feedback_signals"] = {
+            url: clean
+            for url, item in feedback_signals.items()
+            if normalize(url) and (clean := normalize_feedback_signal(item))
+        }
+        ai_insights = raw.get("ai_insights", {}) if isinstance(raw.get("ai_insights"), dict) else {}
+        state["ai_insights"] = {
+            url: clean
+            for url, item in ai_insights.items()
+            if normalize(url) and (
+                clean := normalize_ai_insight_payload(
+                    item,
+                    normalize=normalize,
+                    clamp_int=clamp_int,
+                    iso_now=iso_now,
+                )
+            )
+        }
         return state
 
     def state_counts(state: dict[str, object]) -> dict[str, int]:
@@ -232,7 +317,16 @@ def make_state_schema(
         normalize_repo=normalize_repo,
         repo_from_url=repo_from_url,
         normalize_watch_entry=normalize_watch_entry,
+        normalize_repo_annotation=normalize_repo_annotation,
         normalize_favorite_update=normalize_favorite_update,
+        normalize_feedback_signal=normalize_feedback_signal,
+        normalize_ai_insight=lambda payload: normalize_ai_insight_payload(
+            payload,
+            normalize=normalize,
+            clamp_int=clamp_int,
+            iso_now=iso_now,
+        ),
+        normalize_saved_view=normalize_saved_view,
         normalize_discovery_state=normalize_discovery_state,
         normalize_user_state=normalize_user_state,
         state_counts=state_counts,

@@ -24,6 +24,26 @@ function rememberedDiscoveryQuery(){
   return discoveryState && typeof discoveryState.remembered_query === "object" ? discoveryState.remembered_query : {};
 }
 
+function savedDiscoveryViews(){
+  return Array.isArray(discoveryState.saved_views) ? discoveryState.saved_views : [];
+}
+
+function repoAnnotationByUrl(url){
+  return userState.repo_annotations?.[url] || {};
+}
+
+function repoTagsForUrl(url){
+  return Array.isArray(repoAnnotationByUrl(url).tags) ? repoAnnotationByUrl(url).tags : [];
+}
+
+function repoNoteForUrl(url){
+  return String(repoAnnotationByUrl(url).note || "").trim();
+}
+
+function aiInsightByUrl(url){
+  return userState.ai_insights?.[url] || null;
+}
+
 function updateByUrl(url){
   return (userState.favorite_updates || []).find(item => item.url === url) || null;
 }
@@ -48,6 +68,7 @@ function synthesizeRepoFromUpdate(update){
     period_key:UPDATE_PANEL_KEY,
     source_label:"收藏更新",
     source_key:"favorite_update",
+    topics:[],
   };
 }
 
@@ -75,6 +96,7 @@ function synthesizeRepoFromUrl(url){
       period_key:"saved",
       source_label:"本地状态",
       source_key:"local_state",
+      topics:[],
     };
   }catch(_err){
     return null;
@@ -154,7 +176,9 @@ function repoLine(repo){
 }
 
 function collectionRepoLine(repo, index){
-  return `${index + 1}. ${repo.full_name} | ${repo.language || "未知语言"} | Stars ${repo.stars || 0} | ${repo.url}\n   增长: ${gainLabel(repo)}\n   来源: ${repo.source_label || "未知来源"}\n   简介: ${repo.description || repo.description_raw || "暂无描述"}`;
+  const tags = repoTagsForUrl(repo.url);
+  const note = repoNoteForUrl(repo.url);
+  return `${index + 1}. ${repo.full_name} | ${repo.language || "未知语言"} | Stars ${repo.stars || 0} | ${repo.url}\n   增长: ${gainLabel(repo)}\n   来源: ${repo.source_label || "未知来源"}\n   简介: ${repo.description || repo.description_raw || "暂无描述"}${tags.length ? `\n   标签: ${tags.join(" / ")}` : ""}${note ? `\n   笔记: ${note}` : ""}`;
 }
 
 function learningPromptSection(name){
@@ -188,6 +212,8 @@ function learningLanguageRules(extraLines = []){
 }
 
 function repoFactsBlock(repo){
+  const tags = repoTagsForUrl(repo.url);
+  const note = repoNoteForUrl(repo.url);
   return `【仓库信息】
 名称：${repo.full_name}
 链接：${repo.url}
@@ -195,7 +221,7 @@ function repoFactsBlock(repo){
 总星标：${repo.stars || 0}
 增长：${gainLabel(repo)}
 来源：${repo.source_label || "未知来源"}
-简介：${repo.description || repo.description_raw || "暂无描述"}`;
+简介：${repo.description || repo.description_raw || "暂无描述"}${tags.length ? `\n标签：${tags.join(" / ")}` : ""}${note ? `\n笔记：${note}` : ""}`;
 }
 
 function compareRepoFactsBlock(title, repo, detail){
@@ -319,6 +345,48 @@ function buildAnalysisMarkdown(title, prompt, repos){
     "~~~~",
     "",
   ];
+  return lines.join("\n");
+}
+
+function buildRepoMarkdownSummary(repo, detail = null){
+  const target = detail && typeof detail === "object" ? detail : {};
+  const tags = repoTagsForUrl(repo.url);
+  const note = repoNoteForUrl(repo.url);
+  const topics = Array.isArray(target.topics) ? target.topics.filter(Boolean) : (Array.isArray(repo.topics) ? repo.topics.filter(Boolean) : []);
+  const lines = [
+    `# ${repo.full_name}`,
+    "",
+    `- 链接：${repo.url}`,
+    `- 语言：${repo.language || target.language || "未知"}`,
+    `- 星标：${target.stars || repo.stars || 0}`,
+    `- Forks：${target.forks || repo.forks || 0}`,
+    `- 来源：${repo.source_label || "GitHub"}`,
+    `- 最近推送：${target.pushed_at || repo.pushed_at || "未知"}`,
+  ];
+  if(target.latest_release_tag) lines.push(`- 最新版本：${target.latest_release_tag}`);
+  if(tags.length) lines.push(`- 标签：${tags.join(" / ")}`);
+  lines.push("");
+  lines.push("## 简介");
+  lines.push("");
+  lines.push(target.description || target.description_raw || repo.description || repo.description_raw || "暂无简介");
+  if(topics.length){
+    lines.push("");
+    lines.push("## Topics");
+    lines.push("");
+    lines.push(topics.map(topic => `- ${topic}`).join("\n"));
+  }
+  if(target.readme_summary || target.readme_summary_raw){
+    lines.push("");
+    lines.push("## README 摘要");
+    lines.push("");
+    lines.push(target.readme_summary || target.readme_summary_raw);
+  }
+  if(note){
+    lines.push("");
+    lines.push("## 我的笔记");
+    lines.push("");
+    lines.push(note);
+  }
   return lines.join("\n");
 }"""
 

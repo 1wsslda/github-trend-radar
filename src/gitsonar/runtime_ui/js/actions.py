@@ -157,6 +157,201 @@ async function fetchRepoDetails(repo){
   return data.details;
 }
 
+function promptIgnoreReason(){
+  const reason = window.prompt("忽略原因（例如：不相关 / 太旧 / 只是 demo / 已有替代）：", "");
+  if(reason === null) return null;
+  return String(reason || "").trim();
+}
+
+async function persistRepoAnnotation(url, repo, {tags = null, note = null} = {}){
+  const existing = repoAnnotationByUrl(url);
+  const payload = {
+    url,
+    repo,
+    tags:Array.isArray(tags) ? tags : (Array.isArray(existing.tags) ? existing.tags : []),
+    note:typeof note === "string" ? note : String(existing.note || ""),
+  };
+  const {resp, data} = await requestJson(
+    "/api/repo-annotations",
+    {
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify(payload),
+    },
+    "保存标签或笔记失败",
+  );
+  if(!resp.ok || !data.ok){
+    throw new Error(data.error || "保存标签或笔记失败");
+  }
+  userState = data.user_state || userState;
+  return data.annotation || {};
+}
+
+async function editRepoTags(url){
+  const repo = repoByUrl(url);
+  if(!repo){
+    toast("未找到仓库信息");
+    return;
+  }
+  const current = repoTagsForUrl(url).join(", ");
+  const next = window.prompt("编辑标签（用逗号分隔）：", current);
+  if(next === null) return;
+  const tags = String(next || "")
+    .split(",")
+    .map(item => String(item || "").trim())
+    .filter(Boolean);
+  try{
+    await persistRepoAnnotation(url, repo, {tags});
+    render();
+    if(typeof renderCurrentDetailPanel === "function" && currentDetailUrl === url) renderCurrentDetailPanel();
+    toast(tags.length ? "标签已保存" : "标签已清空");
+  }catch(error){
+    toast(error.message || "标签保存失败");
+  }
+}
+
+async function editRepoNote(url){
+  const repo = repoByUrl(url);
+  if(!repo){
+    toast("未找到仓库信息");
+    return;
+  }
+  const next = window.prompt("编辑笔记：", repoNoteForUrl(url));
+  if(next === null) return;
+  try{
+    await persistRepoAnnotation(url, repo, {note:String(next || "").trim()});
+    render();
+    if(typeof renderCurrentDetailPanel === "function" && currentDetailUrl === url) renderCurrentDetailPanel();
+    toast(String(next || "").trim() ? "笔记已保存" : "笔记已清空");
+  }catch(error){
+    toast(error.message || "笔记保存失败");
+  }
+}
+
+async function copyRepoMarkdownSummary(url){
+  const repo = repoByUrl(url);
+  if(!repo){
+    toast("未找到仓库信息");
+    return;
+  }
+  try{
+    const detail = repo.owner && repo.name ? await fetchRepoDetails(repo) : null;
+    await copyText(buildRepoMarkdownSummary(repo, detail), "仓库 Markdown 摘要已复制");
+  }catch(error){
+    toast(error.message || "复制摘要失败");
+  }
+}
+
+async function setFavoriteUpdateState(id, payload){
+  try{
+    const {resp, data} = await requestJson(
+      "/api/favorite-updates/state",
+      {
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({id, ...payload}),
+      },
+      "更新收件箱状态保存失败",
+    );
+    if(!resp.ok || !data.ok){
+      toast(data.error || "更新收件箱状态保存失败");
+      return false;
+    }
+    userState = data.user_state || userState;
+    render();
+    return true;
+  }catch(error){
+    toast(error.message || "更新收件箱状态保存失败");
+    return false;
+  }
+}
+
+async function setFavoriteUpdateRead(id, read){
+  await setFavoriteUpdateState(id, {read:!!read});
+}
+
+async function setFavoriteUpdatePinned(id, pinned){
+  await setFavoriteUpdateState(id, {pinned:!!pinned});
+}
+
+async function dismissFavoriteUpdate(id){
+  await setFavoriteUpdateState(id, {dismissed:true});
+}
+
+function buildAiInsightContext(repo, detail = null){
+  const target = detail && typeof detail === "object" ? detail : {};
+  return {
+    schema_version:"gitsonar.repo_insight.v1",
+    repo:repo.full_name,
+    url:repo.url,
+    description:target.description || target.description_raw || repo.description || repo.description_raw || "",
+    language:target.language || repo.language || "",
+    topics:Array.isArray(target.topics) ? target.topics.filter(Boolean) : (Array.isArray(repo.topics) ? repo.topics.filter(Boolean) : []),
+    stars:Number(target.stars || repo.stars || 0) || 0,
+    forks:Number(target.forks || repo.forks || 0) || 0,
+    watchers:Number(target.watchers || 0) || 0,
+    open_issues:Number(target.open_issues || 0) || 0,
+    updated_at:String(target.updated_at || repo.updated_at || "").trim(),
+    pushed_at:String(target.pushed_at || repo.pushed_at || "").trim(),
+    latest_release_tag:String(target.latest_release_tag || "").trim(),
+    readme_summary:String(target.readme_summary || target.readme_summary_raw || "").trim(),
+    user_tags:repoTagsForUrl(repo.url),
+    user_note:repoNoteForUrl(repo.url),
+  };
+}
+
+async function copyAiInsightContext(url, detailOverride = null){
+  const repo = repoByUrl(url);
+  if(!repo){
+    toast("未找到仓库信息");
+    return;
+  }
+  const detail = detailOverride || (repo.owner && repo.name ? await fetchRepoDetails(repo) : null);
+  await copyText(JSON.stringify(buildAiInsightContext(repo, detail), null, 2), "RepoContext JSON 已复制");
+}
+
+async function saveAiInsight(url, rawInsight, repo = null){
+  const targetRepo = repo || repoByUrl(url);
+  let insightPayload = rawInsight;
+  if(typeof rawInsight === "string"){
+    try{
+      insightPayload = JSON.parse(rawInsight);
+    }catch(_err){
+      throw new Error("AI Insight 必须是合法 JSON");
+    }
+  }
+  const {resp, data} = await requestJson(
+    "/api/ai-insights",
+    {
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({url, repo:targetRepo, insight:insightPayload}),
+    },
+    "保存 AI Insight 失败",
+  );
+  if(!resp.ok || !data.ok){
+    throw new Error(data.error || "保存 AI Insight 失败");
+  }
+  userState = data.user_state || userState;
+  return data.insight || null;
+}
+
+async function removeAiInsight(url){
+  const {resp, data} = await requestJson(
+    "/api/ai-insights/delete",
+    {
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({url}),
+    },
+    "删除 AI Insight 失败",
+  );
+  if(!resp.ok || !data.ok){
+    throw new Error(data.error || "删除 AI Insight 失败");
+  }
+  userState = data.user_state || userState;
+}
+
 function buildComparePrompt(a, b, detailA, detailB){
   const repoABlock = compareRepoFactsBlock("项目 A", a, detailA);
   const repoBBlock = compareRepoFactsBlock("项目 B", b, detailB);
@@ -194,13 +389,18 @@ async function toggleState(key, url){
   pendingStateRequests.add(requestKey);
   const wasVisible = visibleLinkList().includes(url);
   const enabling = !((userState[key] || []).includes(url));
+  const feedbackReason = key === "ignored" && enabling ? promptIgnoreReason() : "";
+  if(key === "ignored" && enabling && feedbackReason === null){
+    pendingStateRequests.delete(requestKey);
+    return;
+  }
   try{
     const {resp, data} = await requestJson(
       "/api/state",
       {
         method:"POST",
         headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({state:key, enabled:enabling, repo}),
+        body:JSON.stringify({state:key, enabled:enabling, repo, feedback_reason:feedbackReason || ""}),
       },
       "更新失败",
     );
@@ -230,9 +430,11 @@ async function toggleState(key, url){
 async function batchSetState(stateKey){
   const repos = selectedRepos();
   if(!repos.length){
-    toast("璇峰厛閫変腑浠撳簱鍐嶆壒閲忔搷浣?");
+    toast("请先选中仓库再批量操作");
     return;
   }
+  const feedbackReason = stateKey === "ignored" ? promptIgnoreReason() : "";
+  if(stateKey === "ignored" && feedbackReason === null) return;
   let resp, data;
   try{
     ({resp, data} = await requestJson(
@@ -240,12 +442,12 @@ async function batchSetState(stateKey){
       {
         method:"POST",
         headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({state:stateKey, enabled:true, repos}),
+        body:JSON.stringify({state:stateKey, enabled:true, repos, feedback_reason:feedbackReason || ""}),
       },
-      "鎵归噺鎿嶄綔澶辫触",
+      "批量操作失败",
     ));
   }catch(error){
-    toast(error.message || "鎵归噺鎿嶄綔澶辫触");
+    toast(error.message || "批量操作失败");
     return;
   }
   const label = stateDefs().find(state => state.key === stateKey)?.label || stateKey;
@@ -256,13 +458,13 @@ async function batchSetState(stateKey){
   }
   if(!resp.ok || !data.ok){
     if(processedCount > 0){
-      toast(`宸插畬鎴?${processedCount} 涓粨搴撳悗鍋滄锛?${data.error || "鎵归噺鎿嶄綔澶辫触"}`);
+      toast(`已完成 ${processedCount} 个仓库后停止：${data.error || "批量操作失败"}`);
       return;
     }
-    toast(data.error || "鎵归噺鎿嶄綔澶辫触");
+    toast(data.error || "批量操作失败");
     return;
   }
-  toast(`宸插皢 ${processedCount} 涓粨搴撳姞鍏モ€?${label}鈥?`);
+  toast(`已将 ${processedCount} 个仓库加入“${label}”`);
 }
 
 

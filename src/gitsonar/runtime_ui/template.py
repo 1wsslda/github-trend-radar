@@ -36,6 +36,7 @@ HTML_BODY = """</style>
             <button class="menu-item" type="button" onclick="beginImportUserState('merge');closeMenus();">导入并合并</button>
             <button class="menu-item" type="button" onclick="beginImportUserState('replace');closeMenus();">导入并覆盖</button>
             <button class="menu-item" type="button" onclick="syncGitHubStars();closeMenus();">从 GitHub 同步星标</button>
+            <button class="menu-item" type="button" onclick="openDiagnostics();closeMenus();">运行诊断</button>
             <button class="menu-item" type="button" id="clear-updates-menu-item" onclick="clearFavoriteUpdates();closeMenus();" hidden>清空关注更新</button>
             <div class="menu-divider"></div>
             <div class="menu-note">快捷键：↑ / ↓ 浏览，空格键选中，Shift + 1~4 批量收纳。</div>
@@ -345,6 +346,7 @@ HTML_BODY = """</style>
       <div class="sub" id="settings-runtime-hint"></div>
       <div class="settings-actions">
         <button class="action-primary" type="button" onclick="saveSettings()">保存设置</button>
+        <button class="action-quiet" type="button" onclick="openDiagnostics()">运行诊断</button>
         <button class="action-quiet danger" type="button" onclick="exitApp()">退出程序</button>
       </div>
     </div>
@@ -374,6 +376,19 @@ HTML_BODY = """</style>
       <button class="action-quiet" type="button" onclick="closeCompare()">关闭</button>
     </div>
     <div class="panel-body" id="compare-body"></div>
+  </div>
+</section>
+
+<section class="overlay detail" id="diagnostics-modal">
+  <div class="panel">
+    <div class="panel-head">
+      <div>
+        <div class="panel-title">运行诊断</div>
+        <div class="sub">检查 GitHub API、Token、代理、本地端口和运行状态文件，结果只保留在本机。</div>
+      </div>
+      <button class="action-quiet" type="button" onclick="closeDiagnostics()">关闭</button>
+    </div>
+    <div class="panel-body" id="diagnostics-body"></div>
   </div>
 </section>
 
