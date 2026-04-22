@@ -105,8 +105,6 @@ powershell -ExecutionPolicy Bypass -File .\scripts\build_setup.ps1
 scripts\build_all_click.cmd
 ```
 
-更多构建细节见 [docs/BUILD.md](docs/BUILD.md)。
-
 ## 典型工作流
 
 1. 在 `今天 / 本周 / 本月` 或关键词发现里找候选仓库
@@ -152,9 +150,10 @@ scripts\build_all_click.cmd
 
 ## 文档入口
 
-- [docs/BUILD.md](docs/BUILD.md)
+- [docs/strategy/GITSONAR_STRATEGY.md](docs/strategy/GITSONAR_STRATEGY.md)
+- [docs/roadmap/ROADMAP.md](docs/roadmap/ROADMAP.md)
+- [docs/plans/PLAN_TEMPLATE.md](docs/plans/PLAN_TEMPLATE.md)
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
-- [docs/FAQ.md](docs/FAQ.md)
 - [docs/SECURITY.md](docs/SECURITY.md)
 - [CHANGELOG.md](CHANGELOG.md)
 - [CONTRIBUTING.md](CONTRIBUTING.md)

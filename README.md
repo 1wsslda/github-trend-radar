@@ -80,8 +80,6 @@ One-click packaging:
 scripts\build_all_click.cmd
 ```
 
-See [docs/BUILD.md](docs/BUILD.md) for build details.
-
 ## Security & Data
 
 - Packaged app data lives under `%LOCALAPPDATA%\GitSonar`
@@ -103,9 +101,10 @@ Planned, not yet implemented:
 
 ## Docs
 
-- [docs/BUILD.md](docs/BUILD.md)
+- [docs/strategy/GITSONAR_STRATEGY.md](docs/strategy/GITSONAR_STRATEGY.md)
+- [docs/roadmap/ROADMAP.md](docs/roadmap/ROADMAP.md)
+- [docs/plans/PLAN_TEMPLATE.md](docs/plans/PLAN_TEMPLATE.md)
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
-- [docs/FAQ.md](docs/FAQ.md)
 - [docs/SECURITY.md](docs/SECURITY.md)
 - [CHANGELOG.md](CHANGELOG.md)
 - [CONTRIBUTING.md](CONTRIBUTING.md)
