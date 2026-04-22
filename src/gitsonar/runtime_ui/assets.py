@@ -16,7 +16,6 @@ from .js.helpers import JS as JS_HELPERS
 from .js.menus import JS as JS_MENUS
 from .js.overlays import JS as JS_OVERLAYS
 from .js.panels import JS as JS_PANELS
-from .js.prompt_profiles import JS as JS_PROMPT_PROFILES
 from .js.state import JS as JS_STATE
 
 CSS = "\n\n".join(
@@ -32,7 +31,6 @@ CSS = "\n\n".join(
 
 JS = "\n\n".join(
     (
-        JS_PROMPT_PROFILES,
         JS_CONSTANTS,
         JS_HELPERS,
         JS_STATE,

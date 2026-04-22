@@ -15,9 +15,39 @@ if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
 from gitsonar.runtime_ui.assets import JS
+from gitsonar.runtime_ui import prompt_profiles as prompt_profiles_module
+from gitsonar.runtime_ui.js import prompt_profiles as js_prompt_profiles_module
 
 
 class RuntimeUIJSContractTests(unittest.TestCase):
+    def test_legacy_prompt_profile_python_exports_remain_available_for_compat(self):
+        for attr in (
+            "DEFAULT_PROMPT_PROFILE",
+            "PROMPT_PROFILE_DEFINITIONS",
+            "PROMPT_PROFILE_DEFINITIONS_JSON",
+            "PROMPT_PROFILE_LEGACY_ALIASES",
+            "PROMPT_PROFILE_LEGACY_ALIASES_JSON",
+            "PROMPT_PROFILE_MENU_GROUPS",
+            "PROMPT_PROFILE_MENU_GROUPS_JSON",
+            "PROMPT_PROFILE_ORDER",
+            "PROMPT_PROFILE_ORDER_JSON",
+            "render_prompt_profile_menu_panel",
+            "LEARNING_PROMPT_SPEC",
+            "LEARNING_PROMPT_SPEC_JSON",
+        ):
+            with self.subTest(attr=attr):
+                self.assertTrue(hasattr(prompt_profiles_module, attr))
+
+        self.assertEqual(prompt_profiles_module.DEFAULT_PROMPT_PROFILE, "j_full")
+        self.assertIn("j_full", prompt_profiles_module.PROMPT_PROFILE_DEFINITIONS)
+        self.assertIn("a_general", prompt_profiles_module.PROMPT_PROFILE_DEFINITIONS)
+        self.assertTrue(callable(prompt_profiles_module.render_prompt_profile_menu_panel))
+
+    def test_legacy_prompt_profile_js_module_path_remains_importable(self):
+        self.assertIsInstance(js_prompt_profiles_module.JS, str)
+        self.assertIn("function normalizePromptProfile(value){", js_prompt_profiles_module.JS)
+        self.assertIn("const PROMPT_PROFILE_DEFINITIONS = {", js_prompt_profiles_module.JS)
+
     def test_aggregate_js_has_no_duplicate_named_functions(self):
         pattern = re.compile(r"(?m)^(?:async\s+)?function\s+([A-Za-z_$][\w$]*)\s*\(")
         names = pattern.findall(JS)
@@ -35,34 +65,35 @@ class RuntimeUIJSContractTests(unittest.TestCase):
             with self.subTest(token=token):
                 self.assertIn(token, JS)
 
-    def test_prompt_profile_contract_uses_global_profile_state(self):
+    def test_learning_prompt_contract_uses_single_prompt_spec(self):
         for token in (
-            'const PROMPT_PROFILE_ORDER = [',
-            'const PROMPT_PROFILE_MENU_GROUPS = [',
-            'const PROMPT_PROFILE_DEFINITIONS = {',
-            'const PROMPT_PROFILE_LABELS = Object.fromEntries(',
-            'const PROMPT_PROFILE_DESCRIPTIONS = Object.fromEntries(',
-            'const VALID_PROMPT_PROFILES = new Set(PROMPT_PROFILE_ORDER);',
-            'let promptProfile = normalizePromptProfile(localStorage.getItem("gtr-prompt-profile") || "j_full");',
+            'const LEARNING_PROMPT_SPEC = {',
             "let compareContext = null;",
-            'function normalizePromptProfile(value){',
-            'function promptProfileDefinition(value){',
-            'function promptProfileLabel(value){',
-            'function promptProfileDescription(value){',
-            'function currentPromptProfileLabel(){',
-            'function currentPromptProfileDescription(){',
-            'function setPromptProfile(value){',
-            'localStorage.setItem("gtr-prompt-profile", promptProfile);',
-            'function syncPromptProfileUI(){',
-            'document.querySelectorAll("[data-prompt-profile-label]").forEach(node => {',
-            'document.querySelectorAll("[data-prompt-profile]").forEach(btn => {',
-            'function buildRepoPrompt(repo, profile){',
-            'function buildBatchPrompt(repos, title, batchIndex, batchCount, profile){',
-            'function buildCollectionPrompt(repos, title, profile){',
-            'function buildComparePrompt(a, b, detailA, detailB, profile){',
+            'function learningPromptSection(name){',
+            'function promptSectionText(section, key){',
+            'function learnerGoalBlock(){',
+            'function learningLanguageRules(extraLines = []){',
+            'function buildRepoPrompt(repo){',
+            'function buildBatchPrompt(repos, title, batchIndex, batchCount){',
+            'function buildCollectionPrompt(repos, title){',
+            'function compareResearchRules(){',
+            'function buildComparePrompt(a, b, detailA, detailB){',
         ):
             with self.subTest(token=token):
                 self.assertIn(token, JS)
+
+        for token in (
+            "PROMPT_PROFILE",
+            "normalizePromptProfile",
+            "promptProfileDefinition",
+            "promptProfileLabel",
+            "promptProfileDescription",
+            "setPromptProfile",
+            "syncPromptProfileUI",
+            "gtr-prompt-profile",
+        ):
+            with self.subTest(absent=token):
+                self.assertNotIn(token, JS)
 
     def test_aggregate_js_passes_node_syntax_check_when_available(self):
         node = shutil.which("node")

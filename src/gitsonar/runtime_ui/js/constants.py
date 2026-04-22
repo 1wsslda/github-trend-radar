@@ -60,7 +60,6 @@ let panel = normalizePanelKey(localStorage.getItem("gtr-tab") || "daily");
 let stateFilter = normalizeStateFilter(localStorage.getItem("gtr-state-filter") || "");
 let sortPrimary = normalizeSortKey(localStorage.getItem("gtr-sort-primary") || settings.default_sort || "stars");
 let aiTargets = normalizeAiTargets(localStorage.getItem("gtr-ai-targets") || localStorage.getItem("gtr-ai-target") || "");
-let promptProfile = normalizePromptProfile(localStorage.getItem("gtr-prompt-profile") || "j_full");
 let comparePrompt = "";
 let compareContext = null;
 let selectedUrls = loadSelectedUrls();

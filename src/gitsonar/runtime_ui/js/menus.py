@@ -250,22 +250,6 @@ function setSortPrimary(value){
   render();
 }
 
-function setPromptProfile(value){
-  promptProfile = normalizePromptProfile(value);
-  localStorage.setItem("gtr-prompt-profile", promptProfile);
-  if(compareContext){
-    comparePrompt = buildComparePrompt(
-      compareContext.repoA,
-      compareContext.repoB,
-      compareContext.detailA,
-      compareContext.detailB,
-      promptProfile,
-    );
-  }
-  closeMenus();
-  syncPromptProfileUI();
-}
-
 function toggleAiTarget(value){
   if(!VALID_AI_TARGETS.has(value)) return;
   if(value === "copy"){
@@ -299,18 +283,6 @@ function syncSortUI(){
   document.getElementById("sort-more-current").textContent = isMoreSort ? `· ${SORT_LABELS[sortPrimary] || ""}` : "";
   document.querySelectorAll("[data-sort-more]").forEach(btn => {
     btn.classList.toggle("active", btn.dataset.sortMore === sortPrimary);
-  });
-}
-
-function syncPromptProfileUI(){
-  const label = currentPromptProfileLabel();
-  const description = currentPromptProfileDescription();
-  document.querySelectorAll("[data-prompt-profile-label]").forEach(node => {
-    node.textContent = label;
-    node.title = description;
-  });
-  document.querySelectorAll("[data-prompt-profile]").forEach(btn => {
-    btn.classList.toggle("active", btn.dataset.promptProfile === promptProfile);
   });
 }
 

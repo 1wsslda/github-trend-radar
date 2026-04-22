@@ -72,8 +72,8 @@ async function openCompareSelected(){
     const [repoA, repoB] = repos;
     const [detailA, detailB] = await Promise.all([fetchRepoDetails(repoA), fetchRepoDetails(repoB)]);
     compareContext = {repoA, repoB, detailA, detailB};
-    comparePrompt = buildComparePrompt(repoA, repoB, detailA, detailB, promptProfile);
-    document.getElementById("compare-body").innerHTML = `<div class="notice">对比视图会把两个仓库按同一组维度并排展开，方便从语言、活跃度、README 摘要和项目定位几个层面做快速判断。</div><div class="panel-actions"><button class="action-primary" type="button" onclick="analyzeCompare()">ChatGPT 对比</button></div><div class="compare-grid">${renderCompareCard(repoA, detailA)}${renderCompareCard(repoB, detailB)}</div>`;
+    comparePrompt = buildComparePrompt(repoA, repoB, detailA, detailB);
+    document.getElementById("compare-body").innerHTML = `<div class="notice">对比视图会把两个仓库按同一组维度并排展开，方便判断该先学谁、借鉴谁，以及哪些部分适合融合成你自己的版本。</div><div class="panel-actions"><button class="action-primary" type="button" onclick="analyzeCompare()">ChatGPT 对比</button></div><div class="compare-grid">${renderCompareCard(repoA, detailA)}${renderCompareCard(repoB, detailB)}</div>`;
   }catch(error){
     comparePrompt = "";
     compareContext = null;

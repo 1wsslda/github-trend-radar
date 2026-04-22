@@ -122,7 +122,7 @@ async function analyzeRepo(url){
     toast("未找到仓库信息");
     return;
   }
-  await openAiPrompts([buildRepoPrompt(repo, promptProfile)]);
+  await openAiPrompts([buildRepoPrompt(repo)]);
 }
 
 async function legacyAnalyzeVisible(){
@@ -153,27 +153,31 @@ async function fetchRepoDetails(repo){
   return data.details;
 }
 
-function buildComparePrompt(a, b, detailA, detailB, profile){
-  const activeProfile = normalizePromptProfile(profile);
+function buildComparePrompt(a, b, detailA, detailB){
   const repoABlock = compareRepoFactsBlock("项目 A", a, detailA);
   const repoBBlock = compareRepoFactsBlock("项目 B", b, detailB);
-  return `你是一位企业技术选型负责人。
+  return `你是一位技术学习助手兼项目拆解教练。
 
-我会给你两个 GitHub 仓库。请你从企业落地角度做横向对比，帮助非技术背景的业务高管判断应该选哪个方向。
+${promptSectionText("compare", "intro")}
 
-【当前分析方式】
-${promptProfileLabel(activeProfile)}：${promptProfileDescription(activeProfile)}
+${compareResearchRules()}
 
-${compareLanguageRules(activeProfile)}
+${compareLanguageRules()}
 
-${compareProfileFocus(activeProfile)}
+${compareHardRules()}
+
+${compareProfileFocus()}
 
 【输出结构】
-${compareProfileStructure(activeProfile)}
+${compareProfileStructure()}
+
+${compareLengthGuidance()}
 
 ${repoABlock}
 
-${repoBBlock}`;
+${repoBBlock}
+
+${learnerGoalBlock()}`;
 }
 
 const pendingStateRequests = new Set();
@@ -402,7 +406,7 @@ async function exportAnalysisMarkdown(markdown, filename){
 }
 
 async function analyzeRepoCollection(repos, title, filename){
-  const prompt = buildCollectionPrompt(repos, title, promptProfile);
+  const prompt = buildCollectionPrompt(repos, title);
   if(!prompt) return false;
   if(canTransportAsSinglePrompt(prompt)){
     return openAiPrompts([prompt]);

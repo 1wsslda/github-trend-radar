@@ -106,7 +106,7 @@ class UIJSSmokeTests(unittest.TestCase):
         self.assertIn("syncWorkspaceCanvas();", body)
         self.assertIn("syncControlStates();", body)
         self.assertIn("syncBackToTopButton();", body)
-        self.assertIn("syncPromptProfileUI();", body)
+        self.assertNotIn("syncPromptProfileUI();", body)
 
     def test_filter_state_and_sort_updates_rerender_without_forcing_scroll_reset(self):
         body = function_body(JS, "setStateFilter")
@@ -153,18 +153,16 @@ class UIJSSmokeTests(unittest.TestCase):
         self.assertIn('panel.style.maxHeight = `${fittedHeight}px`;', body)
         self.assertIn('panel.style.overflowY = naturalHeight > fittedHeight ? "auto" : "";', body)
 
-    def test_prompt_profile_selection_is_persisted_and_rebuilds_compare_prompt(self):
-        body = function_body(JS, "setPromptProfile")
-        self.assertIn("promptProfile = normalizePromptProfile(value);", body)
-        self.assertIn('localStorage.setItem("gtr-prompt-profile", promptProfile);', body)
-        self.assertIn("if(compareContext){", body)
-        self.assertIn("comparePrompt = buildComparePrompt(", body)
-        self.assertIn("syncPromptProfileUI();", body)
+    def test_prompt_profile_state_is_removed_from_runtime(self):
+        self.assertNotIn("function setPromptProfile(", JS)
+        self.assertNotIn("syncPromptProfileUI()", JS)
+        self.assertNotIn("gtr-prompt-profile", JS)
+        self.assertNotIn("normalizePromptProfile", JS)
 
-    def test_compare_overlay_keeps_profile_aware_prompt_context(self):
+    def test_compare_overlay_keeps_learning_prompt_context(self):
         open_body = function_body(JS, "openCompareSelected")
         self.assertIn("compareContext = {repoA, repoB, detailA, detailB};", open_body)
-        self.assertIn("buildComparePrompt(repoA, repoB, detailA, detailB, promptProfile);", open_body)
+        self.assertIn("buildComparePrompt(repoA, repoB, detailA, detailB);", open_body)
         self.assertIn("compareContext = null;", open_body)
 
         close_body = function_body(JS, "closeCompare")

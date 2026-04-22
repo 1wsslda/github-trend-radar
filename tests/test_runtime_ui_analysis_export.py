@@ -13,7 +13,6 @@ if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
 from gitsonar.runtime_ui.assets import JS
-from gitsonar.runtime_ui.js.prompt_profiles import JS as JS_PROMPT_PROFILES
 from gitsonar.runtime_ui.js.state import JS as JS_STATE
 
 
@@ -85,13 +84,11 @@ def eval_prompt_runtime(expression: str) -> object:
     }
     script = "\n".join(
         [
-            'const promptProfile = "j_full";',
             "const snapshot = {};",
             "const userState = {repo_records:{}, favorite_updates:[]};",
             "const discoveryState = {};",
             'const UPDATE_PANEL_KEY = "favorite-updates";',
             'const DISCOVER_PANEL_KEY = "discover";',
-            JS_PROMPT_PROFILES,
             JS_STATE,
             f"const repo = {json.dumps(repo, ensure_ascii=False)};",
             f"const result = {expression};",
@@ -113,27 +110,27 @@ class RuntimeUIAnalysisExportTests(unittest.TestCase):
     def test_collection_prompt_and_markdown_cover_full_repo_list(self):
         body = function_body(JS, "buildCollectionPrompt")
         self.assertIn("repos.filter(Boolean)", body)
-        self.assertIn('return buildCollectionPromptText(normalized, title, profile, "");', body)
+        self.assertIn('return buildCollectionPromptText(normalized, title, "");', body)
 
         body = function_body(JS, "buildCollectionPromptText")
-        self.assertIn("${promptProfileLabel(activeProfile)}", body)
         self.assertIn("${normalized.length}", body)
         self.assertIn('${normalized.map(collectionRepoLine).join("\\n")}', body)
-        self.assertIn("必须覆盖列表中的全部仓库", body)
+        self.assertIn("collectionHardRules()", body)
+        self.assertIn('promptSectionText("collection", "structure")', body)
 
         body = function_body(JS, "buildAnalysisMarkdown")
         self.assertIn("repos.filter(Boolean)", body)
-        self.assertIn("normalized.flatMap((repo, index) => [collectionRepoLine(repo, index), \"\"])", body)
+        self.assertIn('normalized.flatMap((repo, index) => [collectionRepoLine(repo, index), ""])', body)
         self.assertIn('String(prompt || "").replace(/\\r\\n?/g, "\\n")', body)
 
     def test_analyze_repo_collection_prefers_single_prompt_then_exports_markdown(self):
         body = function_body(JS, "analyzeRepoCollection")
-        self.assertIn("const prompt = buildCollectionPrompt(repos, title, promptProfile);", body)
+        self.assertIn("const prompt = buildCollectionPrompt(repos, title);", body)
         self.assertIn("if(canTransportAsSinglePrompt(prompt)){", body)
         self.assertIn("return openAiPrompts([prompt]);", body)
         self.assertIn("const markdown = buildAnalysisMarkdown(title, prompt, repos);", body)
         self.assertIn("await exportAnalysisMarkdown(markdown, filename);", body)
-        self.assertIn('\\u5168\\u91cf\\u5185\\u5bb9\\u8fc7\\u957f', body)
+        self.assertIn("\\u5168\\u91cf\\u5185\\u5bb9\\u8fc7\\u957f", body)
 
     def test_multi_prompt_transport_is_rejected_for_non_copy_targets(self):
         body = function_body(JS, "openAiPrompts")
@@ -153,61 +150,46 @@ class RuntimeUIAnalysisExportTests(unittest.TestCase):
         self.assertIn("const repos = selectedRepos();", selected_body)
         self.assertIn("gitsonar-analysis-selected-", selected_body)
 
-    def test_profile_specific_batch_prompt_scaffolds_are_present(self):
-        focus_body = function_body(JS, "batchProfileFocus")
-        self.assertIn('promptProfileSectionConfig(profile, "collection", DEFAULT_COLLECTION_PROMPT_CONFIG);', focus_body)
+    def test_learning_prompt_scaffolds_are_present(self):
+        self.assertIn('const LEARNING_PROMPT_SPEC = {', JS)
+        self.assertIn("最值得借鉴的点", JS)
+        self.assertIn("本轮学习路线建议", JS)
+        self.assertIn("如果融合成你自己的版本，该怎么取舍", JS)
+        self.assertNotIn("PROMPT_PROFILE", JS)
+        self.assertNotIn("normalizePromptProfile", JS)
 
-        structure_body = function_body(JS, "batchProfileStructure")
-        self.assertIn('promptProfileSectionConfig(profile, "collection", DEFAULT_COLLECTION_PROMPT_CONFIG);', structure_body)
-        self.assertIn("DEFAULT_COLLECTION_PROMPT_CONFIG.structure", structure_body)
-        self.assertIn("评分总表", JS)
-        self.assertIn("对比矩阵", JS)
-
-    def test_compare_prompt_is_profile_aware(self):
+    def test_compare_prompt_is_learning_focused(self):
         body = function_body(JS, "buildComparePrompt")
-        self.assertIn("const activeProfile = normalizePromptProfile(profile);", body)
-        self.assertIn("${promptProfileLabel(activeProfile)}", body)
-        self.assertIn("${compareProfileFocus(activeProfile)}", body)
-        self.assertIn("${compareProfileStructure(activeProfile)}", body)
+        self.assertIn('promptSectionText("compare", "intro")', body)
+        self.assertIn("compareResearchRules()", body)
+        self.assertIn("compareHardRules()", body)
+        self.assertIn("compareProfileFocus()", body)
+        self.assertIn("compareProfileStructure()", body)
+        self.assertIn("compareLengthGuidance()", body)
+        self.assertIn("learnerGoalBlock()", body)
 
-        focus_body = function_body(JS, "compareProfileFocus")
-        self.assertIn('promptProfileSectionConfig(profile, "compare", DEFAULT_COMPARE_PROMPT_CONFIG);', focus_body)
-        self.assertIn("README、Issue、Pull Request、License 和最近活跃度", JS)
-        self.assertIn("更适合做内部工具、客户产品或试点项目", JS)
-        self.assertIn("离正式上线更近", JS)
-        self.assertIn("老板 1 分钟能看完", JS)
+        self.assertIn("各自最值得借鉴的部分", JS)
+        self.assertIn("各自不该照搬的部分", JS)
+        self.assertIn("先重点学哪个，先做哪个部分", JS)
 
-    def test_single_repo_prompt_output_uses_profile_specific_constraints(self):
-        prompts = eval_prompt_runtime(
-            """({
-              general: buildRepoPrompt(repo, "a_general"),
-              deep: buildRepoPrompt(repo, "b_deep"),
-              full: buildRepoPrompt(repo, "j_full")
-            })"""
-        )
-        self.assertIn("不要假装掌握仓库中没有给出的信息", prompts["general"])
-        self.assertIn("它是“拿来学”的，还是“拿来直接用”的", prompts["general"])
-        self.assertIn("README", prompts["deep"])
-        self.assertIn("Pull Request", prompts["deep"])
-        self.assertIn("学习资料", prompts["full"])
-        self.assertIn("星标高只代表关注度，不代表可上线", prompts["full"])
+    def test_single_repo_prompt_output_uses_learning_constraints(self):
+        prompt = eval_prompt_runtime('buildRepoPrompt(repo)')
+        self.assertIn("先看仓库再分析", prompt)
+        self.assertIn("联网能力不足", prompt)
+        self.assertIn("最值得借鉴的设计 / 实现点", prompt)
+        self.assertIn("不该照搬的部分与风险", prompt)
+        self.assertIn("MVP 应该怎么拆", prompt)
+        self.assertIn("建议的源码阅读顺序", prompt)
+        self.assertIn("我的最终目标不是复述仓库，而是做出属于自己的版本", prompt)
 
-    def test_prompt_profile_aliases_and_invalid_values_fall_back_to_default_profile(self):
-        result = eval_prompt_runtime(
-            """({
-              fit: normalizePromptProfile("fit"),
-              understand: normalizePromptProfile("understand"),
-              adopt: normalizePromptProfile("adopt"),
-              invalid: normalizePromptProfile("not-a-profile"),
-              invalidPrompt: buildRepoPrompt(repo, "not-a-profile")
-            })"""
-        )
-        self.assertEqual(result["fit"], "j_full")
-        self.assertEqual(result["understand"], "e4_detail")
-        self.assertEqual(result["adopt"], "e3_adoption")
-        self.assertEqual(result["invalid"], "j_full")
-        self.assertIn("执行摘要", result["invalidPrompt"])
-        self.assertIn("星标高只代表关注度，不代表可上线", result["invalidPrompt"])
+    def test_batch_prompt_output_is_learning_first(self):
+        prompt = eval_prompt_runtime('buildCollectionPrompt([repo], "当前候选项目")')
+        self.assertIn("必须覆盖列表中的全部仓库", prompt)
+        self.assertIn("当前未核验", prompt)
+        self.assertIn("最值得学的点", prompt)
+        self.assertIn("最值得借鉴的点", prompt)
+        self.assertIn("本轮学习路线建议", prompt)
+        self.assertNotIn("业务高管", prompt)
 
 
 if __name__ == "__main__":

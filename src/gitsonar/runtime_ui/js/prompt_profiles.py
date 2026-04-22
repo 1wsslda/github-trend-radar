@@ -44,10 +44,12 @@ function promptProfileDescription(value){
 }
 
 function currentPromptProfileLabel(){
+  if(typeof promptProfile === "undefined") return promptProfileLabel(DEFAULT_PROMPT_PROFILE);
   return promptProfileLabel(promptProfile);
 }
 
 function currentPromptProfileDescription(){
+  if(typeof promptProfile === "undefined") return promptProfileDescription(DEFAULT_PROMPT_PROFILE);
   return promptProfileDescription(promptProfile);
 }"""
 
