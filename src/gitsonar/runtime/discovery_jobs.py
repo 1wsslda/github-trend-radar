@@ -7,6 +7,8 @@ import threading
 import time
 from types import SimpleNamespace
 
+from .redaction import SAFE_DISCOVERY_ERROR, redact_text
+
 logger = logging.getLogger(__name__)
 
 DISCOVERY_JOB_STAGE_LABELS = {
@@ -88,7 +90,7 @@ def make_discovery_job_runtime(
         if stage == "cancelled":
             return "关键词发现已取消"
         if stage == "failed":
-            return normalize(payload.get("error")) or "关键词发现失败"
+            return SAFE_DISCOVERY_ERROR
         return "正在准备关键词发现任务"
 
     def build_discovery_job_snapshot(job: dict[str, object]) -> dict[str, object]:
@@ -336,15 +338,15 @@ def make_discovery_job_runtime(
                     job_id,
                     status="failed",
                     stage="failed",
-                    message=build_discovery_job_message("failed", query_payload, {"error": str(exc)}),
-                    error=str(exc),
+                    message=build_discovery_job_message("failed", query_payload, {"error": SAFE_DISCOVERY_ERROR}),
+                    error=SAFE_DISCOVERY_ERROR,
                 )
                 logger.warning(
                     "discovery_job_failed job_id=%s query=%r duration_ms=%d error=%s",
                     job_id,
                     query_payload["query"],
                     int((time.perf_counter() - started_ts) * 1000),
-                    exc,
+                    redact_text(exc),
                 )
 
         threading.Thread(target=worker, name=f"discovery-job-{job_id}", daemon=True).start()

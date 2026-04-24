@@ -26,8 +26,8 @@
 
 | 优先级 | 总数 | `[ ]` | `[~]` | `[!]` | `[x]` | `[-]` |
 |---|---:|---:|---:|---:|---:|---:|
-| `P0` | 9 | 0 | 0 | 0 | 9 | 0 |
-| `P1` | 7 | 0 | 0 | 0 | 7 | 0 |
+| `P0` | 11 | 0 | 0 | 0 | 11 | 0 |
+| `P1` | 10 | 0 | 0 | 0 | 10 | 0 |
 | `P2` | 6 | 0 | 0 | 2 | 4 | 0 |
 
 ## 当前 Auto Top 5 Batch 候选队列
@@ -48,6 +48,16 @@
 | 10 | `P2` | `[x]` | `GS-P2-004` | 发布加固与 AV 误报缓解 | `docs/plans/0018-release-hardening-av-mitigation.md` | `codex/runtime-control-compat` | `-` | 已新增本地 SHA256 release manifest 脚本，不改签名或打包策略。 |
 | 11 | `P2` | `[!]` | `GS-P2-005` | 代码签名 | `docs/plans/0021-code-signing-blocked.md` | `codex/runtime-control-compat` | `-` | 阻塞：需要代码签名证书、私钥保管、密码注入和时间戳服务决策，不能在本轮安全实现。 |
 | 12 | `P2` | `[x]` | `GS-P2-006` | 前端现代化评估 | `docs/plans/0022-frontend-modernization-evaluation.md` | `codex/runtime-control-compat` | `-` | 已完成评估；当前不启动 React / Vite 重写，未来只建议局部试点。 |
+
+## Security hardening batch - 2026-04-24
+
+| Priority | Status | Task ID | Task | Plan | Branch | Commit / PR | Notes |
+|---|---:|---|---|---|---|---|---|
+| `P0` | `[x]` | `GS-P0-010` | Redact proxy credentials and local diagnostics details | `docs/plans/0023-redact-proxy-and-local-diagnostics.md` | `-` | `-` | Settings, bootstrap, and diagnostics now expose redacted proxy values and no raw runtime path. |
+| `P0` | `[x]` | `GS-P0-011` | Keep refresh status errors user safe | `docs/plans/0024-safe-refresh-status-errors.md` | `-` | `-` | Refresh failures write safe status text; status/bootstrap sanitize legacy error payloads; UI polling uses generic failure text. |
+| `P1` | `[x]` | `GS-P1-008` | Sanitize discovery job failures | `docs/plans/0025-safe-discovery-job-errors.md` | `-` | `-` | Failed discovery jobs store a safe summary while logs use redacted detail. |
+| `P1` | `[x]` | `GS-P1-009` | Limit JSON request body size | `docs/plans/0026-json-body-size-limit.md` | `-` | `-` | Local JSON POST routes now reject oversized request bodies with `413 payload_too_large`. |
+| `P1` | `[x]` | `GS-P1-010` | Protect `/api/repo-details` side-effect GET | `docs/plans/0027-protect-repo-details-endpoint.md` | `-` | `-` | Repository details now require loopback and the existing control token. |
 
 ## 候选队列之外的任务池
 

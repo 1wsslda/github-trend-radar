@@ -22,14 +22,22 @@ class _DummySession:
 
 
 class RuntimeSettingsTests(unittest.TestCase):
-    def build_runtime(self, settings: dict[str, object], tempdir: str):
+    def build_runtime(
+        self,
+        settings: dict[str, object],
+        tempdir: str,
+        *,
+        session: _DummySession | None = None,
+        translate_session: _DummySession | None = None,
+        detect_local_proxy=None,
+    ):
         settings_path = Path(tempdir) / "settings.json"
         return make_settings_runtime(
             settings=settings,
             settings_path=str(settings_path),
             runtime_root=tempdir,
-            session=_DummySession(),
-            translate_session=_DummySession(),
+            session=session or _DummySession(),
+            translate_session=translate_session or _DummySession(),
             current_port_getter=lambda: 8080,
             runtime_port_getter=lambda: 8080,
             normalize=normalize,
@@ -39,7 +47,7 @@ class RuntimeSettingsTests(unittest.TestCase):
             encrypt_secret=lambda value: f"enc:{value}" if value else "",
             normalize_proxy_url=normalize_proxy_url,
             parse_proxy_endpoint=parse_proxy_endpoint,
-            detect_local_proxy=lambda skip=None: "" if skip else "http://127.0.0.1:7897",
+            detect_local_proxy=detect_local_proxy or (lambda skip=None: "" if skip else "http://127.0.0.1:7897"),
             tcp_port_open=lambda _host, _port: True,
             load_json_file=lambda path, default: json.loads(Path(path).read_text(encoding="utf-8")) if Path(path).exists() else default,
             atomic_write_json=lambda path, payload: Path(path).write_text(json.dumps(payload), encoding="utf-8"),
@@ -119,7 +127,7 @@ class RuntimeSettingsTests(unittest.TestCase):
             self.assertEqual(payload["proxy_source"], "auto")
             self.assertEqual(payload["github_token"], "")
             self.assertEqual(payload["proxy"], "")
-            self.assertEqual(payload["runtime_root"], tempdir)
+            self.assertEqual(payload["runtime_root"], "")
             self.assertEqual(payload["translation_provider"], "google")
             self.assertEqual(payload["translation_local_url"], "http://127.0.0.1:11434/api/generate")
             self.assertEqual(payload["translation_local_model"], "")
@@ -248,6 +256,32 @@ class RuntimeSettingsTests(unittest.TestCase):
             loaded = runtime.load_settings()
 
             self.assertEqual(loaded["proxy"], "http://user:pass@127.0.0.1:7890")
+
+    def test_sanitize_settings_redacts_effective_proxy_credentials_and_runtime_root(self):
+        with tempfile.TemporaryDirectory() as tempdir:
+            session = _DummySession()
+            translate_session = _DummySession()
+            settings = {
+                "port": 8080,
+                "refresh_hours": 1,
+                "result_limit": 25,
+                "default_sort": "stars",
+                "auto_start": False,
+                "github_token": "",
+                "proxy": "http://user:pass@127.0.0.1:7890",
+            }
+            runtime = self.build_runtime(settings, tempdir, session=session, translate_session=translate_session)
+
+            runtime.apply_runtime_settings()
+            payload = runtime.sanitize_settings(True)
+            payload_text = json.dumps(payload, ensure_ascii=False)
+
+            self.assertEqual(session.proxies["http"], "http://user:pass@127.0.0.1:7890")
+            self.assertEqual(translate_session.proxies["https"], "http://user:pass@127.0.0.1:7890")
+            self.assertEqual(payload["effective_proxy"], "http://***:***@127.0.0.1:7890")
+            self.assertNotIn("user:pass", payload_text)
+            self.assertNotIn(tempdir, payload_text)
+            self.assertEqual(payload.get("runtime_root", ""), "")
 
 
 if __name__ == "__main__":

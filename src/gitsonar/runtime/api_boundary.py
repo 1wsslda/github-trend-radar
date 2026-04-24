@@ -4,6 +4,8 @@ from __future__ import annotations
 import json
 from types import SimpleNamespace
 
+from .redaction import safe_status_payload
+
 
 def _clone(payload: object) -> object:
     return json.loads(json.dumps(payload, ensure_ascii=False))
@@ -147,7 +149,7 @@ def make_api_boundary_runtime(
         return {
             "ok": True,
             "settings": sanitize_settings(False) if callable(sanitize_settings) else {},
-            "status": status_getter() if callable(status_getter) else {},
+            "status": safe_status_payload(status_getter() if callable(status_getter) else {}),
             "counts": {
                 "repos": len(repos),
                 "favorites": len(state.get("favorites", [])) if isinstance(state.get("favorites"), list) else 0,

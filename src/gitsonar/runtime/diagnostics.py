@@ -4,6 +4,8 @@ from __future__ import annotations
 import os
 from types import SimpleNamespace
 
+from .redaction import redact_proxy_url, redact_text
+
 
 def make_diagnostics_runtime(
     *,
@@ -84,7 +86,7 @@ def make_diagnostics_runtime(
         summary = f"{'已启用' if has_proxy else '未启用'}代理"
         detail = f"来源：{proxy_source or 'none'}"
         if effective_proxy:
-            detail = f"{detail}；当前代理：{effective_proxy}"
+            detail = f"{detail}；当前代理：{redact_proxy_url(effective_proxy)}"
         suggestion = "如果 GitHub 无法访问，可先确认本机网络环境，再检查代理地址是否可用。"
         return item("proxy", "代理配置", "ok" if has_proxy else "warn", summary, detail=detail, suggestion=suggestion)
 
@@ -94,7 +96,8 @@ def make_diagnostics_runtime(
         state = "ok" if exists and writable else "error"
         summary = "运行目录可写。" if state == "ok" else "运行目录不可写或不存在。"
         suggestion = "请检查运行目录权限，避免状态文件、缓存和导出失败。"
-        return item("runtime_root", f"{app_name} 运行目录", state, summary, detail=runtime_root, suggestion=suggestion if state != "ok" else "")
+        detail = f"目录存在：{'是' if exists else '否'}；可写：{'是' if writable else '否'}"
+        return item("runtime_root", f"{app_name} 运行目录", state, summary, detail=detail, suggestion=suggestion if state != "ok" else "")
 
     def check_url(title: str, key: str, url: str, timeout) -> dict[str, object]:
         try:
@@ -118,7 +121,7 @@ def make_diagnostics_runtime(
                 title,
                 "error",
                 f"{title} 不可访问。",
-                detail=str(exc),
+                detail=redact_text(exc),
                 suggestion="请优先检查网络、代理和 GitHub 可达性。",
             )
 

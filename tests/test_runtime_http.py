@@ -9,12 +9,14 @@ import unittest
 from datetime import date
 from http.server import ThreadingHTTPServer
 from pathlib import Path
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
+import gitsonar.runtime.http as runtime_http
 from gitsonar.runtime.http import localize_user_message, make_app_handler
 from gitsonar.runtime.utils import as_bool, clamp_int, normalize
 
@@ -51,6 +53,7 @@ class RuntimeHTTPHandlerTests(unittest.TestCase):
         self.saved_settings: list[dict[str, object]] = []
         self.auto_start_updates: list[bool] = []
         self.diagnostics_runs = 0
+        self.status_payload = {"refreshing": False, "fetched_at": "now"}
         self.fetch_repo_details = lambda owner, name: {"full_name": f"{owner}/{name}"}
         self.fetch_user_starred = lambda: [{"full_name": "octo/demo", "url": "https://github.com/octo/demo"}]
         self.sync_local_favorites_with_starred = lambda _repos: {"total": 1, "added": 1, "removed": 0}
@@ -215,7 +218,7 @@ class RuntimeHTTPHandlerTests(unittest.TestCase):
             settings=self.runtime_settings,
             settings_lock=threading.RLock(),
             sanitize_settings=self._sanitize_settings,
-            load_json_file=lambda _path, default: {"refreshing": False, "fetched_at": "now"} if default == {} else default,
+            load_json_file=lambda _path, default: dict(self.status_payload) if default == {} else default,
             fetch_repo_details=lambda owner, name: self.fetch_repo_details(owner, name),
             normalize=normalize,
             as_bool=as_bool,
@@ -318,7 +321,7 @@ class RuntimeHTTPHandlerTests(unittest.TestCase):
             "has_proxy": bool(self.runtime_settings["proxy"]),
             "effective_proxy": "http://127.0.0.1:7890",
             "proxy_source": "configured",
-            "runtime_root": str(self.runtime_root),
+            "runtime_root": "",
         }
         if include_sensitive:
             payload["github_token"] = ""
@@ -414,6 +417,23 @@ class RuntimeHTTPHandlerTests(unittest.TestCase):
         self.assertFalse(payload["refreshing"])
         self.assertEqual(payload["fetched_at"], "now")
 
+    def test_get_status_redacts_legacy_sensitive_error(self):
+        self.status_payload = {
+            "refreshing": False,
+            "fetched_at": "old",
+            "error": "ghp_secret_token http://user:pass@127.0.0.1:7890 C:\\Users\\liushun\\runtime-data",
+        }
+
+        resp, data = self.request("GET", "/api/status", include_token=False)
+        payload = json.loads(data.decode("utf-8"))
+        payload_text = data.decode("utf-8")
+
+        self.assertEqual(resp.status, 200)
+        self.assertTrue(payload["error"])
+        self.assertNotIn("ghp_secret_token", payload_text)
+        self.assertNotIn("user:pass", payload_text)
+        self.assertNotIn("C:\\Users\\liushun", payload_text)
+
     def test_get_settings_hides_sensitive_values(self):
         resp, data = self.request("GET", "/api/settings")
         payload = json.loads(data.decode("utf-8"))
@@ -423,7 +443,7 @@ class RuntimeHTTPHandlerTests(unittest.TestCase):
         self.assertTrue(payload["has_proxy"])
         self.assertEqual(payload["github_token"], "")
         self.assertEqual(payload["proxy"], "")
-        self.assertEqual(payload["runtime_root"], str(self.runtime_root))
+        self.assertEqual(payload["runtime_root"], "")
 
     def test_post_settings_blank_sensitive_values_preserve_existing_values(self):
         resp, data = self.request(
@@ -935,6 +955,22 @@ class RuntimeHTTPHandlerTests(unittest.TestCase):
         self.assertEqual(payload["code"], "invalid_json_body")
         self.assertIn("合法的 JSON", payload["error"])
 
+    def test_oversized_json_body_returns_payload_too_large(self):
+        body = json.dumps({"github_token": "x" * 128}).encode("utf-8")
+
+        with patch.object(runtime_http, "MAX_JSON_BODY_BYTES", 32, create=True):
+            resp, data = self.request_raw(
+                "POST",
+                "/api/settings/token-status",
+                body,
+                headers={"Content-Type": "application/json"},
+            )
+        payload = json.loads(data.decode("utf-8"))
+
+        self.assertEqual(resp.status, 413)
+        self.assertFalse(payload["ok"])
+        self.assertEqual(payload["code"], "payload_too_large")
+
     def test_sync_stars_unexpected_failure_is_sanitized(self):
         self.fetch_user_starred = lambda: (_ for _ in ()).throw(RuntimeError("secret backend detail"))
 
@@ -956,6 +992,14 @@ class RuntimeHTTPHandlerTests(unittest.TestCase):
         self.assertFalse(payload["ok"])
         self.assertEqual(payload["code"], "repo_details_failed")
         self.assertNotIn("secret backend detail", payload["error"])
+
+    def test_repo_details_requires_control_token(self):
+        resp, data = self.request("GET", "/api/repo-details?owner=octo&name=demo", include_token=False)
+        payload = json.loads(data.decode("utf-8"))
+
+        self.assertEqual(resp.status, 403)
+        self.assertFalse(payload["ok"])
+        self.assertEqual(payload["code"], "invalid_control_token")
 
     def test_make_app_handler_preserves_legacy_signature_without_optional_control_args(self):
         handler = make_app_handler(

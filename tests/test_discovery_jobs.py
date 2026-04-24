@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sys
+import json
 import threading
 import time
 import unittest
@@ -63,6 +64,16 @@ class _SlowGitHubRuntime:
                 raise _Cancelled("cancelled")
             time.sleep(0.01)
         return {"results": [], "warnings": [], "run_at": iso_now()}
+
+
+class _FailingGitHubRuntime:
+    DiscoveryCancelledError = _Cancelled
+
+    def discover_repos(self, **_kwargs):
+        raise RuntimeError(
+            "query failed with ghp_secret_token via "
+            "http://user:pass@127.0.0.1:7890 at C:\\Users\\liushun\\runtime-data\\discovery.json"
+        )
 
 
 def build_state_runtime(settings: dict[str, object] | None = None):
@@ -175,6 +186,21 @@ class DiscoveryJobRuntimeTests(unittest.TestCase):
         self.assertEqual(discovery_state["remembered_query"]["limit"], 100)
         self.assertTrue(github_runtime.calls)
         self.assertEqual(github_runtime.calls[0]["limit"], 100)
+
+    def test_failed_discovery_job_payload_uses_safe_error_summary(self):
+        settings = {"result_limit": 20, "github_token": "token"}
+        state_runtime = build_state_runtime(settings)
+        job_runtime = build_job_runtime(settings, state_runtime, _FailingGitHubRuntime())
+
+        snapshot = job_runtime.start_discovery_job({"query": "agent"})
+        finished = wait_for_terminal(job_runtime, snapshot["id"])
+        payload_text = json.dumps(finished, ensure_ascii=False)
+
+        self.assertEqual(finished["status"], "failed")
+        self.assertTrue(finished["error"])
+        self.assertNotIn("ghp_secret_token", payload_text)
+        self.assertNotIn("user:pass", payload_text)
+        self.assertNotIn("C:\\Users\\liushun", payload_text)
 
 
 if __name__ == "__main__":

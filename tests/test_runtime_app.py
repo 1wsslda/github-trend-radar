@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sys
+import json
 import threading
 import unittest
 from types import SimpleNamespace
@@ -103,6 +104,29 @@ class RuntimeAppTests(unittest.TestCase):
         self.assertTrue(flushed)
         self.assertEqual(writes[0][1]["octo/demo"]["data"]["full_name"], "octo/demo")
         self.assertFalse(dirty_after_flush)
+
+    def test_refresh_once_safe_writes_user_safe_status_error(self):
+        writes: list[dict[str, object]] = []
+        sensitive_error = (
+            "refresh failed for ghp_secret_token via "
+            "http://user:pass@127.0.0.1:7890 at C:\\Users\\liushun\\runtime-data\\status.json"
+        )
+
+        with (
+            patch.object(runtime_app, "refresh_once", lambda _source: (_ for _ in ()).throw(RuntimeError(sensitive_error))),
+            patch.object(runtime_app, "CURRENT_SNAPSHOT", {"fetched_at": "old"}),
+            patch.object(runtime_app, "runtime_paths", lambda: SimpleNamespace(status_path=str(ROOT / "artifacts" / "_status.json"))),
+            patch.object(runtime_app, "atomic_write_json", lambda _path, payload: writes.append(dict(payload))),
+            patch.object(runtime_app, "iso_now", lambda: "now"),
+        ):
+            runtime_app.refresh_once_safe("manual")
+
+        self.assertEqual(len(writes), 1)
+        status_text = json.dumps(writes[0], ensure_ascii=False)
+        self.assertTrue(writes[0]["error"])
+        self.assertNotIn("ghp_secret_token", status_text)
+        self.assertNotIn("user:pass", status_text)
+        self.assertNotIn("C:\\Users\\liushun", status_text)
 
 
 if __name__ == "__main__":

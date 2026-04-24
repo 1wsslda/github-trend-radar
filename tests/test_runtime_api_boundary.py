@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sys
+import json
 import unittest
 from pathlib import Path
 
@@ -14,7 +15,7 @@ from gitsonar.runtime.utils import normalize
 
 
 class RuntimeAPIBoundaryTests(unittest.TestCase):
-    def build_runtime(self):
+    def build_runtime(self, *, status: dict[str, object] | None = None):
         snapshot = {
             "fetched_at": "2026-04-24T10:00:00",
             "daily": [
@@ -102,7 +103,7 @@ class RuntimeAPIBoundaryTests(unittest.TestCase):
             export_user_state=lambda: user_state,
             export_discovery_state=lambda: discovery_state,
             sanitize_settings=lambda _include_sensitive=False: {"has_github_token": True, "github_token": ""},
-            status_getter=lambda: {"refreshing": False, "fetched_at": "2026-04-24T10:00:00"},
+            status_getter=lambda: status or {"refreshing": False, "fetched_at": "2026-04-24T10:00:00"},
             normalize=normalize,
         )
 
@@ -129,6 +130,23 @@ class RuntimeAPIBoundaryTests(unittest.TestCase):
 
         self.assertEqual(runtime.export_updates()["updates"][0]["id"], "update-1")
         self.assertEqual(runtime.export_discovery_views()["views"][0]["name"], "Agents")
+
+    def test_bootstrap_status_error_is_user_safe(self):
+        runtime = self.build_runtime(
+            status={
+                "refreshing": False,
+                "fetched_at": "old",
+                "error": "ghp_secret_token http://user:pass@127.0.0.1:7890 C:\\Users\\liushun\\runtime-data",
+            }
+        )
+
+        payload = runtime.export_bootstrap()
+        payload_text = json.dumps(payload, ensure_ascii=False)
+
+        self.assertTrue(payload["status"]["error"])
+        self.assertNotIn("ghp_secret_token", payload_text)
+        self.assertNotIn("user:pass", payload_text)
+        self.assertNotIn("C:\\Users\\liushun", payload_text)
 
 
 if __name__ == "__main__":

@@ -16,6 +16,28 @@ Codex 选择当前 Auto Top 5 Batch 时，应按以下顺序判断：
 5. 保持本地优先与 Windows 桌面工作流的优先
 6. 不需要大重写的优先
 
+## Security hardening batch - 2026-04-24
+
+Selected tasks:
+
+| Rank | Task ID | Status | Task | Plan | Branch | Commit / PR | Notes |
+|---:|---|---:|---|---|---|---|---|
+| 1 | `GS-P0-010` | `[x]` | Redact proxy credentials and local diagnostics details | `docs/plans/0023-redact-proxy-and-local-diagnostics.md` | `-` | `-` | Settings/bootstrap/diagnostics no longer expose proxy credentials or raw runtime paths. |
+| 2 | `GS-P0-011` | `[x]` | Keep refresh status errors user safe | `docs/plans/0024-safe-refresh-status-errors.md` | `-` | `-` | Status files, `/api/status`, bootstrap status, and UI polling use safe failure messages. |
+| 3 | `GS-P1-008` | `[x]` | Sanitize discovery job failures | `docs/plans/0025-safe-discovery-job-errors.md` | `-` | `-` | Failed job payloads do not return raw exception text. |
+| 4 | `GS-P1-009` | `[x]` | Limit JSON request body size | `docs/plans/0026-json-body-size-limit.md` | `-` | `-` | Oversized JSON bodies return `413 payload_too_large`. |
+| 5 | `GS-P1-010` | `[x]` | Protect `/api/repo-details` side-effect GET | `docs/plans/0027-protect-repo-details-endpoint.md` | `-` | `-` | Missing control token now returns 403; normal frontend requests still work. |
+
+Skipped or blocked tasks:
+
+| Task | Reason |
+|---|---|
+| `GS-P2-003` encrypted sync / backup | Still blocked on sync target, key management, conflict strategy, and explicit opt-in decisions. |
+| `GS-P2-005` code signing | Still blocked on certificate, private-key custody, and timestamp service decisions. |
+| Full read API control-token migration | Larger compatibility boundary; this batch only protects network/cache side-effect GET. |
+| DPAPI `CRYPTPROTECT_UI_FORBIDDEN` | Lower priority than current UI/API leakage risk. |
+| Repository-wide log redaction refactor | Larger scope; this batch fixes user-visible and high-risk paths first. |
+
 ## 当前候选队列
 
 即使本表包含多于 5 个候选，当前批次也只处理前 5 个可安全执行的任务。

@@ -40,6 +40,7 @@ from .paths import (
     RuntimePaths,
     ensure_runtime_paths,
 )
+from .redaction import SAFE_REFRESH_ERROR, redact_text
 from .settings import DEFAULT_SETTINGS, make_settings_runtime
 from .shell import make_shell_runtime
 from .startup import make_startup_runtime
@@ -727,7 +728,7 @@ def refresh_once_locked(source: str, status_written: bool = False) -> dict[str, 
         try:
             github_runtime.sync_local_favorites_with_starred(github_runtime.fetch_user_starred())
         except Exception as exc:
-            logger.warning("github_star_sync_failed source=%s error=%s", source, exc)
+            logger.warning("github_star_sync_failed source=%s error=%s", source, redact_text(exc))
     sync_repo_records(snapshot)
     new_update_count = github_runtime.track_favorite_updates()
     CURRENT_SNAPSHOT = snapshot
@@ -761,8 +762,8 @@ def refresh_once_safe(source: str = "network", lock_acquired: bool = False, stat
         else:
             refresh_once(source)
     except Exception as exc:
-        write_status(False, str(CURRENT_SNAPSHOT.get("fetched_at", "")), source, str(exc))
-        logger.error("refresh_failed source=%s error=%s", source, exc)
+        write_status(False, str(CURRENT_SNAPSHOT.get("fetched_at", "")), source, SAFE_REFRESH_ERROR)
+        logger.error("refresh_failed source=%s error=%s", source, redact_text(exc))
     finally:
         if lock_acquired:
             REFRESH_LOCK.release()
@@ -777,8 +778,8 @@ def start_refresh_async(source: str) -> bool:
         return True
     except Exception as exc:
         REFRESH_LOCK.release()
-        write_status(False, str(CURRENT_SNAPSHOT.get("fetched_at", "")), source, str(exc))
-        logger.error("refresh_thread_start_failed source=%s error=%s", source, exc)
+        write_status(False, str(CURRENT_SNAPSHOT.get("fetched_at", "")), source, SAFE_REFRESH_ERROR)
+        logger.error("refresh_thread_start_failed source=%s error=%s", source, redact_text(exc))
         return False
 
 

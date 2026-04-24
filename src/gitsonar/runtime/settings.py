@@ -5,6 +5,8 @@ import os
 from types import SimpleNamespace
 from urllib.parse import urlparse
 
+from .redaction import redact_proxy_url
+
 DEFAULT_SETTINGS = {
     "port": 8080,
     "refresh_hours": 1,
@@ -148,9 +150,9 @@ def make_settings_runtime(
             "auto_start": bool(SETTINGS.get("auto_start")),
             "has_github_token": bool(normalize(SETTINGS.get("github_token", ""))),
             "has_proxy": bool(normalize_proxy_url(SETTINGS.get("proxy", ""))),
-            "effective_proxy": proxy_state["effective"],
+            "effective_proxy": redact_proxy_url(proxy_state["effective"]),
             "proxy_source": proxy_state["source"],
-            "runtime_root": RUNTIME_ROOT,
+            "runtime_root": "",
             "translation_provider": normalize_translation_provider(SETTINGS.get("translation_provider", defaults["translation_provider"])),
             "translation_local_url": normalize_translation_local_url(
                 SETTINGS.get("translation_local_url", defaults["translation_local_url"])

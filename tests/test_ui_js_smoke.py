@@ -145,6 +145,12 @@ class UIJSSmokeTests(unittest.TestCase):
         self.assertIn('translation_local_url:document.getElementById("setting-translation-local-url").value,', body)
         self.assertIn('translation_local_model:document.getElementById("setting-translation-local-model").value,', body)
 
+    def test_poll_uses_safe_refresh_status_message(self):
+        self.assertIn("function refreshStatusMessage(", JS)
+        body = function_body(JS, "poll")
+        self.assertIn("refreshStatusMessage(data)", body)
+        self.assertNotIn('data.error || "已显示最新数据"', body)
+
     def test_local_api_requests_attach_runtime_control_token(self):
         body = function_body(JS, "localApiOptions")
         self.assertIn("new Headers(next.headers || {})", body)

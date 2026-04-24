@@ -11,9 +11,12 @@ from datetime import date
 from http.server import SimpleHTTPRequestHandler
 from urllib.parse import parse_qs, urlparse
 
+from .redaction import safe_status_payload
+
 logger = logging.getLogger(__name__)
 
 SAFE_MARKDOWN_FILENAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*\.md$")
+MAX_JSON_BODY_BYTES = 8 * 1024 * 1024
 
 
 @dataclass(frozen=True, slots=True)
@@ -58,6 +61,11 @@ class LocalAPIError(Exception):
 class InvalidJsonBodyError(LocalAPIError):
     def __init__(self, message: str = "请求体必须是合法的 JSON。"):
         super().__init__(message, status=400, code="invalid_json_body")
+
+
+class PayloadTooLargeError(LocalAPIError):
+    def __init__(self, message: str = "请求体过大，请缩小内容后重试。"):
+        super().__init__(message, status=413, code="payload_too_large")
 
 
 LEGACY_USER_MESSAGE_MAP = {
@@ -401,7 +409,7 @@ def build_app_handler(deps: AppHandlerDeps):
         return sanitize_settings(_handler.is_loopback_request())
 
     def handle_get_status(_handler, _parsed, _payload):
-        return load_json_file(status_path, {})
+        return safe_status_payload(load_json_file(status_path, {}))
 
     def handle_get_repo_details(_handler, parsed, _payload):
         owner, name = parse_repo_details_query(parsed)
@@ -791,7 +799,7 @@ def build_app_handler(deps: AppHandlerDeps):
         "/api/events/stream": Route(handle_get_events_stream, loopback_only=True, control_only=True),
         "/api/settings": Route(handle_get_settings),
         "/api/status": Route(handle_get_status),
-        "/api/repo-details": Route(handle_get_repo_details, error_status=500, error_code="repo_details_failed", error_message="仓库详情加载失败。"),
+        "/api/repo-details": Route(handle_get_repo_details, loopback_only=True, control_only=True, error_status=500, error_code="repo_details_failed", error_message="仓库详情加载失败。"),
         "/api/discovery": Route(handle_get_discovery),
         "/api/discovery/job": Route(handle_get_discovery_job, error_status=404, error_code="not_found"),
         "/api/diagnostics": Route(handle_get_diagnostics, loopback_only=True, control_only=True, error_status=500, error_code="diagnostics_failed", error_message="运行诊断失败。"),
@@ -903,6 +911,8 @@ def build_app_handler(deps: AppHandlerDeps):
             except (TypeError, ValueError):
                 logger.warning("Invalid Content-Length received: %r; treating as 0", raw_length)
                 length = 0
+            if length > MAX_JSON_BODY_BYTES:
+                raise PayloadTooLargeError()
             raw_body = self.rfile.read(length).decode("utf-8") if length else "{}"
             if not raw_body.strip():
                 return {}

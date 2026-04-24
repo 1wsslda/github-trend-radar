@@ -114,3 +114,13 @@ GitSonar 本身：
 - 如果截图里含有私有仓库、代理地址或敏感目录，也不要直接公开
 
 根目录 `.gitignore` 已默认忽略常见运行数据和构建产物。
+
+## User-visible redaction guarantees
+
+As of 2026-04-24, settings, bootstrap, diagnostics, status, and discovery job payloads must not expose plaintext proxy credentials, GitHub tokens, raw refresh/discovery exceptions, or local runtime paths.
+
+- Proxy URLs used internally may still contain credentials, but API/UI payloads show redacted values such as `http://***:***@127.0.0.1:7890`.
+- Refresh failures write a user-safe status message; detailed exception text is only logged after redaction.
+- Discovery job failures return a safe summary instead of raw backend exception text.
+- Oversized local JSON API request bodies are rejected with `413 payload_too_large`.
+- `/api/repo-details` requires loopback access and the runtime control token because it can trigger GitHub requests and cache writes.

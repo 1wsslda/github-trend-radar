@@ -517,17 +517,24 @@ async function refreshNow(){
   }
 }
 
+function refreshStatusMessage(data){
+  const payload = data && typeof data === "object" ? data : {};
+  if(payload.refreshing) return "后台刷新中...";
+  if(payload.error) return "刷新失败。请检查网络、代理或 GitHub Token 后重试。";
+  return "已显示最新数据";
+}
+
 function poll(){
   clearInterval(window.__pollTimer);
   window.__pollTimer = setInterval(async() => {
     try{
       const {resp, data} = await requestJson(`/api/status?ts=${Date.now()}`, {cache:"no-store"}, "状态轮询失败");
       if(!resp.ok){
-        currentNote = data.error || "状态获取失败";
+        currentNote = "状态获取失败";
         document.getElementById("note").textContent = currentNote;
         return;
       }
-      currentNote = data.refreshing ? "后台刷新中..." : (data.error || "已显示最新数据");
+      currentNote = refreshStatusMessage(data);
       document.getElementById("note").textContent = currentNote;
       if(!data.refreshing){
         clearInterval(window.__pollTimer);
