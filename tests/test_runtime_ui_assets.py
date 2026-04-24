@@ -273,6 +273,9 @@ class RuntimeUILayoutSmokeTests(unittest.TestCase):
             'id="setting-clear-token"',
             'id="setting-proxy-presence"',
             'id="setting-clear-proxy"',
+            'id="setting-translation-provider"',
+            'id="setting-translation-local-url"',
+            'id="setting-translation-local-model"',
         ):
             with self.subTest(token=token):
                 self.assertIn(token, html)

@@ -234,6 +234,9 @@ async function openSettings(){
   document.getElementById("setting-result-limit").value = settings.result_limit || 25;
   document.getElementById("setting-port").value = settings.port || 8080;
   document.getElementById("setting-auto-start").checked = !!settings.auto_start;
+  document.getElementById("setting-translation-provider").value = settings.translation_provider || "google";
+  document.getElementById("setting-translation-local-url").value = settings.translation_local_url || "http://127.0.0.1:11434/api/generate";
+  document.getElementById("setting-translation-local-model").value = settings.translation_local_model || "";
   syncSensitiveSettingHints();
   document.getElementById("settings-runtime-hint").textContent = `当前生效端口 ${settings.effective_port || settings.port || 8080} · 当前代理 ${settings.effective_proxy || "未启用"} · 关闭主窗口时会直接退出程序 · 程序不提供 VPN${settings.restart_required ? " · 修改端口后需重启生效" : ""}`;
   setOverlayVisible("settings-modal", true);
@@ -255,6 +258,9 @@ async function saveSettings(){
     port:Number(document.getElementById("setting-port").value || 8080),
     auto_start:document.getElementById("setting-auto-start").checked,
     default_sort:sortPrimary,
+    translation_provider:document.getElementById("setting-translation-provider").value,
+    translation_local_url:document.getElementById("setting-translation-local-url").value,
+    translation_local_model:document.getElementById("setting-translation-local-model").value,
   };
   try{
     const {resp, data} = await requestJson(

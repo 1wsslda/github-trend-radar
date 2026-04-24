@@ -328,6 +328,26 @@ HTML_BODY = """</style>
             <span class="field-meta">修改后重启生效</span>
           </label>
         </div>
+        <label class="field">
+          <span class="field-label">翻译方式</span>
+          <select id="setting-translation-provider" class="field-input">
+            <option value="google">Google Translate 公共接口</option>
+            <option value="local_ollama">本机 Ollama 模型</option>
+          </select>
+          <span class="field-meta">默认保持现有在线翻译；本机模型需要你自行运行 Ollama 或兼容服务。</span>
+        </label>
+        <div class="settings-inline">
+          <label class="field">
+            <span class="field-label">本机翻译地址</span>
+            <input id="setting-translation-local-url" class="field-input" type="text" placeholder="http://127.0.0.1:11434/api/generate">
+            <span class="field-meta">只允许 127.0.0.1 / localhost / ::1。</span>
+          </label>
+          <label class="field">
+            <span class="field-label">本机模型名</span>
+            <input id="setting-translation-local-model" class="field-input" type="text" placeholder="例如 qwen2.5:7b">
+            <span class="field-meta">留空时不会调用本机模型，也不会回退到 Google。</span>
+          </label>
+        </div>
         <div class="switch-row">
           <div class="switch-copy">
             <div class="switch-title">开机启动</div>

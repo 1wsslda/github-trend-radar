@@ -3,6 +3,10 @@ from __future__ import annotations
 
 import time
 from types import SimpleNamespace
+from urllib.parse import urlparse
+
+
+DEFAULT_LOCAL_TRANSLATION_URL = "http://127.0.0.1:11434/api/generate"
 
 
 def make_translation_runtime(
@@ -11,6 +15,7 @@ def make_translation_runtime(
     translation_cache,
     translation_lock,
     translate_session,
+    settings,
     normalize,
     load_json_file,
     atomic_write_json,
@@ -26,6 +31,7 @@ def make_translation_runtime(
     TRANSLATION_CACHE = translation_cache
     TRANSLATION_LOCK = translation_lock
     TRANSLATE_SESSION = translate_session
+    SETTINGS = settings
     TRANSLATE_TIMEOUT = translate_timeout
     TRANSLATE_RETRIES = translate_retries
     _MAX_TRANSLATION_CACHE_SIZE = max_translation_cache_size
@@ -58,14 +64,39 @@ def make_translation_runtime(
     def has_han(text: str) -> bool:
         return bool(HAN_RE.search(text or ''))
 
-    def request_translation(text: str, *, target_lang: str, cache_key: str, skip_translation) -> str:
-        raw = normalize(text)
-        if not raw or skip_translation(raw):
-            return raw
-        with TRANSLATION_LOCK:
-            cached = TRANSLATION_CACHE.get(cache_key)
-        if cached:
-            return cached
+    def translation_provider() -> str:
+        key = normalize(SETTINGS.get("translation_provider", "google")).lower().replace("-", "_")
+        if key in {"local", "ollama", "local_ollama"}:
+            return "local_ollama"
+        return "google"
+
+    def local_translation_model() -> str:
+        return normalize(SETTINGS.get("translation_local_model", ""))
+
+    def local_translation_url() -> str:
+        return (normalize(SETTINGS.get("translation_local_url", "")) or DEFAULT_LOCAL_TRANSLATION_URL).rstrip("/")
+
+    def is_loopback_url(url: str) -> bool:
+        parsed = urlparse(normalize(url))
+        host = (parsed.hostname or "").lower()
+        return parsed.scheme in {"http", "https"} and host in {"127.0.0.1", "localhost", "::1"}
+
+    def translation_cache_key(raw: str, target_lang: str) -> str:
+        if translation_provider() == "local_ollama":
+            return f"local_ollama::{local_translation_model()}::{target_lang}::{raw}"
+        if target_lang == "en":
+            return f"en::{raw}"
+        return raw
+
+    def local_translation_prompt(raw: str, target_lang: str) -> str:
+        target = "English" if target_lang == "en" else "Simplified Chinese"
+        return (
+            f"Translate the following text to {target}. "
+            "Return only the translated text, with no explanation or quotes.\n\n"
+            f"{raw}"
+        )
+
+    def request_google_translation(raw: str, target_lang: str) -> str:
         translated = ''
         for attempt in range(TRANSLATE_RETRIES):
             try:
@@ -89,6 +120,51 @@ def make_translation_runtime(
                 translated = ''
                 if attempt + 1 < TRANSLATE_RETRIES:
                     time.sleep(0.25 * (attempt + 1))
+        return translated
+
+    def request_local_ollama_translation(raw: str, target_lang: str) -> str:
+        model = local_translation_model()
+        endpoint = local_translation_url()
+        if not model or not is_loopback_url(endpoint):
+            return ""
+        translated = ""
+        for attempt in range(TRANSLATE_RETRIES):
+            try:
+                response = TRANSLATE_SESSION.post(
+                    endpoint,
+                    json={
+                        "model": model,
+                        "prompt": local_translation_prompt(raw, target_lang),
+                        "stream": False,
+                        "options": {"temperature": 0},
+                    },
+                    timeout=TRANSLATE_TIMEOUT,
+                    proxies={"http": None, "https": None},
+                )
+                response.raise_for_status()
+                data = response.json()
+                if isinstance(data, dict):
+                    translated = normalize(data.get("response"))
+                if translated:
+                    break
+            except Exception:
+                translated = ""
+                if attempt + 1 < TRANSLATE_RETRIES:
+                    time.sleep(0.25 * (attempt + 1))
+        return translated
+
+    def request_translation(text: str, *, target_lang: str, cache_key: str, skip_translation) -> str:
+        raw = normalize(text)
+        if not raw or skip_translation(raw):
+            return raw
+        with TRANSLATION_LOCK:
+            cached = TRANSLATION_CACHE.get(cache_key)
+        if cached:
+            return cached
+        if translation_provider() == "local_ollama":
+            translated = request_local_ollama_translation(raw, target_lang)
+        else:
+            translated = request_google_translation(raw, target_lang)
         if not translated:
             return raw
         with TRANSLATION_LOCK:
@@ -102,7 +178,7 @@ def make_translation_runtime(
         return request_translation(
             raw,
             target_lang='zh-CN',
-            cache_key=raw,
+            cache_key=translation_cache_key(raw, 'zh-CN'),
             skip_translation=has_han,
         )
 
@@ -113,7 +189,7 @@ def make_translation_runtime(
         return request_translation(
             raw,
             target_lang='en',
-            cache_key=f'en::{raw}',
+            cache_key=translation_cache_key(raw, 'en'),
             skip_translation=lambda value: not has_han(value),
         )
 
@@ -124,7 +200,7 @@ def make_translation_runtime(
             repo['description'] = ''
             return
         with TRANSLATION_LOCK:
-            cached = TRANSLATION_CACHE.get(raw)
+            cached = TRANSLATION_CACHE.get(translation_cache_key(raw, 'zh-CN')) or TRANSLATION_CACHE.get(raw)
         repo['description'] = cached or raw
 
     def translate_repo_list(repos: list[dict[str, object]]) -> None:

@@ -28,15 +28,36 @@ class _DummyResponse:
         return [[[self._translated]]]
 
 
+class _DummyOllamaResponse:
+    def __init__(self, translated: str):
+        self._translated = translated
+
+    def raise_for_status(self) -> None:
+        return None
+
+    def json(self) -> dict[str, object]:
+        return {"response": self._translated}
+
+
 class _DummySession:
     def __init__(self, responses: list[object] | None = None):
         self.responses = list(responses or [])
         self.calls: list[dict[str, object]] = []
+        self.post_calls: list[dict[str, object]] = []
 
     def get(self, url: str, *, params: dict[str, object], timeout: object) -> object:
         self.calls.append({"url": url, "params": dict(params), "timeout": timeout})
         if not self.responses:
             raise AssertionError("unexpected translation request")
+        response = self.responses.pop(0)
+        if isinstance(response, Exception):
+            raise response
+        return response
+
+    def post(self, url: str, *, json: dict[str, object], timeout: object, **kwargs) -> object:
+        self.post_calls.append({"url": url, "json": dict(json), "timeout": timeout, "kwargs": dict(kwargs)})
+        if not self.responses:
+            raise AssertionError("unexpected local translation request")
         response = self.responses.pop(0)
         if isinstance(response, Exception):
             raise response
@@ -76,6 +97,7 @@ def build_translation_runtime(
     cache: dict[str, str] | None = None,
     responses: list[object] | None = None,
     writes: list[tuple[str, dict[str, str]]] | None = None,
+    settings: dict[str, object] | None = None,
 ):
     cache_store = dict(cache or {})
     write_log = writes if writes is not None else []
@@ -85,6 +107,7 @@ def build_translation_runtime(
         translation_cache=cache_store,
         translation_lock=threading.RLock(),
         translate_session=session,
+        settings=settings or {},
         normalize=normalize,
         load_json_file=lambda _path, default: default,
         atomic_write_json=lambda path, payload: write_log.append((str(path), dict(payload))),
@@ -143,6 +166,43 @@ class RuntimeTranslationTests(unittest.TestCase):
         self.assertEqual(translated, "open source")
         self.assertEqual(cache_store["en::开源"], "open source")
         self.assertEqual(session.calls[0]["params"]["tl"], "en")
+
+    def test_local_ollama_provider_uses_loopback_generate_endpoint_when_configured(self):
+        runtime, cache_store, session, _writes = build_translation_runtime(
+            responses=[_DummyOllamaResponse("快速命令行工具")],
+            settings={
+                "translation_provider": "local_ollama",
+                "translation_local_url": "http://127.0.0.1:11434/api/generate",
+                "translation_local_model": "qwen2.5:7b",
+            },
+        )
+
+        translated = runtime.translate_text("fast cli tool")
+
+        self.assertEqual(translated, "快速命令行工具")
+        self.assertEqual(session.calls, [])
+        self.assertEqual(session.post_calls[0]["url"], "http://127.0.0.1:11434/api/generate")
+        self.assertEqual(session.post_calls[0]["json"]["model"], "qwen2.5:7b")
+        self.assertFalse(session.post_calls[0]["json"]["stream"])
+        self.assertIn("Simplified Chinese", session.post_calls[0]["json"]["prompt"])
+        self.assertEqual(cache_store["local_ollama::qwen2.5:7b::zh-CN::fast cli tool"], "快速命令行工具")
+
+    def test_local_ollama_provider_requires_model_and_never_falls_back_to_google(self):
+        runtime, cache_store, session, _writes = build_translation_runtime(
+            responses=[_DummyResponse("should not be used")],
+            settings={
+                "translation_provider": "local_ollama",
+                "translation_local_url": "http://127.0.0.1:11434/api/generate",
+                "translation_local_model": "",
+            },
+        )
+
+        translated = runtime.translate_text("fast cli tool")
+
+        self.assertEqual(translated, "fast cli tool")
+        self.assertEqual(cache_store, {})
+        self.assertEqual(session.calls, [])
+        self.assertEqual(session.post_calls, [])
 
     def test_translate_snapshot_flushes_cache_after_batch_translation(self):
         runtime, _cache_store, session, writes = build_translation_runtime(

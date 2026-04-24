@@ -139,6 +139,12 @@ class UIJSSmokeTests(unittest.TestCase):
         self.assertIn("validateTokenStatus();", body)
         self.assertNotIn("validateTokenStatus(undefined, {force:true});", body)
 
+    def test_save_settings_includes_translation_provider_fields(self):
+        body = function_body(JS, "saveSettings")
+        self.assertIn('translation_provider:document.getElementById("setting-translation-provider").value,', body)
+        self.assertIn('translation_local_url:document.getElementById("setting-translation-local-url").value,', body)
+        self.assertIn('translation_local_model:document.getElementById("setting-translation-local-model").value,', body)
+
     def test_local_api_requests_attach_runtime_control_token(self):
         body = function_body(JS, "localApiOptions")
         self.assertIn("new Headers(next.headers || {})", body)

@@ -500,6 +500,7 @@ def build_runtime_context(*, rebuild: bool = False) -> RuntimeAppContext:
         translation_cache=TRANSLATION_CACHE,
         translation_lock=TRANSLATION_LOCK,
         translate_session=TRANSLATE_SESSION,
+        settings=SETTINGS,
         normalize=normalize,
         load_json_file=load_json_file,
         atomic_write_json=atomic_write_json,

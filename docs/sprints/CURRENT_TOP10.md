@@ -29,7 +29,7 @@ Codex 选择当前 Auto Top 5 Batch 时，应按以下顺序判断：
 | 5 | `GS-P1-006` | `[x]` | AI Artifact 生命周期与缓存 | `docs/plans/0015-ai-artifact-lifecycle-cache.md` | `-` | `-` | 已扩展本地 AI artifact 元数据与 `/api/ai-artifacts` 列表端点，不接入 provider。 |
 | 6 | `GS-P1-007` | `[x]` | 发现结果聚类 | `docs/plans/0016-discovery-result-clustering.md` | `codex/runtime-control-compat` | `-` | 已新增本地 discovery result 聚类、state/API 字段和发现页主题展示。 |
 | 7 | `GS-P2-001` | `[x]` | 仓库地图 / 可视化体验 | `docs/plans/0017-repo-map-visualization-mvp.md` | `codex/runtime-control-compat` | `-` | 已新增发现页轻量二维主题地图和选中本组交互。 |
-| 8 | `GS-P2-002` | `[ ]` | 可选本地翻译模型支持 | `-` | `-` | `-` | P2 后置，必须保持可选。 |
+| 8 | `GS-P2-002` | `[x]` | 可选本地翻译模型支持 | `docs/plans/0019-optional-local-translation-model.md` | `codex/runtime-control-compat` | `-` | 已新增显式可选的本地 Ollama 类翻译 provider、loopback URL 校验和设置 UI；默认仍保持现有 Google Translate 行为。 |
 | 9 | `GS-P2-003` | `[ ]` | 加密同步 / 备份 | `-` | `-` | `-` | P2 后置，涉及隐私和同步边界。 |
 | 10 | `GS-P2-004` | `[x]` | 发布加固与 AV 误报缓解 | `docs/plans/0018-release-hardening-av-mitigation.md` | `codex/runtime-control-compat` | `-` | 已新增本地 SHA256 release manifest 脚本，不改签名或打包策略。 |
 

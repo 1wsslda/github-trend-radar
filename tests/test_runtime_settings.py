@@ -120,6 +120,49 @@ class RuntimeSettingsTests(unittest.TestCase):
             self.assertEqual(payload["github_token"], "")
             self.assertEqual(payload["proxy"], "")
             self.assertEqual(payload["runtime_root"], tempdir)
+            self.assertEqual(payload["translation_provider"], "google")
+            self.assertEqual(payload["translation_local_url"], "http://127.0.0.1:11434/api/generate")
+            self.assertEqual(payload["translation_local_model"], "")
+
+    def test_merge_settings_accepts_optional_loopback_local_translation_provider(self):
+        with tempfile.TemporaryDirectory() as tempdir:
+            settings = {
+                "port": 8080,
+                "refresh_hours": 1,
+                "result_limit": 25,
+                "default_sort": "stars",
+                "auto_start": False,
+                "github_token": "",
+                "proxy": "",
+            }
+            runtime = self.build_runtime(settings, tempdir)
+
+            merged = runtime.merge_settings(
+                {
+                    "translation_provider": "local_ollama",
+                    "translation_local_url": "http://localhost:11434/api/generate",
+                    "translation_local_model": "qwen2.5:7b",
+                },
+                settings,
+            )
+
+            self.assertEqual(merged["translation_provider"], "local_ollama")
+            self.assertEqual(merged["translation_local_url"], "http://localhost:11434/api/generate")
+            self.assertEqual(merged["translation_local_model"], "qwen2.5:7b")
+
+    def test_merge_settings_rejects_non_loopback_local_translation_url(self):
+        with tempfile.TemporaryDirectory() as tempdir:
+            runtime = self.build_runtime({}, tempdir)
+
+            with self.assertRaisesRegex(ValueError, "本地翻译地址只允许"):
+                runtime.merge_settings(
+                    {
+                        "translation_provider": "local_ollama",
+                        "translation_local_url": "https://example.com/api/generate",
+                        "translation_local_model": "qwen2.5:7b",
+                    },
+                    {},
+                )
 
     def test_save_settings_encrypts_token_without_affecting_proxy_metadata(self):
         with tempfile.TemporaryDirectory() as tempdir:
