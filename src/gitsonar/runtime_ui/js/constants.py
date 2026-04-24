@@ -142,6 +142,8 @@ function normalizeUpdateEntry(payload){
   if(!url || !fullName) return null;
 
   const changes = [];
+  const changeSummary = String(raw.change_summary || "").trim();
+  const importanceReason = String(raw.importance_reason || "").trim();
   if(Array.isArray(raw.changes)){
     raw.changes.forEach(item => {
       const change = String(item || "").trim();
@@ -154,8 +156,7 @@ function normalizeUpdateEntry(payload){
   if(!changes.length && Number.isFinite(Number(previous.forks)) && Number(repo.forks || raw.forks || 0) !== Number(previous.forks || 0)){
     changes.push(`派生 ${Number(previous.forks || 0)} → ${Number(repo.forks || raw.forks || 0)}`);
   }
-  const summary = String(raw.change_summary || "").trim();
-  if(summary) changes.push(summary);
+  if(!changes.length && changeSummary) changes.push(changeSummary);
   if(!changes.length && String(repo.latest_release_tag || raw.latest_release_tag || "").trim()){
     changes.push(`新版本 ${String(repo.latest_release_tag || raw.latest_release_tag).trim()}`);
   }
@@ -176,6 +177,8 @@ function normalizeUpdateEntry(payload){
     url,
     checked_at:fallbackCheckedAt,
     changes,
+    change_summary:changeSummary || (changes.length ? changes.join(" · ") : ""),
+    importance_reason:importanceReason,
     stars:Number(raw.stars || repo.stars || 0) || 0,
     forks:Number(raw.forks || repo.forks || 0) || 0,
     latest_release_tag:String(raw.latest_release_tag || repo.latest_release_tag || "").trim(),

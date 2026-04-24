@@ -96,6 +96,14 @@ function descHost(node){
   return node?.closest(".card, .update-card") || null;
 }
 
+function isUpdateNewSinceLastRead(update){
+  const checkedAt = String(update?.checked_at || "").trim();
+  const readAt = String(update?.read_at || "").trim();
+  if(!checkedAt) return !readAt;
+  if(!readAt) return true;
+  return checkedAt > readAt;
+}
+
 function setDescExpanded(wrap, expanded){
   if(!wrap) return;
   const nextExpanded = wrap.classList.contains("is-expandable") && expanded;
@@ -248,9 +256,13 @@ function renderUpdateCards(items, isChunk = false){
     const selectedIdx = urlArray.indexOf(update.url);
     const selected = selectedIdx !== -1;
     const changeBadges = (update.changes || []).map(change => `<span class="badge gain">${h(change)}</span>`).join("");
-    const summary = (update.changes || []).length ? (update.changes || []).join(" · ") : "最近一次检测没有整理出可展示的变化摘要。";
+    const summary = update.change_summary || ((update.changes || []).length ? (update.changes || []).join(" · ") : "最近一次检测没有整理出可展示的变化摘要。");
     const repo = repoByUrl(update.url) || synthesizeRepoFromUpdate(update);
-    const inboxBadgeMarkup = `${update.pinned ? '<span class="badge gain">置顶</span>' : ""}${String(update.read_at || "").trim() ? '<span class="badge source">已读</span>' : '<span class="badge gain">未读</span>'}`;
+    const isNewSinceRead = isUpdateNewSinceLastRead(update);
+    const inboxBadgeMarkup = `${update.pinned ? '<span class="badge gain">置顶</span>' : ""}${String(update.read_at || "").trim() ? '<span class="badge source">已读</span>' : '<span class="badge gain">未读</span>'}${isNewSinceRead ? '<span class="badge gain">自上次查看以来</span>' : ""}`;
+    const importanceMarkup = update.importance_reason
+      ? `<div class="reason-strip"><span class="reason-pill"><strong>重要性</strong> ${h(update.importance_reason)}</span></div>`
+      : "";
     const metricMarkup = [
       metricPillMarkup("星标", `<span class="metric-number">${update.stars || 0}</span>`),
       metricPillMarkup("派生", `<span class="metric-number">${update.forks || 0}</span>`),
@@ -277,6 +289,7 @@ function renderUpdateCards(items, isChunk = false){
       <div class="card-body">
         ${changeBadges ? `<div class="badges">${changeBadges}</div>` : ""}
         ${descBlockMarkup(summary)}
+        ${importanceMarkup}
         <div class="card-footer">
           <div class="card-state-row">
             <div class="card-state-actions">${repoStateActionsMarkup(repo)}</div>

@@ -130,7 +130,7 @@ src/gitsonar/
 
 ### `src/gitsonar/runtime/state_schema.py`
 
-状态 schema 与归一化规则。负责当前 JSON 状态中的 tags、notes、saved discovery views、favorite updates、AI insights、clusters 等结构兼容。
+状态 schema 与归一化规则。负责当前 JSON 状态中的 tags、notes、saved discovery views、favorite updates、AI insights、clusters 等结构兼容。`favorite_updates` 当前保留变化列表、已读 / 忽略 / 置顶、优先级、本地变化摘要和重要性解释。
 
 ### `src/gitsonar/runtime/state_store.py`
 
@@ -176,7 +176,7 @@ GitHub 数据层，按职责拆分：
 - `trending.py`：Trending 抓取、搜索、批量拉取。
 - `details.py`：仓库详情、README、release 等详情补全。
 - `discovery.py`：query 生成、ranking、相关词扩展、结果重排。
-- `favorites.py`：收藏同步、watch 追踪、更新记录。
+- `favorites.py`：收藏同步、watch 追踪、更新记录，并为 Update Inbox 生成本地变化摘要和重要性解释。
 - `__init__.py`：对外只暴露 `make_github_runtime(...)`。
 
 ### `src/gitsonar/runtime_ui/`

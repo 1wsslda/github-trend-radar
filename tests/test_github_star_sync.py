@@ -461,6 +461,52 @@ class GitHubStarSyncTests(unittest.TestCase):
         self.assertEqual(len(user_state["favorite_updates"]), 4)
         self.assertEqual(save_calls, ["saved"])
 
+    def test_track_favorite_updates_adds_summary_and_importance_reason(self):
+        old_checked_at = (datetime.now(timezone.utc) - timedelta(hours=2)).isoformat().replace("+00:00", "Z")
+        recent_release_checked_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+        new_pushed_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+        repo_payloads = {
+            "octo/judgement": {
+                "full_name": "octo/judgement",
+                "html_url": "https://github.com/octo/judgement",
+                "stargazers_count": 34,
+                "forks_count": 5,
+                "open_issues_count": 1,
+                "updated_at": new_pushed_at,
+                "pushed_at": new_pushed_at,
+            },
+        }
+        user_state = {
+            "favorites": ["https://github.com/octo/judgement"],
+            "repo_records": {
+                "https://github.com/octo/judgement": {
+                    "full_name": "octo/judgement",
+                    "url": "https://github.com/octo/judgement",
+                }
+            },
+            "favorite_watch": {
+                "https://github.com/octo/judgement": {
+                    "full_name": "octo/judgement",
+                    "url": "https://github.com/octo/judgement",
+                    "stars": 10,
+                    "forks": 1,
+                    "updated_at": old_checked_at,
+                    "pushed_at": old_checked_at,
+                    "checked_at": old_checked_at,
+                    "release_checked_at": recent_release_checked_at,
+                }
+            },
+            "favorite_updates": [],
+        }
+        runtime = build_runtime(_ConcurrentSession(repo_payloads), user_state=user_state)
+
+        new_updates = runtime.track_favorite_updates()
+
+        self.assertEqual(new_updates, 1)
+        update = user_state["favorite_updates"][0]
+        self.assertEqual(update["change_summary"], "星标 +24 · 派生 +4 · 最近有新提交")
+        self.assertEqual(update["importance_reason"], "星标增长明显，说明近期关注度正在上升。")
+
     def test_sync_favorite_repo_stars_when_enabling(self):
         session = _ScriptedSession({"GET": [_StubResponse(404)], "PUT": [_StubResponse(204)]})
         runtime = build_runtime(session)

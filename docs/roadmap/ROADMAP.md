@@ -24,7 +24,7 @@
 | Priority | 目标 | 对应任务 | 当前说明 |
 |---|---|---|---|
 | `P0` | 补齐“发现之后的管理”闭环并完成文档现实同步 | `GS-P0-001` ~ `GS-P0-012` | 当前 P0 MVP、诊断、Markdown 导出、安全加固和文档同步均已完成。 |
-| `P1` | 稳定 API、持久化、任务事件和 AI-ready 边界 | `GS-P1-001` ~ `GS-P1-017` | P1 API 安全兼容收紧和 runtime bridge 已完成；下一轮优先处理 Update Inbox 增强、SQLite 第一阶段和 AI provider opt-in 设计。 |
+| `P1` | 稳定 API、持久化、任务事件和 AI-ready 边界 | `GS-P1-001` ~ `GS-P1-017` | P1 API 安全兼容收紧、runtime bridge 和 Update Inbox 增强已完成；下一轮优先处理 SQLite 第一阶段和 AI provider opt-in 设计。 |
 | `P2` | 等边界稳定后推进差异化、发布和同步能力 | `GS-P2-001` ~ `GS-P2-006` | 聚类地图、本地翻译和发布 manifest 已完成；加密同步 / 备份、代码签名继续阻塞。 |
 
 ## 已完成的当前能力
@@ -34,6 +34,7 @@
 - 保存发现视图。
 - 标签和笔记。
 - Update Inbox MVP。
+- Update Inbox 本地摘要、重要性解释和自上次查看以来提示。
 - 推荐 / 排名原因。
 - 忽略反馈。
 - Markdown 摘要导出。
@@ -113,12 +114,12 @@
 | `GS-P1-012` | HTTP route exception log 脱敏 | `[x]` | 未预期 route 异常日志已脱敏。 |
 | `GS-P1-013` | 只读 API control-token 收紧评估与兼容迁移 | `[x]` | `bootstrap/repos/updates/settings/status/discovery` 等只读端点已要求 loopback/control-token，前端统一 header 路径保持兼容。 |
 | `GS-P1-014` | 刷新 / 发现 / 更新检查接入统一 Job/Event/SSE | `[x]` | Refresh、discovery 和 favorite update check 已桥接到通用 Job/Event runtime，现有 UI 轮询路径保持不变。 |
+| `GS-P1-015` | Update Inbox 增强 | `[x]` | 已增加自上次查看以来提示、本地变化摘要和重要性解释。 |
 
 下一轮候选：
 
 | Task ID | 任务主题 | 状态 | 说明 |
 |---|---|---:|---|
-| `GS-P1-015` | Update Inbox 增强 | `[ ]` | 增加自上次查看以来、摘要和重要性解释。 |
 | `GS-P1-016` | SQLite 迁移第一阶段 | `[ ]` | 建立 JSON 导入 / 导出兼容和回滚骨架，暂不做破坏性切换。 |
 | `GS-P1-017` | AI provider opt-in 设计 | `[ ]` | 设计本地 Ollama / OpenAI-compatible provider pipeline 和隐私预览。 |
 
@@ -151,11 +152,9 @@ P2 执行规则：
 
 ## 默认顺序
 
-1. `P1 update judgement`
-   Update Inbox 自上次查看以来、摘要、重要性解释。
-2. `P1 persistence migration`
+1. `P1 persistence migration`
    SQLite 第一阶段导入 / 导出兼容和回滚骨架。
-3. `P1 AI provider opt-in`
+2. `P1 AI provider opt-in`
    本地 Ollama / OpenAI-compatible provider pipeline 设计。
 
 ## 默认不做

@@ -162,6 +162,8 @@ def make_state_schema(
             "url": url,
             "checked_at": normalize(raw.get("checked_at")),
             "changes": changes,
+            "change_summary": normalize(raw.get("change_summary")),
+            "importance_reason": normalize(raw.get("importance_reason")),
             "stars": clamp_int(raw.get("stars"), 0, 0),
             "forks": clamp_int(raw.get("forks"), 0, 0),
             "latest_release_tag": normalize(raw.get("latest_release_tag")),

@@ -15,7 +15,7 @@ GitSonar is not just a Trending viewer. It combines trend discovery, keyword dis
 2. **Organise**
    Local `Follow / Watch Later / Read / Ignore` states, tags, notes, ignore feedback, search, filters, sorting, batch actions, and state import / export.
 3. **Track**
-   Followed repo updates for push, star / fork, and release changes, with an Update Inbox MVP for read, pin, dismiss, and priority handling.
+   Followed repo updates for push, star / fork, and release changes, with an Update Inbox for read, pin, dismiss, priority, since-last-viewed indicators, local summaries, and importance reasons.
 4. **Judge**
    Repo detail drawer, README summary, side-by-side compare, Markdown summary export, AI prompt handoff, and manually saved structured Insight artifacts.
 
@@ -24,7 +24,7 @@ GitSonar is not just a Trending viewer. It combines trend discovery, keyword dis
 - Trend aggregation for day / week / month.
 - Keyword discovery with saved discovery views, saved searches, ranking modes, recommendation reasons, local result clustering, and a lightweight two-dimensional repo map.
 - Local follow states, tags, notes, ignore feedback, batch actions, and user state import / export.
-- Followed repo update tracking and an Update Inbox MVP with read, pin, dismiss, and priority state.
+- Followed repo update tracking and an Update Inbox with read, pin, dismiss, priority, since-last-viewed indicators, local summaries, and importance reasons.
 - Repo detail drawer, README summary, topics, license, homepage metadata, and side-by-side repo comparison.
 - Markdown summary export for single repo, batch, and compare workflows.
 - AI prompt handoff to ChatGPT web / desktop, Gemini web, or copy-only; multi-target handoff is supported.
@@ -114,8 +114,6 @@ See [docs/SECURITY.md](docs/SECURITY.md) for the exact security boundary.
 Remaining planned work:
 
 - SQLite migration implementation with JSON import / export compatibility and rollback scaffolding.
-- Connecting refresh, discovery, update checks, and long-running workflows to one unified Job / Event / SSE runtime.
-- Update Inbox enhancements: “since last viewed”, richer summaries, and clearer importance explanations.
 - Explicit opt-in AI provider pipeline for local Ollama and OpenAI-compatible endpoints.
 - Encrypted backup / sync design after sync target, key management, and conflict policy decisions are clear.
 - Code signing and auto-update only after certificate, private-key custody, timestamping, and release policy decisions are clear.

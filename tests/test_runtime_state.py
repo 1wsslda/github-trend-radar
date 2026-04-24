@@ -185,6 +185,40 @@ class RuntimeStateFeatureTests(unittest.TestCase):
         self.assertTrue(update["dismissed_at"])
         self.assertTrue(update["pinned"])
 
+    def test_favorite_update_summary_and_importance_round_trip(self):
+        runtime = build_state_runtime()
+
+        result = runtime.import_user_state(
+            {
+                "mode": "replace",
+                "user_state": {
+                    "favorites": ["https://github.com/octo/demo"],
+                    "repo_records": {
+                        "https://github.com/octo/demo": {
+                            "full_name": "octo/demo",
+                            "url": "https://github.com/octo/demo",
+                        }
+                    },
+                    "favorite_updates": [
+                        {
+                            "id": "update-1",
+                            "full_name": "octo/demo",
+                            "url": "https://github.com/octo/demo",
+                            "checked_at": "2026-04-23T00:00:00",
+                            "changes": ["新版本 v2.0.0", "星标 +12"],
+                            "change_summary": "新版本 v2.0.0 · 星标 +12",
+                            "importance_reason": "新版本发布，优先确认兼容性与迁移成本。",
+                        }
+                    ],
+                },
+            }
+        )
+
+        update = result["user_state"]["favorite_updates"][0]
+
+        self.assertEqual(update["change_summary"], "新版本 v2.0.0 · 星标 +12")
+        self.assertEqual(update["importance_reason"], "新版本发布，优先确认兼容性与迁移成本。")
+
     def test_save_discovery_view_updates_last_run_metadata_after_results_apply(self):
         runtime = build_state_runtime()
 

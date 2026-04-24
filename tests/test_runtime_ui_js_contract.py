@@ -96,6 +96,21 @@ class RuntimeUIJSContractTests(unittest.TestCase):
             with self.subTest(token=token):
                 self.assertIn(token, JS)
 
+    def test_update_inbox_enhancement_contract_is_present(self):
+        for token in (
+            'const changeSummary = String(raw.change_summary || "").trim();',
+            'const importanceReason = String(raw.importance_reason || "").trim();',
+            'change_summary:changeSummary || (changes.length ? changes.join(" · ") : ""),',
+            'importance_reason:importanceReason,',
+            "function isUpdateNewSinceLastRead(update){",
+            "自上次查看以来",
+            "重要性",
+            "update.change_summary",
+            "update.importance_reason",
+        ):
+            with self.subTest(token=token):
+                self.assertIn(token, JS)
+
     def test_learning_prompt_contract_uses_single_prompt_spec(self):
         for token in (
             'const LEARNING_PROMPT_SPEC = {',

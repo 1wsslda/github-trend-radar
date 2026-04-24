@@ -34,6 +34,7 @@ This file follows a lightweight Keep a Changelog style.
   - in-memory Job / Event runtime and read endpoints;
   - SSE event snapshot endpoint;
   - refresh, discovery, and favorite update check bridge into the Job / Event runtime;
+  - Update Inbox summaries, importance reasons, and since-last-viewed indicators;
   - AI artifact metadata cache and list endpoint;
   - local discovery result clustering;
   - lightweight repo map visualization;

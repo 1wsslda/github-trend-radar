@@ -247,6 +247,28 @@ def build_favorites_api(*, deps, github_get):
             "checked_at": now,
         }
 
+    def favorite_update_change_summary(changes: list[str]) -> str:
+        return normalize(" · ".join(changes[:4]))
+
+    def favorite_update_importance_reason(
+        *,
+        changes: list[str],
+        star_delta: int,
+        fork_delta: int,
+        latest_release_tag: str,
+    ) -> str:
+        if latest_release_tag:
+            return "新版本发布，优先确认兼容性与迁移成本。"
+        if star_delta >= 10:
+            return "星标增长明显，说明近期关注度正在上升。"
+        if "最近有新提交" in changes:
+            return "最近有新提交，适合快速确认项目活跃度。"
+        if len(changes) >= 2:
+            return "同一轮检查出现多项变化，建议集中复查。"
+        if fork_delta > 0:
+            return "派生数增加，说明有人正在复用或二次开发。"
+        return "检测到收藏仓库变化，可按需复查。"
+
     def build_favorite_update(before: dict[str, object] | None, after: dict[str, object]) -> dict[str, object] | None:
         if not before:
             return None
@@ -280,12 +302,21 @@ def build_favorites_api(*, deps, github_get):
             + (16 if "最近有新提交" in changes else 0)
             + min(24, max(0, star_delta) * 2),
         )
+        change_summary = favorite_update_change_summary(changes)
+        importance_reason = favorite_update_importance_reason(
+            changes=changes,
+            star_delta=star_delta,
+            fork_delta=fork_delta,
+            latest_release_tag=latest_release_tag,
+        )
         return {
             "id": f"{normalize(after.get('full_name'))}:{checked_at}",
             "full_name": normalize(after.get("full_name")),
             "url": normalize(after.get("url")),
             "checked_at": checked_at,
             "changes": changes,
+            "change_summary": change_summary,
+            "importance_reason": importance_reason,
             "stars": clamp_int(after.get("stars"), 0, 0),
             "forks": clamp_int(after.get("forks"), 0, 0),
             "latest_release_tag": latest_release_tag,

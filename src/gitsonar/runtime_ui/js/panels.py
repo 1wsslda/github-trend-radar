@@ -51,7 +51,7 @@ function visibleUpdates(){
   return (userState.favorite_updates || [])
     .filter(update => !String(update.dismissed_at || "").trim())
     .filter(update => {
-      const haystack = `${update.full_name || ""} ${(update.changes || []).join(" ")} ${update.latest_release_tag || ""}`.toLowerCase();
+      const haystack = `${update.full_name || ""} ${(update.changes || []).join(" ")} ${update.change_summary || ""} ${update.importance_reason || ""} ${update.latest_release_tag || ""}`.toLowerCase();
       return !query || haystack.includes(query);
     })
     .sort((a, b) => {
