@@ -409,13 +409,26 @@ class RuntimeHTTPHandlerTests(unittest.TestCase):
         self.assertEqual(payload["code"], "invalid_control_token")
         self.assertIn("控制令牌", payload["error"])
 
-    def test_get_status_remains_available_without_control_token(self):
-        resp, data = self.request("GET", "/api/status", include_token=False)
-        payload = json.loads(data.decode("utf-8"))
+    def test_read_api_routes_require_control_token(self):
+        paths = (
+            "/api/bootstrap",
+            "/api/repos?view=daily&q=demo",
+            "/api/updates",
+            "/api/discovery/views",
+            "/api/settings",
+            "/api/status",
+            "/api/discovery",
+            "/api/discovery/job?id=job-active",
+        )
 
-        self.assertEqual(resp.status, 200)
-        self.assertFalse(payload["refreshing"])
-        self.assertEqual(payload["fetched_at"], "now")
+        for path in paths:
+            with self.subTest(path=path):
+                resp, data = self.request("GET", path, include_token=False)
+                payload = json.loads(data.decode("utf-8"))
+
+                self.assertEqual(resp.status, 403)
+                self.assertFalse(payload["ok"])
+                self.assertEqual(payload["code"], "invalid_control_token")
 
     def test_get_status_redacts_legacy_sensitive_error(self):
         self.status_payload = {
@@ -424,7 +437,7 @@ class RuntimeHTTPHandlerTests(unittest.TestCase):
             "error": "ghp_secret_token http://user:pass@127.0.0.1:7890 C:\\Users\\liushun\\runtime-data",
         }
 
-        resp, data = self.request("GET", "/api/status", include_token=False)
+        resp, data = self.request("GET", "/api/status")
         payload = json.loads(data.decode("utf-8"))
         payload_text = data.decode("utf-8")
 

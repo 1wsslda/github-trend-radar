@@ -191,9 +191,11 @@ GitHub 数据层，按职责拆分：
 
 ## API 分层现状
 
-### 当前未强制 control token 的只读端点
+### 当前 loopback + control-token 保护端点
 
-这些端点主要服务当前前端读取和兼容路径，payload 应保持脱敏：
+本地 JSON API 当前统一要求 loopback 访问；业务、状态、诊断、导出、事件和只读数据端点也要求 runtime control token。
+
+只读数据端点包括：
 
 - `GET /api/bootstrap`
 - `GET /api/repos`
@@ -203,13 +205,6 @@ GitHub 数据层，按职责拆分：
 - `GET /api/status`
 - `GET /api/discovery`
 - `GET /api/discovery/job`
-
-下一轮 `GS-P1-013` 会评估是否收紧只读 API 的 control-token 边界，并设计兼容迁移。
-
-### 当前 loopback + control-token 保护端点
-
-这些端点涉及敏感信息、状态变更、外部打开、GitHub 请求、缓存写入、导入导出或任务事件：
-
 - `GET /api/ai-artifacts`
 - `GET /api/jobs`
 - `GET /api/events`
@@ -218,6 +213,8 @@ GitHub 数据层，按职责拆分：
 - `GET /api/diagnostics`
 - `GET /api/export`
 - 所有状态、设置、导入、刷新、发现、AI Insight、窗口控制、外链打开和 GitHub star sync 的 POST 端点。
+
+主界面通过初始 HTML payload 中的 runtime control token 调用这些 API；缺少或错误 token 的直接 API 请求会返回 `403 invalid_control_token`。
 
 ### SSE MVP
 

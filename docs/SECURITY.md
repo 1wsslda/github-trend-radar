@@ -21,11 +21,11 @@ GitSonar 是一个本地运行的 Windows 桌面工具。
 
 ## 本地 API 边界
 
-本地 HTTP 服务默认绑定到 `127.0.0.1`。变更状态、保存设置、导入数据、刷新、发现、导出、打开外部链接、窗口控制和 GitHub star sync 等操作只允许 loopback 访问，并要求 runtime control token。
+本地 HTTP 服务默认绑定到 `127.0.0.1`。本地 JSON API 只允许 loopback 访问；业务数据、状态、诊断、导出、事件和只读数据端点要求 runtime control token。
 
-### 当前未强制 control token 的只读端点
+### 当前要求 loopback + control token 的端点
 
-以下端点当前用于前端读取和兼容路径，payload 必须保持脱敏：
+以下端点已经要求 loopback 和 runtime control token：
 
 - `GET /api/bootstrap`
 - `GET /api/repos`
@@ -35,13 +35,6 @@ GitSonar 是一个本地运行的 Windows 桌面工具。
 - `GET /api/status`
 - `GET /api/discovery`
 - `GET /api/discovery/job`
-
-这些只读端点仍需在 `GS-P1-013` 中评估是否收紧 control-token 边界，并设计兼容迁移，避免直接破坏当前前端加载路径。
-
-### 当前要求 loopback + control token 的端点
-
-以下端点已经要求 loopback 和 runtime control token：
-
 - `GET /api/ai-artifacts`
 - `GET /api/jobs`
 - `GET /api/events`
@@ -73,6 +66,8 @@ GitSonar 是一个本地运行的 Windows 桌面工具。
 - `POST /api/sync-stars`
 
 `/api/repo-details` 被保护是因为它虽然是 GET，但会触发 GitHub 请求和本地详情缓存写入。
+
+主界面通过初始 HTML payload 中的 runtime control token 访问这些端点；缺少或错误 token 的直接 API 请求会返回 `403 invalid_control_token`。所有这些 payload 仍必须保持脱敏。
 
 ## GitHub Token
 

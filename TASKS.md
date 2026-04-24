@@ -27,13 +27,14 @@
 | 优先级 | 总数 | `[ ]` | `[~]` | `[!]` | `[x]` | `[-]` |
 |---|---:|---:|---:|---:|---:|---:|
 | `P0` | 12 | 0 | 0 | 0 | 12 | 0 |
-| `P1` | 17 | 5 | 0 | 0 | 12 | 0 |
+| `P1` | 17 | 4 | 0 | 0 | 13 | 0 |
 | `P2` | 6 | 0 | 0 | 2 | 4 | 0 |
 
 ## 当前执行批次
 
 | 优先级 | 状态 | 任务 ID | 任务 | Plan | Branch | Commit / PR | 备注 |
 |---|---:|---|---|---|---|---|---|
+| `P1` | `[x]` | `GS-P1-013` | 只读 API control-token 收紧评估与兼容迁移 | `docs/plans/0031-read-api-control-token-compat.md` | `codex/runtime-control-compat` | `fix(security): require control token for read APIs` | 已完成；剩余只读本地 API 已要求 loopback/control-token，前端统一 header 路径保持兼容。 |
 | `P0` | `[x]` | `GS-P0-012` | 文档现实同步与下一轮任务队列计划 | `docs/plans/0030-docs-reality-sync.md` | `codex/runtime-control-compat` | `-` | 已同步 README、CHANGELOG、架构、安全、路线图、任务表、Sprint 队列和进度日志；验证通过。推荐 commit message：`docs: sync project status and next autopilot queue`。 |
 
 ## 当前 Auto Top 5 Batch 候选队列
@@ -42,7 +43,7 @@
 
 | 排名 | 优先级 | 状态 | 任务 ID | 任务 | Plan | Branch | Commit / PR | 备注 |
 |---:|---|---:|---|---|---|---|---|---|
-| 1 | `P1` | `[ ]` | `GS-P1-013` | 只读 API control-token 收紧评估与兼容迁移 | 待创建：`docs/plans/0031-read-api-control-token-compat.md` | `-` | `-` | 评估 bootstrap/repos/updates/settings/status 等只读端点的收紧策略，先设计兼容迁移，不直接破坏前端加载。 |
+| 1 | `P1` | `[x]` | `GS-P1-013` | 只读 API control-token 收紧评估与兼容迁移 | `docs/plans/0031-read-api-control-token-compat.md` | `codex/runtime-control-compat` | `fix(security): require control token for read APIs` | 已完成；无 token 直接读取返回 `403 invalid_control_token`，主界面请求继续携带 control header。 |
 | 2 | `P1` | `[ ]` | `GS-P1-014` | 刷新 / 发现 / 更新检查接入统一 Job/Event/SSE | 待创建：`docs/plans/0032-unify-refresh-discovery-update-jobs.md` | `-` | `-` | 将现有 refresh、discovery、update check 流程逐步接入通用 runtime，不做大重写。 |
 | 3 | `P1` | `[ ]` | `GS-P1-015` | Update Inbox 增强：自上次查看以来、摘要、重要性解释 | 待创建：`docs/plans/0033-update-inbox-enhancements.md` | `-` | `-` | 在现有 read/pin/dismiss/priority MVP 上扩展研判信息和降噪体验。 |
 | 4 | `P1` | `[ ]` | `GS-P1-016` | SQLite 迁移第一阶段：JSON 导入 / 导出兼容与回滚骨架 | 待创建：`docs/plans/0034-sqlite-migration-phase-1.md` | `-` | `-` | 只做迁移骨架和兼容验证，不默认切换事实存储。 |

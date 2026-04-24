@@ -65,6 +65,16 @@ class RuntimeUIJSContractTests(unittest.TestCase):
             with self.subTest(token=token):
                 self.assertIn(token, JS)
 
+    def test_request_json_sends_control_token_through_shared_options(self):
+        for token in (
+            "function localApiOptions(options){",
+            "headers.set(CONTROL_TOKEN_HEADER, controlToken);",
+            "async function requestJson(url, options, errorMessage = \"无法连接本地服务\"){",
+            "resp = await fetch(url, localApiOptions(options));",
+        ):
+            with self.subTest(token=token):
+                self.assertIn(token, JS)
+
     def test_discovery_cluster_contract_is_present(self):
         for token in (
             "function discoveryClusters(){",

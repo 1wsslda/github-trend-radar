@@ -24,7 +24,7 @@
 | Priority | 目标 | 对应任务 | 当前说明 |
 |---|---|---|---|
 | `P0` | 补齐“发现之后的管理”闭环并完成文档现实同步 | `GS-P0-001` ~ `GS-P0-012` | 当前 P0 MVP、诊断、Markdown 导出、安全加固和文档同步均已完成。 |
-| `P1` | 稳定 API、持久化、任务事件和 AI-ready 边界 | `GS-P1-001` ~ `GS-P1-017` | P1 MVP 已完成；下一轮优先处理只读 API 收紧、Job/Event/SSE 统一接入、Update Inbox 增强、SQLite 第一阶段和 AI provider opt-in 设计。 |
+| `P1` | 稳定 API、持久化、任务事件和 AI-ready 边界 | `GS-P1-001` ~ `GS-P1-017` | P1 API 安全兼容收紧已完成；下一轮优先处理 Job/Event/SSE 统一接入、Update Inbox 增强、SQLite 第一阶段和 AI provider opt-in 设计。 |
 | `P2` | 等边界稳定后推进差异化、发布和同步能力 | `GS-P2-001` ~ `GS-P2-006` | 聚类地图、本地翻译和发布 manifest 已完成；加密同步 / 备份、代码签名继续阻塞。 |
 
 ## 已完成的当前能力
@@ -62,6 +62,7 @@
 - HTTP route exception log 脱敏。
 - JSON body size limit。
 - `/api/repo-details` loopback/control-token 保护。
+- 剩余只读 JSON API 已要求 loopback/control-token。
 - 本地 release checksum manifest 脚本。
 
 ## P0
@@ -109,12 +110,12 @@
 | `GS-P1-010` | `/api/repo-details` control-token 保护 | `[x]` | 已保护会触发网络和缓存写入的 GET。 |
 | `GS-P1-011` | DPAPI UI forbidden | `[x]` | DPAPI 调用已禁止弹系统 UI。 |
 | `GS-P1-012` | HTTP route exception log 脱敏 | `[x]` | 未预期 route 异常日志已脱敏。 |
+| `GS-P1-013` | 只读 API control-token 收紧评估与兼容迁移 | `[x]` | `bootstrap/repos/updates/settings/status/discovery` 等只读端点已要求 loopback/control-token，前端统一 header 路径保持兼容。 |
 
 下一轮候选：
 
 | Task ID | 任务主题 | 状态 | 说明 |
 |---|---|---:|---|
-| `GS-P1-013` | 只读 API control-token 收紧评估与兼容迁移 | `[ ]` | 评估 bootstrap/repos/updates/settings/status 等只读端点的收紧策略。 |
 | `GS-P1-014` | 刷新 / 发现 / 更新检查接入统一 Job/Event/SSE | `[ ]` | 将已有后台流程逐步接入同一 runtime，不做大重写。 |
 | `GS-P1-015` | Update Inbox 增强 | `[ ]` | 增加自上次查看以来、摘要和重要性解释。 |
 | `GS-P1-016` | SQLite 迁移第一阶段 | `[ ]` | 建立 JSON 导入 / 导出兼容和回滚骨架，暂不做破坏性切换。 |

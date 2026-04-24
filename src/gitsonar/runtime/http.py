@@ -789,19 +789,19 @@ def build_app_handler(deps: AppHandlerDeps):
         }
 
     GET_ROUTES = {
-        "/api/bootstrap": Route(handle_get_bootstrap),
-        "/api/repos": Route(handle_get_repos),
-        "/api/updates": Route(handle_get_updates),
-        "/api/discovery/views": Route(handle_get_discovery_views),
+        "/api/bootstrap": Route(handle_get_bootstrap, loopback_only=True, control_only=True),
+        "/api/repos": Route(handle_get_repos, loopback_only=True, control_only=True),
+        "/api/updates": Route(handle_get_updates, loopback_only=True, control_only=True),
+        "/api/discovery/views": Route(handle_get_discovery_views, loopback_only=True, control_only=True),
         "/api/ai-artifacts": Route(handle_get_ai_artifacts, loopback_only=True, control_only=True),
         "/api/jobs": Route(handle_get_jobs, loopback_only=True, control_only=True),
         "/api/events": Route(handle_get_events, loopback_only=True, control_only=True),
         "/api/events/stream": Route(handle_get_events_stream, loopback_only=True, control_only=True),
-        "/api/settings": Route(handle_get_settings),
-        "/api/status": Route(handle_get_status),
+        "/api/settings": Route(handle_get_settings, loopback_only=True, control_only=True),
+        "/api/status": Route(handle_get_status, loopback_only=True, control_only=True),
         "/api/repo-details": Route(handle_get_repo_details, loopback_only=True, control_only=True, error_status=500, error_code="repo_details_failed", error_message="仓库详情加载失败。"),
-        "/api/discovery": Route(handle_get_discovery),
-        "/api/discovery/job": Route(handle_get_discovery_job, error_status=404, error_code="not_found"),
+        "/api/discovery": Route(handle_get_discovery, loopback_only=True, control_only=True),
+        "/api/discovery/job": Route(handle_get_discovery_job, loopback_only=True, control_only=True, error_status=404, error_code="not_found"),
         "/api/diagnostics": Route(handle_get_diagnostics, loopback_only=True, control_only=True, error_status=500, error_code="diagnostics_failed", error_message="运行诊断失败。"),
         "/api/export": Route(handle_get_export, loopback_only=True, control_only=True, error_status=500, error_code="export_failed", error_message="导出用户数据失败。"),
     }

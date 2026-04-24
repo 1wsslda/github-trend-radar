@@ -57,6 +57,7 @@ This file follows a lightweight Keep a Changelog style.
 - Refresh failures and discovery job failures store user-safe summaries instead of raw exception details.
 - Local JSON API request bodies are limited; oversized bodies return `413 payload_too_large`.
 - `/api/repo-details` now requires loopback access and the runtime control token because it can trigger GitHub requests and cache writes.
+- Read-only JSON APIs such as `/api/bootstrap`, `/api/repos`, `/api/updates`, `/api/settings`, `/api/status`, and `/api/discovery` now require loopback access and the runtime control token.
 
 ### Fixed
 
