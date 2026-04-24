@@ -36,6 +36,7 @@ GitSonar 不是把 GitHub Trending 页面搬到桌面。它把趋势发现、关
 - **提示词交接**：单仓库 / 批量 / 对比三种 ChatGPT / Gemini 提示词交接，支持多目标同时打开或仅复制。
 - **AI Insight artifact**：支持手动保存 `gitsonar.repo_insight.v1` 结构化 Insight JSON，并在本地缓存、列表和删除；当前不是内嵌 AI provider。
 - **本地 API 与事件**：已有 JSON API 边界、Job / Event 内存运行时、SSE 快照端点和 AI artifact 列表端点。
+- **SQLite 迁移骨架**：已有第一阶段 schema、dry-run 计数和备份 / 回滚路径规划；JSON 仍是事实存储。
 - **诊断与安全**：本地诊断面板，DPAPI 非交互加固，用户可见脱敏，诊断脱敏，刷新 / 发现错误安全化，JSON body size limit，以及 `/api/repo-details` control token 保护。
 - **桌面体验**：单实例唤醒、关闭行为、开机启动、代理支持。
 - **本地运行**：GitHub Token 本地加密保存，旧数据目录迁移，开发态 `runtime-data/` 与打包态 `%LOCALAPPDATA%\GitSonar`。
@@ -155,7 +156,7 @@ scripts\build_all_click.cmd
 
 以下是真实剩余项，不包含已经完成的 MVP 能力：
 
-- **SQLite 迁移第一阶段**：保留 JSON 导入 / 导出兼容，先建立迁移和回滚骨架，再切换持久化。
+- **SQLite 运行时切换**：在 dry-run 骨架之后，实现 SQLite 导入 / 导出和受控存储切换。
 - **AI provider opt-in**：本地 Ollama 和 OpenAI-compatible provider pipeline，调用前必须可预览发送字段。
 - **加密备份 / 同步**：在同步目标、密钥管理和冲突策略明确后再启动。
 - **代码签名与自动更新**：在证书、私钥保管、时间戳服务和发布策略明确后再启动。

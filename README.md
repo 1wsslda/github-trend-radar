@@ -30,6 +30,7 @@ GitSonar is not just a Trending viewer. It combines trend discovery, keyword dis
 - AI prompt handoff to ChatGPT web / desktop, Gemini web, or copy-only; multi-target handoff is supported.
 - Manual `gitsonar.repo_insight.v1` structured Insight save / list / delete and local artifact metadata cache. This is not an embedded provider pipeline.
 - JSON API boundary MVP for bootstrap, repos, updates, discovery views, jobs, events, SSE snapshots, and AI artifacts.
+- SQLite migration dry-run skeleton with phase-one schema and backup / rollback path planning. JSON remains the fact storage.
 - Local diagnostics panel for runtime status, proxy, token, GitHub reachability, and related troubleshooting signals.
 - Optional local Ollama-style translation provider. It is explicit opt-in, loopback-only, and does not change the default translation path.
 - Security hardening for DPAPI non-interactive handling, user-visible redaction, safe diagnostics, safe refresh and discovery errors, JSON body limits, and control-token protection for `/api/repo-details`.
@@ -113,7 +114,7 @@ See [docs/SECURITY.md](docs/SECURITY.md) for the exact security boundary.
 
 Remaining planned work:
 
-- SQLite migration implementation with JSON import / export compatibility and rollback scaffolding.
+- SQLite runtime import / export and controlled storage cutover after the dry-run skeleton.
 - Explicit opt-in AI provider pipeline for local Ollama and OpenAI-compatible endpoints.
 - Encrypted backup / sync design after sync target, key management, and conflict policy decisions are clear.
 - Code signing and auto-update only after certificate, private-key custody, timestamping, and release policy decisions are clear.

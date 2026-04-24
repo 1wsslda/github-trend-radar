@@ -96,7 +96,7 @@ SQLite 迁移设计
 | `user_repo_state` | `repo_id`, `state`, `created_at`, `updated_at` | `favorites`, `watch_later`, `read`, `ignored` |
 | `repo_annotations` | `repo_id`, `tags_json`, `note`, `updated_at` | `repo_annotations` |
 | `favorite_watch` | `repo_id`, `stars`, `forks`, `latest_release_tag`, `checked_at`, `release_checked_at` | `favorite_watch` |
-| `update_events` | `id`, `repo_id`, `changes_json`, `priority_score`, `read_at`, `dismissed_at`, `pinned`, `checked_at` | `favorite_updates` |
+| `update_events` | `id`, `repo_id`, `changes_json`, `change_summary`, `importance_reason`, `priority_score`, `read_at`, `dismissed_at`, `pinned`, `checked_at` | `favorite_updates` |
 | `feedback_signals` | `repo_id`, `reason`, `count`, `state`, `updated_at` | `feedback_signals` |
 | `discovery_views` | `id`, `name`, `query`, `limit`, `auto_expand`, `ranking_profile`, `last_run_at`, `last_result_count` | `saved_views` |
 | `discovery_runs` | `id`, `query_json`, `run_at`, `result_count`, `warnings_json` | `last_query`, `last_run_at`, `last_warnings` |
@@ -168,7 +168,7 @@ SQLite 迁移设计
 
 ## 后续实施建议
 
-- 第一个代码任务只新增 `runtime_storage/sqlite_schema.py` 和迁移 dry-run 测试。
+- 第一个代码任务已由 `GS-P1-016` 新增 `runtime/sqlite_migration.py` 和迁移 dry-run 测试，仍未接入事实存储。
 - 第二个代码任务实现 JSON -> SQLite 导入，但默认不启用读取。
 - 第三个代码任务增加设置开关或自动切换策略。
 - 第四个代码任务实现 SQLite -> JSON 导出，确认可回滚后再默认启用。
@@ -218,7 +218,7 @@ SQLite 迁移设计
 
 - 已运行测试：不涉及运行时代码，未运行代码测试。
 - 手动验证：已用全文检索核对计划覆盖 `user_state`、`discovery_state`、`favorite_updates`、`saved_views`、`ai_insights`、`settings`、`rollback` 等关键迁移字段。
-- 尚未覆盖的缺口：后续实施阶段才写迁移 dry-run 与 SQLite schema 测试。
+- 尚未覆盖的缺口：后续实施阶段仍需补真实 SQLite 导入、SQLite -> JSON 导出、受控切换和损坏恢复测试。
 
 ## 验收清单
 

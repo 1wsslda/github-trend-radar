@@ -35,6 +35,7 @@ This file follows a lightweight Keep a Changelog style.
   - SSE event snapshot endpoint;
   - refresh, discovery, and favorite update check bridge into the Job / Event runtime;
   - Update Inbox summaries, importance reasons, and since-last-viewed indicators;
+  - SQLite migration dry-run schema and backup / rollback path skeleton;
   - AI artifact metadata cache and list endpoint;
   - local discovery result clustering;
   - lightweight repo map visualization;

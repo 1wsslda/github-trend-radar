@@ -51,6 +51,7 @@ src/gitsonar/
     repo_records.py
     settings.py
     shell.py
+    sqlite_migration.py
     startup.py
     state.py
     state_schema.py
@@ -135,6 +136,10 @@ src/gitsonar/
 ### `src/gitsonar/runtime/state_store.py`
 
 JSON 状态读写和存储辅助。当前持久化仍以 JSON 文件为事实存储，SQLite 尚未实施。
+
+### `src/gitsonar/runtime/sqlite_migration.py`
+
+SQLite 迁移第一阶段骨架。当前只提供 schema 创建、JSON dry-run 计数和备份 / 回滚路径规划 helper；没有被启动流程调用，不会创建 `gitsonar.db`，也不会改变 JSON 事实存储。
 
 ### `src/gitsonar/runtime/detail_cache.py`
 
