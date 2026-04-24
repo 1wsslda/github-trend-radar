@@ -11,7 +11,7 @@ from datetime import date
 from http.server import SimpleHTTPRequestHandler
 from urllib.parse import parse_qs, urlparse
 
-from .redaction import safe_status_payload
+from .redaction import redact_text, safe_status_payload
 
 logger = logging.getLogger(__name__)
 
@@ -385,11 +385,11 @@ def build_app_handler(deps: AppHandlerDeps):
         if isinstance(exc, LocalAPIError):
             status = int(getattr(exc, "status", route.error_status) or route.error_status)
             code = normalize(getattr(exc, "code", "")) or ("not_found" if status == 404 else (route.error_code or "invalid_request"))
-            logger.warning("http_request_rejected path=%s code=%s error=%s", path, code, raw_message)
+            logger.warning("http_request_rejected path=%s code=%s error=%s", path, code, redact_text(raw_message))
             return json_error(localize_user_message(normalize, raw_message, "请求处理失败。"), status, code)
         code = route.error_code or ("internal_error" if route.error_status >= 500 else "request_failed")
         message = route.error_message or ("服务器内部错误。" if route.error_status >= 500 else "请求处理失败。")
-        logger.exception("http_route_failed path=%s code=%s", path, code)
+        logger.error("http_route_failed path=%s code=%s error=%s", path, code, redact_text(raw_message) or type(exc).__name__)
         return json_error(message, route.error_status, code)
 
     def parse_repo_details_query(parsed):

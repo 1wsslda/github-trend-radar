@@ -982,6 +982,27 @@ class RuntimeHTTPHandlerTests(unittest.TestCase):
         self.assertEqual(payload["code"], "github_star_sync_failed")
         self.assertNotIn("secret backend detail", payload["error"])
 
+    def test_unexpected_route_exception_log_redacts_sensitive_details(self):
+        self.fetch_user_starred = lambda: (_ for _ in ()).throw(RuntimeError(
+            "sync failed for ghp_secret_token via "
+            "http://user:pass@127.0.0.1:7890 at C:\\Users\\liushun\\runtime-data"
+        ))
+
+        with self.assertLogs("gitsonar.runtime.http", level="ERROR") as captured:
+            resp, data = self.request("POST", "/api/sync-stars")
+        payload = json.loads(data.decode("utf-8"))
+        log_text = "\n".join(captured.output)
+
+        self.assertEqual(resp.status, 400)
+        self.assertFalse(payload["ok"])
+        self.assertEqual(payload["code"], "github_star_sync_failed")
+        self.assertNotIn("ghp_secret_token", log_text)
+        self.assertNotIn("user:pass", log_text)
+        self.assertNotIn("C:\\Users\\liushun", log_text)
+        self.assertIn("[secret]", log_text)
+        self.assertIn("[local path]", log_text)
+        self.assertIsNone(captured.records[0].exc_info)
+
     def test_repo_details_internal_value_error_is_sanitized(self):
         self.fetch_repo_details = lambda _owner, _name: (_ for _ in ()).throw(ValueError("secret backend detail"))
 

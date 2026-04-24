@@ -27,7 +27,7 @@
 | 优先级 | 总数 | `[ ]` | `[~]` | `[!]` | `[x]` | `[-]` |
 |---|---:|---:|---:|---:|---:|---:|
 | `P0` | 11 | 0 | 0 | 0 | 11 | 0 |
-| `P1` | 11 | 0 | 0 | 0 | 11 | 0 |
+| `P1` | 12 | 0 | 0 | 0 | 12 | 0 |
 | `P2` | 6 | 0 | 0 | 2 | 4 | 0 |
 
 ## 当前 Auto Top 5 Batch 候选队列
@@ -64,6 +64,7 @@
 | Priority | Status | Task ID | Task | Plan | Branch | Commit / PR | Notes |
 |---|---:|---|---|---|---|---|---|
 | `P1` | `[x]` | `GS-P1-011` | Forbid DPAPI UI prompts | `docs/plans/0028-dpapi-ui-forbidden.md` | `codex/runtime-control-compat` | `fix(security): forbid dpapi ui prompts` | DPAPI encrypt/decrypt now pass `CRYPTPROTECT_UI_FORBIDDEN` while preserving stored JSON compatibility. |
+| `P1` | `[x]` | `GS-P1-012` | Redact HTTP route exception logs | `docs/plans/0029-redact-http-route-exception-logs.md` | `codex/runtime-control-compat` | `fix(security): redact http route exception logs` | Unexpected HTTP route failures now log redacted summaries without raw traceback payloads. |
 
 ## 候选队列之外的任务池
 

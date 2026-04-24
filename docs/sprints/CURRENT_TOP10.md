@@ -45,6 +45,7 @@ Selected tasks:
 | Rank | Task ID | Status | Task | Plan | Branch | Commit / PR | Notes |
 |---:|---|---:|---|---|---|---|---|
 | 1 | `GS-P1-011` | `[x]` | Forbid DPAPI UI prompts | `docs/plans/0028-dpapi-ui-forbidden.md` | `codex/runtime-control-compat` | `fix(security): forbid dpapi ui prompts` | DPAPI encrypt/decrypt now pass `CRYPTPROTECT_UI_FORBIDDEN`. |
+| 2 | `GS-P1-012` | `[x]` | Redact HTTP route exception logs | `docs/plans/0029-redact-http-route-exception-logs.md` | `codex/runtime-control-compat` | `fix(security): redact http route exception logs` | Unexpected HTTP route failures now log redacted summaries without raw traceback payloads. |
 
 Skipped or blocked tasks:
 
@@ -53,7 +54,7 @@ Skipped or blocked tasks:
 | `GS-P2-003` encrypted sync / backup | Still blocked on sync target, key management, conflict strategy, and explicit opt-in decisions. |
 | `GS-P2-005` code signing | Still blocked on certificate, private-key custody, password injection, and timestamp service decisions. |
 | Full read API control-token migration | Larger compatibility boundary; not safe to mix with this small security hardening task. |
-| Repository-wide log redaction refactor | Larger scope; this task only handles DPAPI flags. |
+| Repository-wide log redaction refactor | Larger scope; this batch only handles DPAPI flags and HTTP route unexpected exception logs. |
 
 ## 当前候选队列
 

@@ -122,6 +122,7 @@ As of 2026-04-24, settings, bootstrap, diagnostics, status, and discovery job pa
 - Proxy URLs used internally may still contain credentials, but API/UI payloads show redacted values such as `http://***:***@127.0.0.1:7890`.
 - Windows DPAPI encrypt/decrypt calls use `CRYPTPROTECT_UI_FORBIDDEN`, so background Token / proxy secret handling does not request system UI.
 - Refresh failures write a user-safe status message; detailed exception text is only logged after redaction.
+- Unexpected local HTTP route failures log a redacted exception summary instead of raw traceback payloads.
 - Discovery job failures return a safe summary instead of raw backend exception text.
 - Oversized local JSON API request bodies are rejected with `413 payload_too_large`.
 - `/api/repo-details` requires loopback access and the runtime control token because it can trigger GitHub requests and cache writes.
