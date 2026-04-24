@@ -6,40 +6,58 @@
 
 ![GitSonar Screen](assets/screenshots/trending.png)
 
-GitSonar is not just a Trending viewer. It combines trend discovery, keyword discovery, local workflow states, update tracking, repo detail reading, side-by-side comparison, and ChatGPT prompt handoff in one desktop workspace.
+GitSonar is not just a Trending viewer. It combines trend discovery, keyword discovery, local workflow states, update tracking, repo detail reading, side-by-side comparison, saved judgement artifacts, and AI prompt handoff in one desktop workspace.
 
 ## Workflow
 
 1. **Discover**
-   Daily / weekly / monthly trend aggregation plus a keyword discovery panel with saved searches and ranking profiles.
+   Daily / weekly / monthly trend aggregation plus keyword discovery, saved discovery views, ranking profiles, recommendation reasons, local clustering, and a lightweight repo map.
 2. **Organise**
-   Local `Follow / Watch Later / Read / Ignore` states, search, filters, sorting, batch actions, and state import / export.
+   Local `Follow / Watch Later / Read / Ignore` states, tags, notes, ignore feedback, search, filters, sorting, batch actions, and state import / export.
 3. **Track**
-   Followed repo updates for push, star / fork, and release changes, plus optional GitHub star sync and import.
+   Followed repo updates for push, star / fork, and release changes, with an Update Inbox MVP for read, pin, dismiss, and priority handling.
 4. **Judge**
-   Repo detail drawer, README summary, side-by-side compare, and AI prompt handoff (ChatGPT web / desktop, Gemini web — single, batch, or compare workflows, multi-target supported).
+   Repo detail drawer, README summary, side-by-side compare, Markdown summary export, AI prompt handoff, and manually saved structured Insight artifacts.
 
 ## What Is Implemented Today
 
-- Trend aggregation for day / week / month
-- Keyword discovery with saved searches
-- Local follow states and batch actions
-- Followed repo update tracking
-- Repo detail drawer and README summary
-- Side-by-side repo comparison
-- AI prompt handoff to ChatGPT web / desktop, Gemini web, or copy-only; multi-target supported
-- Single-instance wake-up, close-to-exit behavior, auto start, proxy support, and local token storage
+- Trend aggregation for day / week / month.
+- Keyword discovery with saved discovery views, saved searches, ranking modes, recommendation reasons, local result clustering, and a lightweight two-dimensional repo map.
+- Local follow states, tags, notes, ignore feedback, batch actions, and user state import / export.
+- Followed repo update tracking and an Update Inbox MVP with read, pin, dismiss, and priority state.
+- Repo detail drawer, README summary, topics, license, homepage metadata, and side-by-side repo comparison.
+- Markdown summary export for single repo, batch, and compare workflows.
+- AI prompt handoff to ChatGPT web / desktop, Gemini web, or copy-only; multi-target handoff is supported.
+- Manual `gitsonar.repo_insight.v1` structured Insight save / list / delete and local artifact metadata cache. This is not an embedded provider pipeline.
+- JSON API boundary MVP for bootstrap, repos, updates, discovery views, jobs, events, SSE snapshots, and AI artifacts.
+- Local diagnostics panel for runtime status, proxy, token, GitHub reachability, and related troubleshooting signals.
+- Optional local Ollama-style translation provider. It is explicit opt-in, loopback-only, and does not change the default translation path.
+- Security hardening for DPAPI non-interactive handling, user-visible redaction, safe diagnostics, safe refresh and discovery errors, JSON body limits, and control-token protection for `/api/repo-details`.
+- Single-instance wake-up, close-to-exit behavior, auto start, proxy support, and local token storage.
+
+## Current AI Boundary
+
+GitSonar does not currently call an embedded AI provider or return model-generated conclusions inside the app by default.
+
+Implemented AI-adjacent behavior is:
+
+- prompt handoff to external ChatGPT or Gemini targets;
+- copy-only prompt workflows;
+- manually saving structured Insight JSON back into the local app;
+- local artifact metadata and listing.
+
+Future provider integration must remain explicit opt-in and must show what data is sent before any cloud or local provider call.
 
 ## Who It Is For
 
-- People who follow GitHub projects over time, not just once
-- Builders, researchers, product people, and heavy open-source users
-- Anyone who wants a desktop workspace instead of a one-off Trending page
+- People who follow GitHub projects over time, not just once.
+- Builders, researchers, product people, and heavy open-source users.
+- Anyone who wants a desktop workspace instead of a one-off Trending page.
 
 ## Not Just A Trending Viewer
 
 - A viewer helps you discover repos. GitSonar keeps the follow-up workflow on desktop.
-- GitHub stars are only one signal. GitSonar adds local states, update tracking, detail reading, compare, and judgement tools.
+- GitHub stars are only one signal. GitSonar adds local states, tags, notes, update tracking, detail reading, compare, and judgement tools.
 - The app keeps the follow-up workflow on desktop with single-instance wake-up and explicit relaunch when needed.
 
 ## Terms
@@ -82,22 +100,25 @@ scripts\build_all_click.cmd
 
 ## Security & Data
 
-- Packaged app data lives under `%LOCALAPPDATA%\GitSonar`
-- Repository development runs use `runtime-data/`
-- Legacy `%LOCALAPPDATA%\GitHubTrendRadar` data is merged on first run when needed
-- GitHub tokens are stored locally with Windows DPAPI
-- Current network destinations include GitHub and Google Translate for translation
-- AI analysis currently means prompt handoff to external ChatGPT (web / desktop) or Gemini web — not embedded AI inside the app. Multiple targets can be selected to open simultaneously.
+- Packaged app data lives under `%LOCALAPPDATA%\GitSonar`.
+- Repository development runs use `runtime-data/`.
+- Legacy `%LOCALAPPDATA%\GitHubTrendRadar` data is merged on first run when needed.
+- GitHub tokens and proxy URLs with credentials are stored locally with Windows DPAPI.
+- Current network destinations may include GitHub and Google Translate. Optional local Ollama-style translation is loopback-only and explicit opt-in.
+- AI analysis currently means prompt handoff to external ChatGPT or Gemini targets, plus manually saved local Insight artifacts. GitSonar does not silently call an embedded AI provider.
 
 See [docs/SECURITY.md](docs/SECURITY.md) for the exact security boundary.
 
 ## Roadmap
 
-Planned, not yet implemented:
+Remaining planned work:
 
-- Smarter update judgement: summaries, prioritisation, and “since last read” views
-- Embedded AI judgement instead of prompt handoff
-- Custom discovery views, onboarding, diagnostics, and stronger local reliability tooling
+- SQLite migration implementation with JSON import / export compatibility and rollback scaffolding.
+- Connecting refresh, discovery, update checks, and long-running workflows to one unified Job / Event / SSE runtime.
+- Update Inbox enhancements: “since last viewed”, richer summaries, and clearer importance explanations.
+- Explicit opt-in AI provider pipeline for local Ollama and OpenAI-compatible endpoints.
+- Encrypted backup / sync design after sync target, key management, and conflict policy decisions are clear.
+- Code signing and auto-update only after certificate, private-key custody, timestamping, and release policy decisions are clear.
 
 ## Docs
 

@@ -16,36 +16,13 @@ Codex 选择当前 Auto Top 5 Batch 时，应按以下顺序判断：
 5. 保持本地优先与 Windows 桌面工作流的优先
 6. 不需要大重写的优先
 
-## Security hardening batch - 2026-04-24
+## 文档现实同步批次 - 2026-04-24
 
 Selected tasks:
 
 | Rank | Task ID | Status | Task | Plan | Branch | Commit / PR | Notes |
 |---:|---|---:|---|---|---|---|---|
-| 1 | `GS-P0-010` | `[x]` | Redact proxy credentials and local diagnostics details | `docs/plans/0023-redact-proxy-and-local-diagnostics.md` | `-` | `-` | Settings/bootstrap/diagnostics no longer expose proxy credentials or raw runtime paths. |
-| 2 | `GS-P0-011` | `[x]` | Keep refresh status errors user safe | `docs/plans/0024-safe-refresh-status-errors.md` | `-` | `-` | Status files, `/api/status`, bootstrap status, and UI polling use safe failure messages. |
-| 3 | `GS-P1-008` | `[x]` | Sanitize discovery job failures | `docs/plans/0025-safe-discovery-job-errors.md` | `-` | `-` | Failed job payloads do not return raw exception text. |
-| 4 | `GS-P1-009` | `[x]` | Limit JSON request body size | `docs/plans/0026-json-body-size-limit.md` | `-` | `-` | Oversized JSON bodies return `413 payload_too_large`. |
-| 5 | `GS-P1-010` | `[x]` | Protect `/api/repo-details` side-effect GET | `docs/plans/0027-protect-repo-details-endpoint.md` | `-` | `-` | Missing control token now returns 403; normal frontend requests still work. |
-
-Skipped or blocked tasks:
-
-| Task | Reason |
-|---|---|
-| `GS-P2-003` encrypted sync / backup | Still blocked on sync target, key management, conflict strategy, and explicit opt-in decisions. |
-| `GS-P2-005` code signing | Still blocked on certificate, private-key custody, and timestamp service decisions. |
-| Full read API control-token migration | Larger compatibility boundary; this batch only protects network/cache side-effect GET. |
-| DPAPI `CRYPTPROTECT_UI_FORBIDDEN` | Lower priority than current UI/API leakage risk. |
-| Repository-wide log redaction refactor | Larger scope; this batch fixes user-visible and high-risk paths first. |
-
-## Project Autopilot Safe Loop batch - 2026-04-24
-
-Selected tasks:
-
-| Rank | Task ID | Status | Task | Plan | Branch | Commit / PR | Notes |
-|---:|---|---:|---|---|---|---|---|
-| 1 | `GS-P1-011` | `[x]` | Forbid DPAPI UI prompts | `docs/plans/0028-dpapi-ui-forbidden.md` | `codex/runtime-control-compat` | `fix(security): forbid dpapi ui prompts` | DPAPI encrypt/decrypt now pass `CRYPTPROTECT_UI_FORBIDDEN`. |
-| 2 | `GS-P1-012` | `[x]` | Redact HTTP route exception logs | `docs/plans/0029-redact-http-route-exception-logs.md` | `codex/runtime-control-compat` | `fix(security): redact http route exception logs` | Unexpected HTTP route failures now log redacted summaries without raw traceback payloads. |
+| 1 | `GS-P0-012` | `[x]` | 文档现实同步与下一轮任务队列计划 | `docs/plans/0030-docs-reality-sync.md` | `codex/runtime-control-compat` | `-` | 已同步文档和任务追踪，不改业务代码；推荐 commit message：`docs: sync project status and next autopilot queue`。 |
 
 Skipped or blocked tasks:
 
@@ -53,27 +30,43 @@ Skipped or blocked tasks:
 |---|---|
 | `GS-P2-003` encrypted sync / backup | Still blocked on sync target, key management, conflict strategy, and explicit opt-in decisions. |
 | `GS-P2-005` code signing | Still blocked on certificate, private-key custody, password injection, and timestamp service decisions. |
-| Full read API control-token migration | Larger compatibility boundary; not safe to mix with this small security hardening task. |
-| Repository-wide log redaction refactor | Larger scope; this batch only handles DPAPI flags and HTTP route unexpected exception logs. |
+| SQLite implementation | Planned as `GS-P1-016`; this batch only documents the next queue and does not change persistence. |
+| AI provider implementation | Planned as `GS-P1-017`; this batch only documents opt-in design work and does not call providers. |
+| Full Job/Event/SSE migration | Planned as `GS-P1-014`; this batch does not touch runtime code. |
 
-## 当前候选队列
+## 下一轮 Project Autopilot Safe Loop 候选队列
 
 即使本表包含多于 5 个候选，当前批次也只处理前 5 个可安全执行的任务。
 
 | 排名 | 任务 ID | 状态 | 任务 | Plan | Branch | Commit / PR | 备注 |
 |---:|---|---:|---|---|---|---|---|
-| 1 | `GS-P1-002` | `[x]` | 清理静态壳与 JSON API 边界 | `docs/plans/0011-json-api-boundary-mvp.md` | `-` | `-` | 已新增 `/api/bootstrap`、`/api/repos`、`/api/updates` 和 `/api/discovery/views` 只读边界。 |
-| 2 | `GS-P1-003` | `[x]` | SQLite 迁移设计 | `docs/plans/0012-sqlite-migration-design.md` | `-` | `-` | 已完成迁移与回滚设计，未实施存储切换。 |
-| 3 | `GS-P1-004` | `[x]` | 统一 Job / Event 模型 | `docs/plans/0013-job-event-model-mvp.md` | `-` | `-` | 已新增内存级 Job/Event runtime 和 `/api/jobs`、`/api/events` 只读端点。 |
-| 4 | `GS-P1-005` | `[x]` | SSE 进度与事件流 | `docs/plans/0014-sse-event-stream-mvp.md` | `-` | `-` | 已新增 `/api/events/stream` SSE 快照端点，保留 loopback/control-token 保护。 |
-| 5 | `GS-P1-006` | `[x]` | AI Artifact 生命周期与缓存 | `docs/plans/0015-ai-artifact-lifecycle-cache.md` | `-` | `-` | 已扩展本地 AI artifact 元数据与 `/api/ai-artifacts` 列表端点，不接入 provider。 |
-| 6 | `GS-P1-007` | `[x]` | 发现结果聚类 | `docs/plans/0016-discovery-result-clustering.md` | `codex/runtime-control-compat` | `-` | 已新增本地 discovery result 聚类、state/API 字段和发现页主题展示。 |
-| 7 | `GS-P2-001` | `[x]` | 仓库地图 / 可视化体验 | `docs/plans/0017-repo-map-visualization-mvp.md` | `codex/runtime-control-compat` | `-` | 已新增发现页轻量二维主题地图和选中本组交互。 |
-| 8 | `GS-P2-002` | `[x]` | 可选本地翻译模型支持 | `docs/plans/0019-optional-local-translation-model.md` | `codex/runtime-control-compat` | `-` | 已新增显式可选的本地 Ollama 类翻译 provider、loopback URL 校验和设置 UI；默认仍保持现有 Google Translate 行为。 |
-| 9 | `GS-P2-003` | `[!]` | 加密同步 / 备份 | `docs/plans/0020-encrypted-sync-backup-blocked.md` | `codex/runtime-control-compat` | `-` | 阻塞：涉及隐私、同步目标、密钥管理、冲突处理和用户数据外发边界，不能在本轮安全实现。 |
-| 10 | `GS-P2-004` | `[x]` | 发布加固与 AV 误报缓解 | `docs/plans/0018-release-hardening-av-mitigation.md` | `codex/runtime-control-compat` | `-` | 已新增本地 SHA256 release manifest 脚本，不改签名或打包策略。 |
-| 11 | `GS-P2-005` | `[!]` | 代码签名 | `docs/plans/0021-code-signing-blocked.md` | `codex/runtime-control-compat` | `-` | 阻塞：需要代码签名证书、私钥保管、密码注入和时间戳服务决策，不能在本轮安全实现。 |
-| 12 | `GS-P2-006` | `[x]` | 前端现代化评估 | `docs/plans/0022-frontend-modernization-evaluation.md` | `codex/runtime-control-compat` | `-` | 已完成评估；当前不启动 React / Vite 重写，未来只建议局部试点。 |
+| 1 | `GS-P1-013` | `[ ]` | 只读 API control-token 收紧评估与兼容迁移 | 待创建：`docs/plans/0031-read-api-control-token-compat.md` | `-` | `-` | 评估 bootstrap/repos/updates/settings/status 等只读端点的收紧策略，先设计兼容迁移。 |
+| 2 | `GS-P1-014` | `[ ]` | 刷新 / 发现 / 更新检查接入统一 Job/Event/SSE | 待创建：`docs/plans/0032-unify-refresh-discovery-update-jobs.md` | `-` | `-` | 将现有后台流程逐步接入通用 runtime，不做大重写。 |
+| 3 | `GS-P1-015` | `[ ]` | Update Inbox 增强：自上次查看以来、摘要、重要性解释 | 待创建：`docs/plans/0033-update-inbox-enhancements.md` | `-` | `-` | 基于现有 read/pin/dismiss/priority MVP 扩展研判和降噪体验。 |
+| 4 | `GS-P1-016` | `[ ]` | SQLite 迁移第一阶段：JSON 导入 / 导出兼容与回滚骨架 | 待创建：`docs/plans/0034-sqlite-migration-phase-1.md` | `-` | `-` | 只做迁移骨架和兼容验证，不默认切换事实存储。 |
+| 5 | `GS-P1-017` | `[ ]` | AI provider opt-in 设计与本地 Ollama / OpenAI-compatible pipeline | 待创建：`docs/plans/0035-ai-provider-opt-in-design.md` | `-` | `-` | 先设计 provider、隐私预览、artifact 可追溯和手动启用边界，不默认调用云端。 |
+
+## 已完成或阻塞的上一轮候选
+
+| 任务 ID | 状态 | 说明 |
+|---|---:|---|
+| `GS-P1-002` | `[x]` | 已新增 `/api/bootstrap`、`/api/repos`、`/api/updates` 和 `/api/discovery/views` 只读边界。 |
+| `GS-P1-003` | `[x]` | 已完成 SQLite 迁移与回滚设计，未实施存储切换。 |
+| `GS-P1-004` | `[x]` | 已新增内存级 Job/Event runtime 和 `/api/jobs`、`/api/events`。 |
+| `GS-P1-005` | `[x]` | 已新增 `/api/events/stream` SSE 快照端点。 |
+| `GS-P1-006` | `[x]` | 已扩展本地 AI artifact metadata 与 `/api/ai-artifacts`。 |
+| `GS-P1-007` | `[x]` | 已完成发现结果聚类。 |
+| `GS-P2-001` | `[x]` | 已完成轻量二维仓库地图 MVP。 |
+| `GS-P2-002` | `[x]` | 已完成可选本地 Ollama-style 翻译 provider。 |
+| `GS-P2-003` | `[!]` | 阻塞：同步目标、密钥管理、冲突策略和显式 opt-in 决策未定。 |
+| `GS-P2-004` | `[x]` | 已新增本地 SHA256 release manifest。 |
+| `GS-P2-005` | `[!]` | 阻塞：证书、私钥保管、密码注入和时间戳服务决策未定。 |
+| `GS-P2-006` | `[x]` | 已完成前端现代化评估，当前不启动 React / Vite 重写。 |
+| `GS-P1-008` | `[x]` | discovery job 失败已安全化。 |
+| `GS-P1-009` | `[x]` | JSON body size limit 已完成。 |
+| `GS-P1-010` | `[x]` | `/api/repo-details` 已保护。 |
+| `GS-P1-011` | `[x]` | DPAPI UI forbidden 已完成。 |
+| `GS-P1-012` | `[x]` | HTTP route exception logs 脱敏已完成。 |
 
 ## Sprint 执行规则
 
