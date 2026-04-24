@@ -5,7 +5,7 @@
 - 任务 ID：`GS-P0-008`
 - 优先级：`P0`
 - 当前状态：`[x]`
-- Sprint 排名：`8`
+- Sprint 候选排名：`8`
 - 推荐 commit message：`feat: 添加忽略原因与反馈信号`
 
 ## 摘要
@@ -18,7 +18,7 @@
 
 - 战略：把用户偏好保留在本地状态里，先做最小反馈闭环，不做云端训练或大规模排序重写。
 - 路线图：对应 `docs/roadmap/ROADMAP.md` 的 P0 本地偏好记忆能力。
-- Sprint：对应 `docs/sprints/CURRENT_TOP10.md` 排名 `8`。
+- Sprint：对应 `docs/sprints/CURRENT_TOP10.md` 候选排名 `8`。
 
 ## 当前状态
 

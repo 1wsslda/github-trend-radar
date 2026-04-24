@@ -1,12 +1,13 @@
-# 当前 Top 10 Sprint
+# 当前 Auto Top 5 Batch Sprint 候选队列
 
-本文件记录当前自动排序后的 Top 10 任务队列。
+本文件记录当前自动排序后的候选任务队列。
+文件名 `CURRENT_TOP10.md` 因历史兼容保留；Auto Top 5 Batch Sprint 每批只选择优先级最高、未完成、未阻塞的最多 5 个可安全执行任务。
 
-最后刷新：`2026-04-23`
+最后刷新：`2026-04-24`
 
 ## 选择规则
 
-Codex 选择当前 Top 10 时，应按以下顺序判断：
+Codex 选择当前 Auto Top 5 Batch 时，应按以下顺序判断：
 
 1. 路线图优先级：P0 高于 P1，P1 高于 P2
 2. 用户价值更高的优先
@@ -15,27 +16,30 @@ Codex 选择当前 Top 10 时，应按以下顺序判断：
 5. 保持本地优先与 Windows 桌面工作流的优先
 6. 不需要大重写的优先
 
-## 当前 Top 10
+## 当前候选队列
+
+即使本表包含多于 5 个候选，当前批次也只处理前 5 个可安全执行的任务。
 
 | 排名 | 任务 ID | 状态 | 任务 | Plan | Branch | Commit / PR | 备注 |
 |---:|---|---:|---|---|---|---|---|
-| 1 | `GS-P0-001` | `[x]` | 添加 Codex 指南与战略文档 | `docs/plans/0001-codex-guidance-docs.md` | `-` | `-` | 基础规则文档已刷新。 |
-| 2 | `GS-P0-002` | `[x]` | 建立任务追踪系统 | `docs/plans/0002-task-tracking-system.md` | `-` | `-` | 已建立 TASKS / PLANS / PROGRESS / CURRENT_TOP10 闭环。 |
-| 3 | `GS-P0-003` | `[x]` | 网络诊断 MVP | `docs/plans/0003-network-diagnostics-mvp.md` | `-` | `-` | 已上线本地诊断面板与 `/api/diagnostics`。 |
-| 4 | `GS-P0-004` | `[x]` | 仓库标签 + 笔记 MVP | `docs/plans/0004-tags-notes-mvp.md` | `-` | `-` | 已提供本地标签 / 笔记存储、编辑与搜索入口。 |
-| 5 | `GS-P0-005` | `[x]` | 保存发现视图 MVP | `docs/plans/0005-saved-discovery-views-mvp.md` | `-` | `-` | 已支持保存、载入、重跑和删除发现视图。 |
-| 6 | `GS-P0-006` | `[x]` | 更新收件箱 MVP | `docs/plans/0006-update-inbox-mvp.md` | `-` | `-` | 已支持更新队列排序、已读、置顶和忽略。 |
-| 7 | `GS-P0-007` | `[x]` | 发现结果“为什么推荐”解释 | `docs/plans/0007-why-recommended.md` | `-` | `-` | 推荐理由已出现在卡片和详情页，并优先展示本地反馈。 |
-| 8 | `GS-P0-008` | `[x]` | 忽略原因 + 反馈信号 | `docs/plans/0008-ignore-feedback.md` | `-` | `-` | 忽略原因已结构化存储并用于发现降权。 |
-| 9 | `GS-P0-009` | `[x]` | 复制仓库 Markdown 摘要 | `docs/plans/0009-copy-markdown-summary.md` | `-` | `-` | 已提供多入口复制仓库 Markdown 摘要。 |
-| 10 | `GS-P1-001` | `[x]` | 结构化 AI Insight Schema MVP | `docs/plans/0010-ai-insight-schema-mvp.md` | `-` | `-` | 已定义本地 schema 和显式 opt-in 的保存 / 删除工作流。 |
+| 1 | `GS-P1-002` | `[x]` | 清理静态壳与 JSON API 边界 | `docs/plans/0011-json-api-boundary-mvp.md` | `-` | `-` | 已新增 `/api/bootstrap`、`/api/repos`、`/api/updates` 和 `/api/discovery/views` 只读边界。 |
+| 2 | `GS-P1-003` | `[x]` | SQLite 迁移设计 | `docs/plans/0012-sqlite-migration-design.md` | `-` | `-` | 已完成迁移与回滚设计，未实施存储切换。 |
+| 3 | `GS-P1-004` | `[x]` | 统一 Job / Event 模型 | `docs/plans/0013-job-event-model-mvp.md` | `-` | `-` | 已新增内存级 Job/Event runtime 和 `/api/jobs`、`/api/events` 只读端点。 |
+| 4 | `GS-P1-005` | `[x]` | SSE 进度与事件流 | `docs/plans/0014-sse-event-stream-mvp.md` | `-` | `-` | 已新增 `/api/events/stream` SSE 快照端点，保留 loopback/control-token 保护。 |
+| 5 | `GS-P1-006` | `[x]` | AI Artifact 生命周期与缓存 | `docs/plans/0015-ai-artifact-lifecycle-cache.md` | `-` | `-` | 已扩展本地 AI artifact 元数据与 `/api/ai-artifacts` 列表端点，不接入 provider。 |
+| 6 | `GS-P1-007` | `[ ]` | 发现结果聚类 | `-` | `-` | `-` | 本批跳过：已达到最多 5 个任务，留待下一批。 |
+| 7 | `GS-P2-001` | `[ ]` | 仓库地图 / 可视化体验 | `-` | `-` | `-` | P2 后置，等待 P1 边界稳定。 |
+| 8 | `GS-P2-002` | `[ ]` | 可选本地翻译模型支持 | `-` | `-` | `-` | P2 后置，必须保持可选。 |
+| 9 | `GS-P2-003` | `[ ]` | 加密同步 / 备份 | `-` | `-` | `-` | P2 后置，涉及隐私和同步边界。 |
+| 10 | `GS-P2-004` | `[ ]` | 发布加固与 AV 误报缓解 | `-` | `-` | `-` | P2 后置，属于发布层优化。 |
 
 ## Sprint 执行规则
 
-- 按排名顺序执行任务。
+- 按排名顺序逐个执行任务，不并行、不混合范围。
 - 跳过已标记为 `[x]` 的任务。
+- 如果少于 5 个可执行任务，只完成可安全执行的任务，并说明未补满原因。
 - 如果任务阻塞，标记为 `[!]`，写清跳过原因，然后继续下一个安全任务。
-- 当前 Top 10 中的每个任务都必须有自己的计划文件。
+- 当前批次选中的每个任务都必须有自己的计划文件。
 - 每个任务都必须更新验收条件、`TASKS.md`、`docs/progress/PROGRESS.md` 和本文件。
 - 最好一任务一 commit。
-- 不要为了完成 Top 10 而做架构大重写。
+- 不要为了凑满 5 个任务而做架构大重写。

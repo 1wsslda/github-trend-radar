@@ -79,7 +79,7 @@
 - `TASKS.md`：任务状态事实来源
 - `PLANS.md`：计划、验证、验收与记录规则
 - `docs/progress/PROGRESS.md`：按时间排序的进度日志
-- `docs/sprints/CURRENT_TOP10.md`：当前自动排序的 Top 10 Sprint 队列
+- `docs/sprints/CURRENT_TOP10.md`：当前自动排序的 Auto Top 5 Batch Sprint 候选队列（文件名因历史兼容保留）
 - `docs/plans/*.md`：任务级计划、回滚说明、验收记录与推荐 commit message
 
 使用规则：
@@ -97,11 +97,11 @@
 - 分支名与 commit / PR 一旦存在就记录；暂时没有则写 `-`。
 - 任务未写清验收条件与验证结果前，不要标记为 `[x]`。
 
-## Auto Top 10 Sprint 规则
+## Auto Top 5 Batch Sprint 规则
 
-当用户说“继续”、“做下一批任务”、“自动完成高优先级任务”或类似表达时，默认进入 Auto Top 10 Sprint 模式。
+当用户说“继续”、“做下一批任务”、“自动完成高优先级任务”或类似表达时，默认进入 Auto Top 5 Batch Sprint 模式。
 
-在 Auto Top 10 Sprint 模式下：
+在 Auto Top 5 Batch Sprint 模式下：
 
 1. 先读取：
    - `TASKS.md`
@@ -110,9 +110,13 @@
    - `docs/progress/PROGRESS.md`
    - `docs/sprints/CURRENT_TOP10.md`
 
-2. 自动选择优先级最高、未完成、未阻塞的前 10 个任务。
+2. 自动选择当前优先级最高、未完成、未阻塞的最多 5 个任务。
+   - 即使 `docs/sprints/CURRENT_TOP10.md` 包含更多候选，也只选择前 5 个可安全执行的任务。
+   - 如果少于 5 个可执行任务，只完成可安全执行的任务，并说明未补满原因。
 
-3. 选择优先级时按以下顺序判断：
+3. 执行前输出本批次 `selected tasks` / `skipped or blocked tasks` 清单。
+
+4. 选择优先级时按以下顺序判断：
    - P0 优先于 P1，P1 优先于 P2
    - 用户价值高的优先
    - 风险低、改动小的优先
@@ -120,14 +124,16 @@
    - 不破坏本地优先和 Windows 桌面工作流的优先
    - 不需要大重写的优先
 
-4. 不要询问用户“接下来做哪个任务”，除非：
+5. 按优先级逐个执行，不并行、不混合范围。
+
+6. 不要询问用户“接下来做哪个任务”，除非：
    - 任务会破坏现有用户数据
    - 任务需要外部账号、API Key 或密钥
    - 任务需要大规模架构迁移
    - 任务验收条件互相冲突
    - 当前代码状态无法安全判断
 
-5. 每个任务必须：
+7. 每个选中任务必须：
    - 创建或更新对应 `docs/plans/*.md`
    - 更新 `TASKS.md`
    - 更新 `docs/sprints/CURRENT_TOP10.md`
@@ -136,15 +142,15 @@
    - 运行可用测试，或写明手动验证
    - 推荐一个 commit message
 
-6. 每个任务最好单独 commit。
+8. 每个任务最好单独 commit。
 
-7. 如果一个任务被阻塞：
+9. 如果一个任务被阻塞：
    - 在 `TASKS.md` 标记为 `[!]`
    - 在对应计划文件中写明阻塞原因
    - 在 `CURRENT_TOP10.md` 中写明跳过原因
    - 继续处理下一个安全任务
 
-8. 不允许为了完成 Top 10 而做大重写。
+10. 不允许为了凑满 5 个任务而做大重写。
 
 ## 默认交付方式
 

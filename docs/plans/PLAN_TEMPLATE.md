@@ -1,6 +1,6 @@
 # 计划模板
 
-在复杂功能、迁移任务或 Auto Top 10 Sprint 任务开始前，优先使用这个模板。
+在复杂功能、迁移任务或 Auto Top 5 Batch Sprint 选中任务开始前，优先使用这个模板。
 
 ---
 
@@ -9,7 +9,7 @@
 - 任务 ID：
 - 优先级：
 - 当前状态：
-- Sprint 排名：
+- Sprint 候选排名：
 - 推荐 commit message：
 
 ## 标题

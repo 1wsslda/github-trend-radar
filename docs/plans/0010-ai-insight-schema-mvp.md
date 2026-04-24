@@ -5,7 +5,7 @@
 - 任务 ID：`GS-P1-001`
 - 优先级：`P1`
 - 当前状态：`[x]`
-- Sprint 排名：`10`
+- Sprint 候选排名：`10`
 - 推荐 commit message：`feat: 添加结构化 AI Insight Schema MVP`
 
 ## 摘要
@@ -18,7 +18,7 @@
 
 - 战略：只定义本地 schema、缓存和手动交接路径，不默认接入任何云端 provider。
 - 路线图：对应 `docs/roadmap/ROADMAP.md` 中必须显式 opt-in 的 AI 基础能力。
-- Sprint：对应 `docs/sprints/CURRENT_TOP10.md` 排名 `10`。
+- Sprint：对应 `docs/sprints/CURRENT_TOP10.md` 候选排名 `10`。
 
 ## 当前状态
 

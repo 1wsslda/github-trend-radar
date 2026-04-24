@@ -21,10 +21,12 @@ from bs4 import BeautifulSoup
 
 from ..runtime_github import make_github_runtime
 from ..runtime_ui import build_html as build_runtime_html
+from .api_boundary import make_api_boundary_runtime
 from .diagnostics import make_diagnostics_runtime
 from .detail_cache import make_detail_cache_runtime
 from .discovery_jobs import make_discovery_job_runtime
 from .http import make_app_handler
+from .jobs import make_job_event_runtime
 from .paths import (
     APP_NAME,
     APP_SLUG,
@@ -174,6 +176,8 @@ shell_runtime = None
 github_runtime = None
 discovery_job_runtime = None
 diagnostics_runtime = None
+api_boundary_runtime = None
+job_event_runtime = None
 ServerAppHandler = None
 
 load_translation_cache = None
@@ -210,6 +214,7 @@ set_favorite_update_state = None
 export_user_state = None
 set_ai_insight = None
 delete_ai_insight = None
+list_ai_artifacts = None
 import_user_state = None
 load_discovery_state = None
 save_discovery_state = None
@@ -433,13 +438,13 @@ def current_port() -> int:
 
 def build_runtime_context(*, rebuild: bool = False) -> RuntimeAppContext:
     global translation_runtime, settings_runtime, state_runtime, startup_runtime
-    global shell_runtime, github_runtime, discovery_job_runtime, diagnostics_runtime, ServerAppHandler
+    global shell_runtime, github_runtime, discovery_job_runtime, diagnostics_runtime, api_boundary_runtime, job_event_runtime, ServerAppHandler
     global load_translation_cache, save_translation_cache, flush_translation_cache, translate_text, translate_query_to_en, apply_repo_translation, translate_snapshot
     global normalize_settings, sanitize_settings, save_settings, load_settings, merge_settings, apply_runtime_settings
     global default_user_state, default_discovery_state, normalize_discovery_ranking_profile, discovery_query_id, normalize_discovery_query
     global normalize_repo, repo_from_url, normalize_watch_entry, normalize_favorite_update, normalize_discovery_state, normalize_user_state
     global load_user_state, save_user_state, set_repo_state_batch, set_repo_annotation, set_favorite_update_state
-    global export_user_state, set_ai_insight, delete_ai_insight, import_user_state, load_discovery_state, save_discovery_state
+    global export_user_state, set_ai_insight, delete_ai_insight, list_ai_artifacts, import_user_state, load_discovery_state, save_discovery_state
     global export_discovery_state, save_discovery_view, delete_discovery_view, clear_discovery_results, apply_discovery_result, discovery_warning_list, empty_snapshot, load_snapshot
     global save_snapshot, state_counts, ordered_unique_urls, merge_favorite_updates
     global startup_dir, startup_launcher_path, startup_cmd_path, startup_launch_command, startup_launcher_script
@@ -459,6 +464,8 @@ def build_runtime_context(*, rebuild: bool = False) -> RuntimeAppContext:
         github_runtime = None
         discovery_job_runtime = None
         diagnostics_runtime = None
+        api_boundary_runtime = None
+        job_event_runtime = None
         ServerAppHandler = None
 
     paths = ensure_runtime_paths()
@@ -579,6 +586,7 @@ def build_runtime_context(*, rebuild: bool = False) -> RuntimeAppContext:
     export_user_state = state_runtime.export_user_state
     set_ai_insight = state_runtime.set_ai_insight
     delete_ai_insight = state_runtime.delete_ai_insight
+    list_ai_artifacts = state_runtime.list_ai_artifacts
     import_user_state = state_runtime.import_user_state
     load_discovery_state = state_runtime.load_discovery_state
     save_discovery_state = state_runtime.save_discovery_state
@@ -774,7 +782,7 @@ def start_refresh_async(source: str) -> bool:
 
 
 def _build_runtime_services() -> None:
-    global shell_runtime, github_runtime, discovery_job_runtime, diagnostics_runtime, ServerAppHandler
+    global shell_runtime, github_runtime, discovery_job_runtime, diagnostics_runtime, api_boundary_runtime, job_event_runtime, ServerAppHandler
     global estimate_discovery_eta, update_discovery_job, run_discovery_search, start_discovery_job, get_discovery_job
     global cancel_discovery_job, export_active_discovery_job, run_diagnostics
 
@@ -877,6 +885,21 @@ def _build_runtime_services() -> None:
             iso_now=iso_now,
         )
         run_diagnostics = diagnostics_runtime.run_diagnostics
+    if api_boundary_runtime is None:
+        api_boundary_runtime = make_api_boundary_runtime(
+            periods=PERIODS,
+            current_snapshot_getter=lambda: CURRENT_SNAPSHOT,
+            export_user_state=export_user_state,
+            export_discovery_state=export_discovery_state,
+            sanitize_settings=sanitize_settings,
+            status_getter=lambda: load_json_file(runtime_paths().status_path, {}),
+            normalize=normalize,
+        )
+    if job_event_runtime is None:
+        job_event_runtime = make_job_event_runtime(
+            normalize=normalize,
+            iso_now=iso_now,
+        )
     if ServerAppHandler is None:
         ServerAppHandler = make_app_handler(
             runtime_root=runtime_paths().runtime_root,
@@ -895,6 +918,7 @@ def _build_runtime_services() -> None:
             export_user_state=export_user_state,
             set_ai_insight=set_ai_insight,
             delete_ai_insight=delete_ai_insight,
+            export_ai_artifacts=list_ai_artifacts,
             import_user_state=import_user_state,
             normalize_settings=normalize_settings,
             merge_settings=merge_settings,
@@ -920,6 +944,12 @@ def _build_runtime_services() -> None:
             sync_local_favorites_with_starred=github_runtime.sync_local_favorites_with_starred,
             validate_github_token=github_runtime.validate_github_token,
             run_diagnostics=run_diagnostics,
+            export_api_bootstrap=api_boundary_runtime.export_bootstrap,
+            export_api_repos=api_boundary_runtime.export_repos,
+            export_api_updates=api_boundary_runtime.export_updates,
+            export_api_discovery_views=api_boundary_runtime.export_discovery_views,
+            export_jobs=job_event_runtime.export_jobs,
+            export_events=job_event_runtime.export_events,
             open_main_window=shell_runtime.open_main_window,
             exit_app=shell_runtime.exit_app,
             control_token_getter=lambda: CONTROL_TOKEN,

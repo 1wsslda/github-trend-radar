@@ -5,7 +5,7 @@
 - 任务 ID：`GS-P0-007`
 - 优先级：`P0`
 - 当前状态：`[x]`
-- Sprint 排名：`7`
+- Sprint 候选排名：`7`
 - 推荐 commit message：`feat: 展示发现结果的推荐原因`
 
 ## 摘要
@@ -18,7 +18,7 @@
 
 - 战略：继续使用现有发现评分模型，只暴露对用户可理解的最小解释层。
 - 路线图：对应 `docs/roadmap/ROADMAP.md` 中提升发现可信度的 P0 任务。
-- Sprint：对应 `docs/sprints/CURRENT_TOP10.md` 排名 `7`。
+- Sprint：对应 `docs/sprints/CURRENT_TOP10.md` 候选排名 `7`。
 
 ## 当前状态
 

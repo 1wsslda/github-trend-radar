@@ -31,6 +31,13 @@ class AttachmentResult:
 
 
 @dataclass(frozen=True, slots=True)
+class EventStreamResult:
+    body: bytes
+    status: int = 200
+    content_type: str = "text/event-stream; charset=utf-8"
+
+
+@dataclass(frozen=True, slots=True)
 class Route:
     handler: object
     loopback_only: bool = False
@@ -148,6 +155,13 @@ class AppHandlerDeps:
     start_refresh_async: object
     control_token_getter: object | None = None
     run_diagnostics: object | None = None
+    export_api_bootstrap: object | None = None
+    export_api_repos: object | None = None
+    export_api_updates: object | None = None
+    export_api_discovery_views: object | None = None
+    export_ai_artifacts: object | None = None
+    export_jobs: object | None = None
+    export_events: object | None = None
 
 
 def make_app_handler(
@@ -194,6 +208,13 @@ def make_app_handler(
     sync_local_favorites_with_starred,
     validate_github_token,
     run_diagnostics=None,
+    export_api_bootstrap=None,
+    export_api_repos=None,
+    export_api_updates=None,
+    export_api_discovery_views=None,
+    export_ai_artifacts=None,
+    export_jobs=None,
+    export_events=None,
     merge_settings=None,
     control_token_getter=None,
 ):
@@ -250,6 +271,13 @@ def make_app_handler(
         start_refresh_async=start_refresh_async,
         control_token_getter=control_token_getter,
         run_diagnostics=run_diagnostics,
+        export_api_bootstrap=export_api_bootstrap,
+        export_api_repos=export_api_repos,
+        export_api_updates=export_api_updates,
+        export_api_discovery_views=export_api_discovery_views,
+        export_ai_artifacts=export_ai_artifacts,
+        export_jobs=export_jobs,
+        export_events=export_events,
     )
     return build_app_handler(deps)
 
@@ -299,6 +327,13 @@ def build_app_handler(deps: AppHandlerDeps):
     start_refresh_async = deps.start_refresh_async
     control_token_getter = deps.control_token_getter or (lambda: "")
     run_diagnostics = deps.run_diagnostics or (lambda: {"generated_at": "", "items": [], "has_errors": False})
+    export_api_bootstrap = deps.export_api_bootstrap or (lambda: {"ok": True})
+    export_api_repos = deps.export_api_repos or (lambda **_kwargs: {"ok": True, "view": "all", "count": 0, "repos": []})
+    export_api_updates = deps.export_api_updates or (lambda: {"ok": True, "count": 0, "updates": []})
+    export_api_discovery_views = deps.export_api_discovery_views or (lambda: {"ok": True, "count": 0, "views": []})
+    export_ai_artifacts = deps.export_ai_artifacts or (lambda: {"ok": True, "count": 0, "artifacts": []})
+    export_jobs = deps.export_jobs or (lambda **_kwargs: {"ok": True, "status": "", "count": 0, "jobs": []})
+    export_events = deps.export_events or (lambda **_kwargs: {"ok": True, "after_id": "", "count": 0, "events": []})
 
     if set_repo_state_batch is None:
         def set_repo_state_batch(state_key: str, enabled: bool, repos: object):
@@ -384,6 +419,61 @@ def build_app_handler(deps: AppHandlerDeps):
 
     def handle_get_diagnostics(_handler, _parsed, _payload):
         return {"ok": True, "diagnostics": run_diagnostics()}
+
+    def handle_get_bootstrap(_handler, _parsed, _payload):
+        return export_api_bootstrap()
+
+    def handle_get_repos(_handler, parsed, _payload):
+        params = parse_qs(parsed.query)
+        return export_api_repos(
+            view=(params.get("view") or [""])[0],
+            state=(params.get("state") or [""])[0],
+            q=(params.get("q") or [""])[0],
+        )
+
+    def handle_get_updates(_handler, _parsed, _payload):
+        return export_api_updates()
+
+    def handle_get_discovery_views(_handler, _parsed, _payload):
+        return export_api_discovery_views()
+
+    def handle_get_ai_artifacts(_handler, _parsed, _payload):
+        return export_ai_artifacts()
+
+    def handle_get_jobs(_handler, parsed, _payload):
+        params = parse_qs(parsed.query)
+        return export_jobs(status=(params.get("status") or [""])[0])
+
+    def handle_get_events(_handler, parsed, _payload):
+        params = parse_qs(parsed.query)
+        return export_events(
+            after_id=(params.get("after_id") or [""])[0],
+            limit=(params.get("limit") or [100])[0],
+        )
+
+    def sse_frame(event: dict[str, object]) -> str:
+        event_id = normalize(event.get("id"))
+        event_type = normalize(event.get("event_type")) or "message"
+        data = json.dumps(event, ensure_ascii=False)
+        lines = []
+        if event_id:
+            lines.append(f"id: {event_id}")
+        lines.append(f"event: {event_type}")
+        for line in data.splitlines() or ["{}"]:
+            lines.append(f"data: {line}")
+        return "\n".join(lines) + "\n\n"
+
+    def handle_get_events_stream(_handler, parsed, _payload):
+        params = parse_qs(parsed.query)
+        payload = export_events(
+            after_id=(params.get("after_id") or [""])[0],
+            limit=(params.get("limit") or [100])[0],
+        )
+        events = payload.get("events", []) if isinstance(payload, dict) else []
+        body = "retry: 3000\n\n" + "".join(
+            sse_frame(event) for event in events if isinstance(event, dict)
+        )
+        return EventStreamResult(body.encode("utf-8"))
 
     def handle_get_discovery_job(_handler, parsed, _payload):
         params = parse_qs(parsed.query)
@@ -691,6 +781,14 @@ def build_app_handler(deps: AppHandlerDeps):
         }
 
     GET_ROUTES = {
+        "/api/bootstrap": Route(handle_get_bootstrap),
+        "/api/repos": Route(handle_get_repos),
+        "/api/updates": Route(handle_get_updates),
+        "/api/discovery/views": Route(handle_get_discovery_views),
+        "/api/ai-artifacts": Route(handle_get_ai_artifacts, loopback_only=True, control_only=True),
+        "/api/jobs": Route(handle_get_jobs, loopback_only=True, control_only=True),
+        "/api/events": Route(handle_get_events, loopback_only=True, control_only=True),
+        "/api/events/stream": Route(handle_get_events_stream, loopback_only=True, control_only=True),
         "/api/settings": Route(handle_get_settings),
         "/api/status": Route(handle_get_status),
         "/api/repo-details": Route(handle_get_repo_details, error_status=500, error_code="repo_details_failed", error_message="仓库详情加载失败。"),
@@ -791,6 +889,13 @@ def build_app_handler(deps: AppHandlerDeps):
             self.end_headers()
             self.wfile.write(result.body)
 
+        def send_event_stream(self, result: EventStreamResult):
+            self.send_response(result.status)
+            self.send_header("Content-Type", result.content_type)
+            self.send_header("Content-Length", str(len(result.body)))
+            self.end_headers()
+            self.wfile.write(result.body)
+
         def read_json(self) -> dict[str, object]:
             raw_length = self.headers.get("Content-Length", "0")
             try:
@@ -823,6 +928,9 @@ def build_app_handler(deps: AppHandlerDeps):
                 return
             if isinstance(result, AttachmentResult):
                 self.send_attachment(result)
+                return
+            if isinstance(result, EventStreamResult):
+                self.send_event_stream(result)
                 return
             if isinstance(result, JsonResult):
                 self.send_json(result.body, result.status)

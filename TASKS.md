@@ -2,7 +2,7 @@
 
 `TASKS.md` 是仓库级任务状态的事实来源。请配合 `docs/roadmap/ROADMAP.md`、`PLANS.md`、`docs/plans/*.md`、`docs/sprints/CURRENT_TOP10.md` 和 `docs/progress/PROGRESS.md` 一起使用。
 
-最后刷新：`2026-04-23`
+最后刷新：`2026-04-24`
 
 ## 状态说明
 
@@ -16,8 +16,8 @@
 
 - 每个任务都必须有唯一任务 ID，格式为 `GS-P0-001`。
 - `TASKS.md` 是状态事实来源。
-- `docs/sprints/CURRENT_TOP10.md` 是当前排名 Sprint 队列事实来源。
-- 当前 Top 10 中的每个任务，在实现前必须有独立计划文件。
+- `docs/sprints/CURRENT_TOP10.md` 是当前 Auto Top 5 Batch Sprint 候选队列事实来源（文件名因历史兼容保留）。
+- 当前批次选中的每个任务，在实现前必须有独立计划文件。
 - 状态变化时，必须同步更新 `TASKS.md`、`docs/sprints/CURRENT_TOP10.md` 和 `docs/progress/PROGRESS.md`。
 - 推荐一任务一 commit；如果本轮不提交，`Commit / PR` 填 `-`，并在计划文件中留下推荐 commit message。
 - 没有验收与验证记录前，不要把任务标记为 `[x]`。
@@ -27,33 +27,30 @@
 | 优先级 | 总数 | `[ ]` | `[~]` | `[!]` | `[x]` | `[-]` |
 |---|---:|---:|---:|---:|---:|---:|
 | `P0` | 9 | 0 | 0 | 0 | 9 | 0 |
-| `P1` | 7 | 6 | 0 | 0 | 1 | 0 |
+| `P1` | 7 | 1 | 0 | 0 | 6 | 0 |
 | `P2` | 6 | 6 | 0 | 0 | 0 | 0 |
 
-## 当前 Top 10 队列
+## 当前 Auto Top 5 Batch 候选队列
+
+`docs/sprints/CURRENT_TOP10.md` 可以保留多于 5 个候选；Auto Top 5 Batch Sprint 每批只选择优先级最高、未完成、未阻塞的最多 5 个可安全执行任务。
 
 | 排名 | 优先级 | 状态 | 任务 ID | 任务 | Plan | Branch | Commit / PR | 备注 |
 |---:|---|---:|---|---|---|---|---|---|
-| 1 | `P0` | `[x]` | `GS-P0-001` | 添加 Codex 指南与战略文档 | `docs/plans/0001-codex-guidance-docs.md` | `-` | `-` | 已刷新 Codex 执行基线与读文档顺序。 |
-| 2 | `P0` | `[x]` | `GS-P0-002` | 建立任务追踪系统 | `docs/plans/0002-task-tracking-system.md` | `-` | `-` | 已纳入逐任务计划、进度日志与当前 Sprint 队列。 |
-| 3 | `P0` | `[x]` | `GS-P0-003` | 网络诊断 MVP | `docs/plans/0003-network-diagnostics-mvp.md` | `-` | `-` | 已提供本地诊断入口，覆盖 Token / 代理 / 端口 / GitHub API / 状态文件。 |
-| 4 | `P0` | `[x]` | `GS-P0-004` | 仓库标签 + 笔记 MVP | `docs/plans/0004-tags-notes-mvp.md` | `-` | `-` | 已支持本地标签、笔记、详情编辑与搜索复用。 |
-| 5 | `P0` | `[x]` | `GS-P0-005` | 保存发现视图 MVP | `docs/plans/0005-saved-discovery-views-mvp.md` | `-` | `-` | 已支持保存、载入、重跑、删除和结果计数持久化。 |
-| 6 | `P0` | `[x]` | `GS-P0-006` | 更新收件箱 MVP | `docs/plans/0006-update-inbox-mvp.md` | `-` | `-` | 更新页已支持已读、置顶、忽略和待处理排序。 |
-| 7 | `P0` | `[x]` | `GS-P0-007` | 发现结果“为什么推荐”解释 | `docs/plans/0007-why-recommended.md` | `-` | `-` | 发现卡片与详情页会展示推荐原因，本地反馈理由优先可见。 |
-| 8 | `P0` | `[x]` | `GS-P0-008` | 忽略原因 + 反馈信号 | `docs/plans/0008-ignore-feedback.md` | `-` | `-` | 忽略动作会记录原因，并回流为本地反馈信号参与排序。 |
-| 9 | `P0` | `[x]` | `GS-P0-009` | 复制仓库 Markdown 摘要 | `docs/plans/0009-copy-markdown-summary.md` | `-` | `-` | 仓库卡片、更新卡片与详情页都可一键复制 Markdown 摘要。 |
-| 10 | `P1` | `[x]` | `GS-P1-001` | 结构化 AI Insight Schema MVP | `docs/plans/0010-ai-insight-schema-mvp.md` | `-` | `-` | 已定义本地 AI Insight Schema、RepoContext 复制和手动保存 / 删除流程。 |
+| 1 | `P1` | `[x]` | `GS-P1-002` | 清理静态壳与 JSON API 边界 | `docs/plans/0011-json-api-boundary-mvp.md` | `-` | `-` | 已新增 `/api/bootstrap`、`/api/repos`、`/api/updates` 和 `/api/discovery/views` 只读边界。 |
+| 2 | `P1` | `[x]` | `GS-P1-003` | SQLite 迁移设计 | `docs/plans/0012-sqlite-migration-design.md` | `-` | `-` | 已完成迁移与回滚设计，未实施存储切换。 |
+| 3 | `P1` | `[x]` | `GS-P1-004` | 统一 Job / Event 模型 | `docs/plans/0013-job-event-model-mvp.md` | `-` | `-` | 已新增内存级 Job/Event runtime 和 `/api/jobs`、`/api/events` 只读端点。 |
+| 4 | `P1` | `[x]` | `GS-P1-005` | SSE 进度与事件流 | `docs/plans/0014-sse-event-stream-mvp.md` | `-` | `-` | 已新增 `/api/events/stream` SSE 快照端点，保留 loopback/control-token 保护。 |
+| 5 | `P1` | `[x]` | `GS-P1-006` | AI Artifact 生命周期与缓存 | `docs/plans/0015-ai-artifact-lifecycle-cache.md` | `-` | `-` | 已扩展本地 AI artifact 元数据与 `/api/ai-artifacts` 列表端点，不接入 provider。 |
+| 6 | `P1` | `[ ]` | `GS-P1-007` | 发现结果聚类 | `-` | `-` | `-` | 本批跳过：已达到最多 5 个任务，留待下一批。 |
+| 7 | `P2` | `[ ]` | `GS-P2-001` | 仓库地图 / 可视化体验 | `-` | `-` | `-` | P2 后置，等待 P1 边界稳定。 |
+| 8 | `P2` | `[ ]` | `GS-P2-002` | 可选本地翻译模型支持 | `-` | `-` | `-` | P2 后置，必须保持可选。 |
+| 9 | `P2` | `[ ]` | `GS-P2-003` | 加密同步 / 备份 | `-` | `-` | `-` | P2 后置，涉及隐私和同步边界。 |
+| 10 | `P2` | `[ ]` | `GS-P2-004` | 发布加固与 AV 误报缓解 | `-` | `-` | `-` | P2 后置，属于发布层优化。 |
 
-## Top 10 之后的任务池
+## 候选队列之外的任务池
 
 | 优先级 | 状态 | 任务 ID | 任务 | Plan | 备注 |
 |---|---:|---|---|---|---|
-| `P1` | `[ ]` | `GS-P1-002` | 清理静态壳与 JSON API 边界 | `-` | 放在核心 P0 工作流稳定之后。 |
-| `P1` | `[ ]` | `GS-P1-003` | SQLite 迁移设计 | `-` | 必须先写迁移与回滚计划。 |
-| `P1` | `[ ]` | `GS-P1-004` | 统一 Job / Event 模型 | `-` | 应先于 SSE 与更广泛的异步工作流。 |
-| `P1` | `[ ]` | `GS-P1-005` | SSE 进度与事件流 | `-` | 依赖统一 Job / Event 模型，而不是直接补轮询。 |
-| `P1` | `[ ]` | `GS-P1-006` | AI Artifact 生命周期与缓存 | `-` | 需要可见性、删除与重生成规则。 |
 | `P1` | `[ ]` | `GS-P1-007` | 发现结果聚类 | `-` | 在主 P0 闭环稳定后再推进。 |
 | `P2` | `[ ]` | `GS-P2-001` | 仓库地图 / 可视化体验 | `-` | 属于差异化能力，后于核心工作流。 |
 | `P2` | `[ ]` | `GS-P2-002` | 可选本地翻译模型支持 | `-` | 必须保持可选，不拖慢默认上手体验。 |

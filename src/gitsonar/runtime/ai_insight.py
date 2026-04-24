@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import hashlib
+import json
+
 AI_INSIGHT_SCHEMA_VERSION = "gitsonar.repo_insight.v1"
 
 
@@ -29,11 +32,32 @@ def normalize_ai_insight(
         return None
     created_at = normalize(raw.get("created_at")) or iso_now()
     updated_at = normalize(raw.get("updated_at")) or created_at
+    artifact_type = normalize(raw.get("artifact_type")) or "repo_insight"
+    hash_payload = {
+        "schema_version": AI_INSIGHT_SCHEMA_VERSION,
+        "artifact_type": artifact_type,
+        "provider": normalize(raw.get("provider")) or "manual",
+        "model": normalize(raw.get("model")),
+        "summary": summary,
+        "best_for": best_for,
+        "not_good_for": not_good_for,
+        "learning_value": learning_value,
+        "risk_signals": risk_signals,
+        "next_actions": next_actions,
+    }
+    input_hash = normalize(raw.get("input_hash")) or hashlib.sha1(
+        json.dumps(hash_payload, ensure_ascii=False, sort_keys=True).encode("utf-8")
+    ).hexdigest()
+    artifact_id = normalize(raw.get("artifact_id") or raw.get("id")) or f"{artifact_type}_{input_hash[:12]}"
     return {
         "schema_version": AI_INSIGHT_SCHEMA_VERSION,
+        "artifact_id": artifact_id,
+        "artifact_type": artifact_type,
         "status": normalize(raw.get("status")) or "saved",
         "provider": normalize(raw.get("provider")) or "manual",
         "model": normalize(raw.get("model")),
+        "input_hash": input_hash,
+        "source_snapshot_id": normalize(raw.get("source_snapshot_id")),
         "summary": summary,
         "best_for": best_for,
         "not_good_for": not_good_for,

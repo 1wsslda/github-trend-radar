@@ -5,7 +5,7 @@
 - 任务 ID：`GS-P0-009`
 - 优先级：`P0`
 - 当前状态：`[x]`
-- Sprint 排名：`9`
+- Sprint 候选排名：`9`
 - 推荐 commit message：`feat: 添加仓库 Markdown 摘要复制功能`
 
 ## 摘要
@@ -18,7 +18,7 @@
 
 - 战略：继续保留本地优先和外部分析工作流，不引入新的分享服务或同步边界。
 - 路线图：对应 `docs/roadmap/ROADMAP.md` 的低风险高价值效率增强项。
-- Sprint：对应 `docs/sprints/CURRENT_TOP10.md` 排名 `9`。
+- Sprint：对应 `docs/sprints/CURRENT_TOP10.md` 候选排名 `9`。
 
 ## 当前状态
 

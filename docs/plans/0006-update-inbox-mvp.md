@@ -5,7 +5,7 @@
 - 任务 ID：`GS-P0-006`
 - 优先级：`P0`
 - 当前状态：`[x]`
-- Sprint 排名：`6`
+- Sprint 候选排名：`6`
 - 推荐 commit message：`feat: 添加更新收件箱 MVP`
 
 ## 摘要
@@ -18,7 +18,7 @@
 
 - 战略：在现有收藏更新能力上做增量处理动作，不提前引入 SSE 或新任务系统。
 - 路线图：对应 `docs/roadmap/ROADMAP.md` 中高价值、低风险的收藏工作流增强项。
-- Sprint：对应 `docs/sprints/CURRENT_TOP10.md` 排名 `6`。
+- Sprint：对应 `docs/sprints/CURRENT_TOP10.md` 候选排名 `6`。
 
 ## 当前状态
 

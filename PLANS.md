@@ -2,14 +2,14 @@
 
 `PLANS.md` 定义本仓库计划文档如何创建、追踪、验证与关闭。
 
-最后刷新：`2026-04-23`
+最后刷新：`2026-04-24`
 
 ## 文件职责
 
 - `docs/plans/PLAN_TEMPLATE.md`：新计划文件默认模板
 - `docs/plans/*.md`：一任务一文件，记录范围、验证、回滚、验收与推荐 commit message
 - `TASKS.md`：任务状态与元数据事实来源
-- `docs/sprints/CURRENT_TOP10.md`：当前自动排序的 Top 10 执行队列
+- `docs/sprints/CURRENT_TOP10.md`：当前自动排序的 Auto Top 5 Batch Sprint 候选队列（文件名因历史兼容保留）
 - `docs/progress/PROGRESS.md`：跨任务的时间序列状态日志
 - `docs/roadmap/ROADMAP.md`：优先级分层与执行顺序参考
 
@@ -23,7 +23,7 @@
 - AI provider 或云集成
 - 隐私、同步、Token 或数据边界变更
 - 重要导航或工作流重写
-- 任意 Auto Top 10 Sprint 任务在开始实现前
+- 任意 Auto Top 5 Batch Sprint 选中任务在开始实现前
 
 ## 命名规则
 
@@ -32,12 +32,15 @@
 - 一个任务只对应一个计划文件。
 - 继续同一任务时，复用原计划文件，不要重复创建。
 
-## Auto Top 10 Sprint 规则
+## Auto Top 5 Batch Sprint 规则
 
-- 开始新的 Auto Top 10 回合前，先刷新 `docs/sprints/CURRENT_TOP10.md`。
-- 当前 Top 10 中的每个任务，在实现前都必须有独立计划文件。
+- 开始新的 Auto Top 5 Batch 回合前，先刷新 `docs/sprints/CURRENT_TOP10.md`。
+- `docs/sprints/CURRENT_TOP10.md` 可以保留多于 5 个候选；每批只选择优先级最高、未完成、未阻塞的最多 5 个可安全执行任务。
+- 执行前输出本批次 `selected tasks` / `skipped or blocked tasks` 清单。
+- 当前批次选中的每个任务，在实现前都必须有独立计划文件。
+- 按优先级逐个执行，不并行、不混合范围。
 - 计划、实现、验证、进度更新、commit 建议必须逐任务记录。
-- 不要把多个 Top 10 任务混成一个计划、一个验收记录或一个完成状态。
+- 不要把多个 Auto Top 5 Batch 任务混成一个计划、一个验收记录或一个完成状态。
 - 最好一任务一 commit。如果当前回合不提交，也必须保留推荐 commit message。
 
 ## 单任务执行流程

@@ -188,6 +188,19 @@ def make_state_store(
             save_user_state()
             return export_user_state()
 
+    def list_ai_artifacts() -> dict[str, object]:
+        with STATE_LOCK:
+            artifacts: list[dict[str, object]] = []
+            insights = USER_STATE.get("ai_insights", {})
+            if isinstance(insights, dict):
+                for url, item in insights.items():
+                    clean_url = normalize(url)
+                    clean = normalize_ai_insight(item)
+                    if clean_url and clean:
+                        artifacts.append({"url": clean_url, **clean})
+            artifacts.sort(key=lambda item: normalize(item.get("updated_at")), reverse=True)
+            return {"ok": True, "count": len(artifacts), "artifacts": json.loads(json.dumps(artifacts, ensure_ascii=False))}
+
     def coerce_import_user_state(payload: object) -> dict[str, object]:
         if isinstance(payload, dict):
             if isinstance(payload.get("data"), dict):
@@ -395,6 +408,7 @@ def make_state_store(
         export_user_state=export_user_state,
         set_ai_insight=set_ai_insight,
         delete_ai_insight=delete_ai_insight,
+        list_ai_artifacts=list_ai_artifacts,
         import_user_state=import_user_state,
         load_discovery_state=load_discovery_state,
         save_discovery_state=save_discovery_state,

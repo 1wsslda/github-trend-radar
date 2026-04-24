@@ -5,7 +5,7 @@
 - 任务 ID：`GS-P0-003`
 - 优先级：`P0`
 - 当前状态：`[x]`
-- Sprint 排名：`3`
+- Sprint 候选排名：`3`
 - 推荐 commit message：`feat: 添加网络诊断 MVP`
 
 ## 摘要
@@ -18,7 +18,7 @@
 
 - 战略：在当前 Python + 本地 HTTP + 桌面壳上增量补齐排障能力，不引入远程诊断服务。
 - 路线图：对应 `docs/roadmap/ROADMAP.md` 中当前 P0 任务，优先降低 Token / 代理 / API 排障成本。
-- Sprint：对应 `docs/sprints/CURRENT_TOP10.md` 排名 `3`。
+- Sprint：对应 `docs/sprints/CURRENT_TOP10.md` 候选排名 `3`。
 
 ## 当前状态
 

@@ -231,7 +231,14 @@ class RuntimeStateFeatureTests(unittest.TestCase):
         )
 
         self.assertEqual(insight["schema_version"], "gitsonar.repo_insight.v1")
+        self.assertEqual(insight["artifact_type"], "repo_insight")
+        self.assertTrue(insight["artifact_id"].startswith("repo_insight_"))
+        self.assertTrue(insight["input_hash"])
         self.assertEqual(runtime.export_user_state()["ai_insights"]["https://github.com/octo/demo"]["provider"], "manual")
+        artifacts = runtime.list_ai_artifacts()
+        self.assertEqual(artifacts["count"], 1)
+        self.assertEqual(artifacts["artifacts"][0]["url"], "https://github.com/octo/demo")
+        self.assertEqual(artifacts["artifacts"][0]["artifact_id"], insight["artifact_id"])
 
         state = runtime.delete_ai_insight("https://github.com/octo/demo")
 

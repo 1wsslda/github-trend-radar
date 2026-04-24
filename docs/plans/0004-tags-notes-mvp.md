@@ -5,7 +5,7 @@
 - 任务 ID：`GS-P0-004`
 - 优先级：`P0`
 - 当前状态：`[x]`
-- Sprint 排名：`4`
+- Sprint 候选排名：`4`
 - 推荐 commit message：`feat: 添加仓库标签与笔记 MVP`
 
 ## 摘要
@@ -18,7 +18,7 @@
 
 - 战略：保持当前 JSON 状态与本地优先边界，在现有运行时上做增量扩展。
 - 路线图：对应 `docs/roadmap/ROADMAP.md` 的 P0 长期整理能力补齐项。
-- Sprint：对应 `docs/sprints/CURRENT_TOP10.md` 排名 `4`。
+- Sprint：对应 `docs/sprints/CURRENT_TOP10.md` 候选排名 `4`。
 
 ## 当前状态
 

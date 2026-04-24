@@ -5,7 +5,7 @@
 - 任务 ID：`GS-P0-005`
 - 优先级：`P0`
 - 当前状态：`[x]`
-- Sprint 排名：`5`
+- Sprint 候选排名：`5`
 - 推荐 commit message：`feat: 添加保存发现视图 MVP`
 
 ## 摘要
@@ -18,7 +18,7 @@
 
 - 战略：延续当前发现引擎，只补本地持久化和复用能力，不引入新调度系统。
 - 路线图：对应 `docs/roadmap/ROADMAP.md` 的 P0 发现工作流闭环任务。
-- Sprint：对应 `docs/sprints/CURRENT_TOP10.md` 排名 `5`。
+- Sprint：对应 `docs/sprints/CURRENT_TOP10.md` 候选排名 `5`。
 
 ## 当前状态
 

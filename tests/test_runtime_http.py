@@ -193,6 +193,22 @@ class RuntimeHTTPHandlerTests(unittest.TestCase):
             self.discovery_job_payloads.append(clean)
             return {"id": "job-1", "status": "queued"}
 
+        def export_api_repos(**kwargs):
+            return {
+                "ok": True,
+                "view": kwargs.get("view") or "all",
+                "state": kwargs.get("state") or "",
+                "q": kwargs.get("q") or "",
+                "count": 1,
+                "repos": [
+                    {
+                        "full_name": "octo/demo",
+                        "url": "https://github.com/octo/demo",
+                        "description": "Demo repo",
+                    }
+                ],
+            }
+
         handler = make_app_handler(
             runtime_root=str(runtime_root),
             status_path=str(runtime_root / "status.json"),
@@ -242,6 +258,37 @@ class RuntimeHTTPHandlerTests(unittest.TestCase):
             sync_local_favorites_with_starred=lambda repos: self.sync_local_favorites_with_starred(repos),
             validate_github_token=self._validate_github_token,
             run_diagnostics=run_diagnostics,
+            export_api_bootstrap=lambda: {
+                "ok": True,
+                "settings": self._sanitize_settings(False),
+                "counts": {"repos": 1, "favorite_updates": 0},
+            },
+            export_api_repos=export_api_repos,
+            export_api_updates=lambda: {"ok": True, "count": 0, "updates": []},
+            export_api_discovery_views=lambda: {"ok": True, "count": 0, "views": []},
+            export_ai_artifacts=lambda: {
+                "ok": True,
+                "count": 1,
+                "artifacts": [
+                    {
+                        "url": "https://github.com/octo/demo",
+                        "artifact_id": "repo_insight_demo",
+                        "artifact_type": "repo_insight",
+                    }
+                ],
+            },
+            export_jobs=lambda **kwargs: {
+                "ok": True,
+                "status": kwargs.get("status") or "",
+                "count": 1,
+                "jobs": [{"id": "job-1", "job_type": "refresh", "status": "running"}],
+            },
+            export_events=lambda **kwargs: {
+                "ok": True,
+                "after_id": kwargs.get("after_id") or "",
+                "count": 1,
+                "events": [{"id": "event-1", "event_type": "job.updated", "job_id": "job-1"}],
+            },
             control_token_getter=lambda: self.control_token,
         )
         self.server = ThreadingHTTPServer(("127.0.0.1", 0), handler)
@@ -445,6 +492,82 @@ class RuntimeHTTPHandlerTests(unittest.TestCase):
         self.assertTrue(payload["ok"])
         self.assertEqual(payload["active_job"]["id"], "job-active")
         self.assertIn("remembered_query", payload["discovery_state"])
+
+    def test_get_bootstrap_repos_updates_and_discovery_views(self):
+        resp, data = self.request("GET", "/api/bootstrap")
+        payload = json.loads(data.decode("utf-8"))
+
+        self.assertEqual(resp.status, 200)
+        self.assertTrue(payload["ok"])
+        self.assertEqual(payload["counts"]["repos"], 1)
+        self.assertTrue(payload["settings"]["has_github_token"])
+        self.assertNotIn("saved-token", data.decode("utf-8"))
+
+        resp, data = self.request("GET", "/api/repos?view=daily&q=demo")
+        payload = json.loads(data.decode("utf-8"))
+
+        self.assertEqual(resp.status, 200)
+        self.assertTrue(payload["ok"])
+        self.assertEqual(payload["view"], "daily")
+        self.assertEqual(payload["q"], "demo")
+        self.assertEqual(payload["repos"][0]["full_name"], "octo/demo")
+
+        resp, data = self.request("GET", "/api/updates")
+        payload = json.loads(data.decode("utf-8"))
+
+        self.assertEqual(resp.status, 200)
+        self.assertTrue(payload["ok"])
+        self.assertEqual(payload["updates"], [])
+
+        resp, data = self.request("GET", "/api/discovery/views")
+        payload = json.loads(data.decode("utf-8"))
+
+        self.assertEqual(resp.status, 200)
+        self.assertTrue(payload["ok"])
+        self.assertEqual(payload["views"], [])
+
+    def test_get_jobs_and_events_return_runtime_event_payloads(self):
+        resp, data = self.request("GET", "/api/jobs?status=running")
+        payload = json.loads(data.decode("utf-8"))
+
+        self.assertEqual(resp.status, 200)
+        self.assertTrue(payload["ok"])
+        self.assertEqual(payload["status"], "running")
+        self.assertEqual(payload["jobs"][0]["id"], "job-1")
+
+        resp, data = self.request("GET", "/api/events?after_id=event-0")
+        payload = json.loads(data.decode("utf-8"))
+
+        self.assertEqual(resp.status, 200)
+        self.assertTrue(payload["ok"])
+        self.assertEqual(payload["after_id"], "event-0")
+        self.assertEqual(payload["events"][0]["event_type"], "job.updated")
+
+    def test_get_ai_artifacts_returns_local_artifact_list(self):
+        resp, data = self.request("GET", "/api/ai-artifacts")
+        payload = json.loads(data.decode("utf-8"))
+
+        self.assertEqual(resp.status, 200)
+        self.assertTrue(payload["ok"])
+        self.assertEqual(payload["count"], 1)
+        self.assertEqual(payload["artifacts"][0]["artifact_type"], "repo_insight")
+
+    def test_get_events_stream_returns_sse_snapshot_and_requires_control_token(self):
+        resp, data = self.request("GET", "/api/events/stream?after_id=event-0")
+        body = data.decode("utf-8")
+
+        self.assertEqual(resp.status, 200)
+        self.assertEqual(resp.getheader("Content-Type"), "text/event-stream; charset=utf-8")
+        self.assertIn("id: event-1", body)
+        self.assertIn("event: job.updated", body)
+        self.assertIn('"job_id": "job-1"', body)
+
+        resp, data = self.request("GET", "/api/events/stream", include_token=False)
+        payload = json.loads(data.decode("utf-8"))
+
+        self.assertEqual(resp.status, 403)
+        self.assertFalse(payload["ok"])
+        self.assertEqual(payload["code"], "invalid_control_token")
 
     def test_get_diagnostics_returns_local_runtime_report(self):
         resp, data = self.request("GET", "/api/diagnostics")
