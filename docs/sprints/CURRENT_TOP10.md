@@ -31,7 +31,7 @@ Codex 选择当前 Auto Top 5 Batch 时，应按以下顺序判断：
 | 7 | `GS-P2-001` | `[x]` | 仓库地图 / 可视化体验 | `docs/plans/0017-repo-map-visualization-mvp.md` | `codex/runtime-control-compat` | `-` | 已新增发现页轻量二维主题地图和选中本组交互。 |
 | 8 | `GS-P2-002` | `[ ]` | 可选本地翻译模型支持 | `-` | `-` | `-` | P2 后置，必须保持可选。 |
 | 9 | `GS-P2-003` | `[ ]` | 加密同步 / 备份 | `-` | `-` | `-` | P2 后置，涉及隐私和同步边界。 |
-| 10 | `GS-P2-004` | `[ ]` | 发布加固与 AV 误报缓解 | `-` | `-` | `-` | P2 后置，属于发布层优化。 |
+| 10 | `GS-P2-004` | `[x]` | 发布加固与 AV 误报缓解 | `docs/plans/0018-release-hardening-av-mitigation.md` | `codex/runtime-control-compat` | `-` | 已新增本地 SHA256 release manifest 脚本，不改签名或打包策略。 |
 
 ## Sprint 执行规则
 
