@@ -28,7 +28,7 @@
 |---|---:|---:|---:|---:|---:|---:|
 | `P0` | 9 | 0 | 0 | 0 | 9 | 0 |
 | `P1` | 7 | 0 | 0 | 0 | 7 | 0 |
-| `P2` | 6 | 4 | 0 | 0 | 2 | 0 |
+| `P2` | 6 | 2 | 0 | 1 | 3 | 0 |
 
 ## 当前 Auto Top 5 Batch 候选队列
 
@@ -44,7 +44,7 @@
 | 6 | `P1` | `[x]` | `GS-P1-007` | 发现结果聚类 | `docs/plans/0016-discovery-result-clustering.md` | `codex/runtime-control-compat` | `-` | 已新增本地 discovery result 聚类、state/API 字段和发现页主题展示。 |
 | 7 | `P2` | `[x]` | `GS-P2-001` | 仓库地图 / 可视化体验 | `docs/plans/0017-repo-map-visualization-mvp.md` | `codex/runtime-control-compat` | `-` | 已新增发现页轻量二维主题地图和选中本组交互。 |
 | 8 | `P2` | `[x]` | `GS-P2-002` | 可选本地翻译模型支持 | `docs/plans/0019-optional-local-translation-model.md` | `codex/runtime-control-compat` | `-` | 已新增显式可选的本地 Ollama 类翻译 provider、loopback URL 校验和设置 UI；默认仍保持现有 Google Translate 行为。 |
-| 9 | `P2` | `[ ]` | `GS-P2-003` | 加密同步 / 备份 | `-` | `-` | `-` | P2 后置，涉及隐私和同步边界。 |
+| 9 | `P2` | `[!]` | `GS-P2-003` | 加密同步 / 备份 | `docs/plans/0020-encrypted-sync-backup-blocked.md` | `codex/runtime-control-compat` | `-` | 阻塞：涉及隐私、同步目标、密钥管理、冲突处理和用户数据外发边界，不能在本轮安全实现。 |
 | 10 | `P2` | `[x]` | `GS-P2-004` | 发布加固与 AV 误报缓解 | `docs/plans/0018-release-hardening-av-mitigation.md` | `codex/runtime-control-compat` | `-` | 已新增本地 SHA256 release manifest 脚本，不改签名或打包策略。 |
 
 ## 候选队列之外的任务池
@@ -54,7 +54,7 @@
 | `P1` | `[x]` | `GS-P1-007` | 发现结果聚类 | `docs/plans/0016-discovery-result-clustering.md` | 已完成本地聚类 MVP，不接入 AI provider。 |
 | `P2` | `[x]` | `GS-P2-001` | 仓库地图 / 可视化体验 | `docs/plans/0017-repo-map-visualization-mvp.md` | 已完成轻量二维主题地图 MVP。 |
 | `P2` | `[x]` | `GS-P2-002` | 可选本地翻译模型支持 | `docs/plans/0019-optional-local-translation-model.md` | 已完成可选本地 Ollama 类 provider，不下载模型、不改变默认翻译路径。 |
-| `P2` | `[ ]` | `GS-P2-003` | 加密同步 / 备份 | `-` | 涉及隐私和同步边界，先写计划。 |
+| `P2` | `[!]` | `GS-P2-003` | 加密同步 / 备份 | `docs/plans/0020-encrypted-sync-backup-blocked.md` | 阻塞：需先明确同步目标、密钥管理、冲突处理和显式 opt-in 设计。 |
 | `P2` | `[x]` | `GS-P2-004` | 发布加固与 AV 误报缓解 | `docs/plans/0018-release-hardening-av-mitigation.md` | 已补本地 release checksum manifest。 |
 | `P2` | `[ ]` | `GS-P2-005` | 代码签名 | `-` | 位于打包加固之后的信任建设工作。 |
 | `P2` | `[ ]` | `GS-P2-006` | 前端现代化评估 | `-` | 只在当前工作流边界稳定后评估。 |
