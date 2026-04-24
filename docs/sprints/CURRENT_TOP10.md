@@ -32,6 +32,7 @@ Codex 选择当前 Auto Top 5 Batch 时，应按以下顺序判断：
 | 8 | `GS-P2-002` | `[x]` | 可选本地翻译模型支持 | `docs/plans/0019-optional-local-translation-model.md` | `codex/runtime-control-compat` | `-` | 已新增显式可选的本地 Ollama 类翻译 provider、loopback URL 校验和设置 UI；默认仍保持现有 Google Translate 行为。 |
 | 9 | `GS-P2-003` | `[!]` | 加密同步 / 备份 | `docs/plans/0020-encrypted-sync-backup-blocked.md` | `codex/runtime-control-compat` | `-` | 阻塞：涉及隐私、同步目标、密钥管理、冲突处理和用户数据外发边界，不能在本轮安全实现。 |
 | 10 | `GS-P2-004` | `[x]` | 发布加固与 AV 误报缓解 | `docs/plans/0018-release-hardening-av-mitigation.md` | `codex/runtime-control-compat` | `-` | 已新增本地 SHA256 release manifest 脚本，不改签名或打包策略。 |
+| 11 | `GS-P2-005` | `[!]` | 代码签名 | `docs/plans/0021-code-signing-blocked.md` | `codex/runtime-control-compat` | `-` | 阻塞：需要代码签名证书、私钥保管、密码注入和时间戳服务决策，不能在本轮安全实现。 |
 
 ## Sprint 执行规则
 
