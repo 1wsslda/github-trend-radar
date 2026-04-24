@@ -75,6 +75,17 @@ class RuntimeUIJSContractTests(unittest.TestCase):
             with self.subTest(token=token):
                 self.assertIn(token, JS)
 
+    def test_discovery_cluster_map_contract_is_present(self):
+        for token in (
+            "function renderDiscoveryClusterMap(){",
+            "function selectDiscoveryCluster(clusterId){",
+            "主题地图",
+            "选中本组",
+            "discover-cluster-map",
+        ):
+            with self.subTest(token=token):
+                self.assertIn(token, JS)
+
     def test_learning_prompt_contract_uses_single_prompt_spec(self):
         for token in (
             'const LEARNING_PROMPT_SPEC = {',

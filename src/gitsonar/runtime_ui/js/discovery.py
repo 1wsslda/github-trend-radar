@@ -171,6 +171,8 @@ function discoveryResultSignature(results){
     String(repo?.language || ""),
     String(repo?.description || ""),
     String(repo?.description_raw || ""),
+    String(repo?.cluster_id || ""),
+    String(repo?.cluster_label || ""),
     Array.isArray(repo?.match_reasons) ? repo.match_reasons.map(reason => String(reason || "").trim()).join("\u241f") : "",
   ].join("\u241e")).join("\u241d");
 }
@@ -521,6 +523,54 @@ function renderDiscoveryResultsToolbar(){
   </section>`;
 }
 
+function reposForDiscoveryCluster(clusterId){
+  const id = String(clusterId || "").trim();
+  if(!id) return [];
+  const cluster = discoveryClusters().find(item => String(item.id || "").trim() === id) || {};
+  const urls = new Set(Array.isArray(cluster.repo_urls) ? cluster.repo_urls.map(url => String(url || "").trim()).filter(Boolean) : []);
+  return discoveryResults().filter(repo => String(repo.cluster_id || "").trim() === id || urls.has(String(repo.url || "").trim()));
+}
+
+function selectDiscoveryCluster(clusterId){
+  const repos = reposForDiscoveryCluster(clusterId);
+  if(!repos.length) return;
+  selectedUrls = new Set(repos.map(repo => repo.url).filter(Boolean));
+  saveSelectedUrls();
+  refreshSelectionUI();
+  toast(`已选中 ${repos.length} 个主题项目`);
+}
+
+function renderDiscoveryClusterMap(){
+  const clusters = discoveryClusters().filter(cluster => Number(cluster.count || 0) > 0);
+  if(clusters.length < 2) return "";
+  const visibleClusters = clusters.slice(0, 6);
+  const total = clusters.reduce((sum, cluster) => sum + Number(cluster.count || 0), 0);
+  const maxCount = Math.max(1, ...visibleClusters.map(cluster => Number(cluster.count || 0)));
+  return `<section class="discover-cluster-map">
+    <div class="discover-cluster-map-head">
+      <div class="group-label">主题地图</div>
+      <div class="discover-chip-note">${clusters.length} 个主题 · ${total} 项</div>
+    </div>
+    <div class="discover-cluster-map-grid">
+      ${visibleClusters.map((cluster, index) => {
+        const count = Number(cluster.count || 0);
+        const languages = Array.isArray(cluster.languages) ? cluster.languages.filter(Boolean).slice(0, 2).join(" / ") : "";
+        const terms = Array.isArray(cluster.top_terms) ? cluster.top_terms.filter(Boolean).slice(0, 3).join(" · ") : "";
+        const meta = [count ? `${count} 项` : "", languages, terms].filter(Boolean).join(" · ");
+        return `<button class="discover-cluster-node" type="button" onclick='selectDiscoveryCluster(${JSON.stringify(cluster.id)})' style="--cluster-weight:${Math.max(.18, Math.min(1, count / maxCount)).toFixed(3)}">
+          <span class="discover-cluster-node-index">${String(index + 1).padStart(2, "0")}</span>
+          <span class="discover-cluster-node-main">
+            <strong>${h(cluster.label || "未命名主题")}</strong>
+            <span>${h(meta || "0 项")}</span>
+          </span>
+          <span class="discover-cluster-node-action">选中本组</span>
+          <span class="discover-cluster-node-bar" aria-hidden="true"></span>
+        </button>`;
+      }).join("")}
+    </div>
+  </section>`;
+}
+
 function renderDiscoverySelectionBar(){
   const selected = selectedCount();
   if(panel !== DISCOVER_PANEL_KEY || !selected) return "";
@@ -556,6 +606,7 @@ function renderDiscoverCanvasIntro(){
     renderDiscoveryNoResultsNotice(),
     renderDiscoveryHint(),
     renderSavedDiscoveryViews(),
+    renderDiscoveryClusterMap(),
     renderDiscoveryTop(),
     renderDiscoveryResultsToolbar(),
     renderDiscoverySelectionBar(),

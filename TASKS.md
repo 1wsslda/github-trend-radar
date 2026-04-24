@@ -28,7 +28,7 @@
 |---|---:|---:|---:|---:|---:|---:|
 | `P0` | 9 | 0 | 0 | 0 | 9 | 0 |
 | `P1` | 7 | 0 | 0 | 0 | 7 | 0 |
-| `P2` | 6 | 6 | 0 | 0 | 0 | 0 |
+| `P2` | 6 | 5 | 0 | 0 | 1 | 0 |
 
 ## 当前 Auto Top 5 Batch 候选队列
 
@@ -42,7 +42,7 @@
 | 4 | `P1` | `[x]` | `GS-P1-005` | SSE 进度与事件流 | `docs/plans/0014-sse-event-stream-mvp.md` | `-` | `-` | 已新增 `/api/events/stream` SSE 快照端点，保留 loopback/control-token 保护。 |
 | 5 | `P1` | `[x]` | `GS-P1-006` | AI Artifact 生命周期与缓存 | `docs/plans/0015-ai-artifact-lifecycle-cache.md` | `-` | `-` | 已扩展本地 AI artifact 元数据与 `/api/ai-artifacts` 列表端点，不接入 provider。 |
 | 6 | `P1` | `[x]` | `GS-P1-007` | 发现结果聚类 | `docs/plans/0016-discovery-result-clustering.md` | `codex/runtime-control-compat` | `-` | 已新增本地 discovery result 聚类、state/API 字段和发现页主题展示。 |
-| 7 | `P2` | `[ ]` | `GS-P2-001` | 仓库地图 / 可视化体验 | `-` | `-` | `-` | P2 后置，等待 P1 边界稳定。 |
+| 7 | `P2` | `[x]` | `GS-P2-001` | 仓库地图 / 可视化体验 | `docs/plans/0017-repo-map-visualization-mvp.md` | `codex/runtime-control-compat` | `-` | 已新增发现页轻量二维主题地图和选中本组交互。 |
 | 8 | `P2` | `[ ]` | `GS-P2-002` | 可选本地翻译模型支持 | `-` | `-` | `-` | P2 后置，必须保持可选。 |
 | 9 | `P2` | `[ ]` | `GS-P2-003` | 加密同步 / 备份 | `-` | `-` | `-` | P2 后置，涉及隐私和同步边界。 |
 | 10 | `P2` | `[ ]` | `GS-P2-004` | 发布加固与 AV 误报缓解 | `-` | `-` | `-` | P2 后置，属于发布层优化。 |
@@ -52,7 +52,7 @@
 | 优先级 | 状态 | 任务 ID | 任务 | Plan | 备注 |
 |---|---:|---|---|---|---|
 | `P1` | `[x]` | `GS-P1-007` | 发现结果聚类 | `docs/plans/0016-discovery-result-clustering.md` | 已完成本地聚类 MVP，不接入 AI provider。 |
-| `P2` | `[ ]` | `GS-P2-001` | 仓库地图 / 可视化体验 | `-` | 属于差异化能力，后于核心工作流。 |
+| `P2` | `[x]` | `GS-P2-001` | 仓库地图 / 可视化体验 | `docs/plans/0017-repo-map-visualization-mvp.md` | 已完成轻量二维主题地图 MVP。 |
 | `P2` | `[ ]` | `GS-P2-002` | 可选本地翻译模型支持 | `-` | 必须保持可选，不拖慢默认上手体验。 |
 | `P2` | `[ ]` | `GS-P2-003` | 加密同步 / 备份 | `-` | 涉及隐私和同步边界，先写计划。 |
 | `P2` | `[ ]` | `GS-P2-004` | 发布加固与 AV 误报缓解 | `-` | 属于打包与分发优化，不是当前 Sprint 任务。 |

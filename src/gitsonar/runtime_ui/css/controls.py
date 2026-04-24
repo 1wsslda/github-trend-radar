@@ -258,6 +258,91 @@ CSS = r""".toolbar-filters{
   display:grid;
   gap:8px;
 }
+.discover-cluster-map{
+  display:grid;
+  gap:10px;
+  padding:12px 14px;
+  border:1px solid rgba(232,214,184,.1);
+  border-radius:18px;
+  background:linear-gradient(180deg, rgba(22,18,14,.52), rgba(12,10,8,.34));
+}
+.discover-cluster-map-head{
+  display:flex;
+  flex-wrap:wrap;
+  align-items:baseline;
+  justify-content:space-between;
+  gap:8px 12px;
+}
+.discover-cluster-map-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit, minmax(190px, 1fr));
+  gap:8px;
+}
+.discover-cluster-node{
+  position:relative;
+  overflow:hidden;
+  min-height:82px;
+  width:100%;
+  display:grid;
+  grid-template-columns:auto 1fr;
+  grid-template-areas:
+    "idx main"
+    "idx action";
+  gap:4px 10px;
+  padding:12px;
+  border:1px solid rgba(233,201,143,.13);
+  border-radius:16px;
+  background:rgba(10,8,6,.34);
+  color:var(--text);
+  text-align:left;
+  cursor:pointer;
+}
+.discover-cluster-node:hover,
+.discover-cluster-node:focus-visible{
+  border-color:rgba(233,201,143,.34);
+  background:rgba(32,26,19,.62);
+}
+.discover-cluster-node-index{
+  grid-area:idx;
+  color:var(--accent);
+  font-family:var(--font-mono);
+  font-size:.78rem;
+  padding-top:2px;
+}
+.discover-cluster-node-main{
+  grid-area:main;
+  position:relative;
+  z-index:1;
+  min-width:0;
+  display:grid;
+  gap:3px;
+}
+.discover-cluster-node-main strong{
+  font-size:.9rem;
+  line-height:1.25;
+  word-break:break-word;
+}
+.discover-cluster-node-main span{
+  color:var(--muted);
+  font-size:.74rem;
+  line-height:1.35;
+}
+.discover-cluster-node-action{
+  grid-area:action;
+  position:relative;
+  z-index:1;
+  color:var(--accent-strong);
+  font-size:.74rem;
+}
+.discover-cluster-node-bar{
+  position:absolute;
+  left:0;
+  right:auto;
+  bottom:0;
+  width:calc(var(--cluster-weight, .2) * 100%);
+  height:3px;
+  background:linear-gradient(90deg, rgba(233,201,143,.84), rgba(139,170,132,.7));
+}
 .discover-chip-head,
 .discover-chip-actions,
 .reason-strip,
