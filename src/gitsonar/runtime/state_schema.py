@@ -46,6 +46,7 @@ def make_state_schema(
             "remembered_query": {},
             "last_query": {},
             "last_results": [],
+            "last_clusters": [],
             "last_related_terms": [],
             "last_generated_queries": [],
             "last_translated_query": "",
@@ -202,12 +203,31 @@ def make_state_schema(
             "last_result_count": clamp_int(raw.get("last_result_count"), 0, 0, 999),
         }
 
+    def normalize_discovery_cluster(payload: object) -> dict[str, object] | None:
+        raw = payload if isinstance(payload, dict) else {}
+        cluster_id = normalize(raw.get("id"))
+        label = normalize(raw.get("label"))
+        if not cluster_id or not label:
+            return None
+        repo_urls = list(dict.fromkeys(normalize(item) for item in raw.get("repo_urls", []) if normalize(item)))[:100]
+        return {
+            "id": cluster_id,
+            "label": label,
+            "count": clamp_int(raw.get("count"), len(repo_urls), 0, 999),
+            "repo_urls": repo_urls,
+            "top_terms": [normalize(item) for item in raw.get("top_terms", []) if normalize(item)][:8],
+            "languages": [normalize(item) for item in raw.get("languages", []) if normalize(item)][:8],
+        }
+
     def normalize_discovery_state(payload: object) -> dict[str, object]:
         raw = payload if isinstance(payload, dict) else {}
         state = default_discovery_state()
         state["remembered_query"] = normalize_discovery_query(raw.get("remembered_query")) or {}
         state["last_query"] = normalize_discovery_query(raw.get("last_query")) or {}
         state["last_results"] = [clean for item in raw.get("last_results", []) if (clean := normalize_repo(item))]
+        state["last_clusters"] = [
+            clean for item in raw.get("last_clusters", []) if (clean := normalize_discovery_cluster(item))
+        ][:20]
         state["last_related_terms"] = [normalize(item) for item in raw.get("last_related_terms", []) if normalize(item)][:12]
         state["last_generated_queries"] = [normalize(item) for item in raw.get("last_generated_queries", []) if normalize(item)][:12]
         state["last_translated_query"] = normalize(raw.get("last_translated_query"))
@@ -320,6 +340,7 @@ def make_state_schema(
         normalize_repo_annotation=normalize_repo_annotation,
         normalize_favorite_update=normalize_favorite_update,
         normalize_feedback_signal=normalize_feedback_signal,
+        normalize_discovery_cluster=normalize_discovery_cluster,
         normalize_ai_insight=lambda payload: normalize_ai_insight_payload(
             payload,
             normalize=normalize,

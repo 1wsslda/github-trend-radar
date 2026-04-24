@@ -226,6 +226,7 @@ function normalizeDiscoveryStatePayload(payload){
     remembered_query:normalizeDiscoveryQueryPayload(raw.remembered_query),
     last_query:normalizeDiscoveryQueryPayload(raw.last_query),
     last_results:Array.isArray(raw.last_results) ? raw.last_results : [],
+    last_clusters:Array.isArray(raw.last_clusters) ? raw.last_clusters.filter(item => item && typeof item === "object").slice(0, 20) : [],
     last_related_terms:Array.isArray(raw.last_related_terms) ? raw.last_related_terms.filter(Boolean).slice(0, 12) : [],
     last_generated_queries:Array.isArray(raw.last_generated_queries) ? raw.last_generated_queries.filter(Boolean).slice(0, 12) : [],
     last_translated_query:String(raw.last_translated_query || "").trim(),

@@ -143,6 +143,7 @@ def make_api_boundary_runtime(
         repos = all_repos()
         updates = state.get("favorite_updates", [])
         views = discovery.get("saved_views", [])
+        clusters = discovery.get("last_clusters", [])
         return {
             "ok": True,
             "settings": sanitize_settings(False) if callable(sanitize_settings) else {},
@@ -160,6 +161,7 @@ def make_api_boundary_runtime(
                 "last_result_count": len(discovery.get("last_results", []))
                 if isinstance(discovery.get("last_results"), list)
                 else 0,
+                "cluster_count": len(clusters) if isinstance(clusters, list) else 0,
             },
         }
 

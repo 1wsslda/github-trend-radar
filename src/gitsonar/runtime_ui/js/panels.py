@@ -262,6 +262,7 @@ function renderWorkspaceSummaryStrip(){
     const ranking = discoveryRankingLabel(draftQuery.ranking_profile);
     const status = currentDiscoveryStatusLabel();
     const views = savedDiscoveryViews();
+    const clusters = discoveryClusters();
     strip.hidden = false;
     strip.innerHTML = `
       <div class="summary-strip-row">
@@ -270,6 +271,7 @@ function renderWorkspaceSummaryStrip(){
         <span class="summary-strip-item">当前排序 <strong>${h(ranking)}</strong></span>
         <span class="summary-strip-item">结果上限 <strong>${currentDiscoveryDraftLimit()}</strong></span>
         <span class="summary-strip-item">状态 <strong>${h(status)}</strong></span>
+        ${clusters.length ? `<span class="summary-strip-item">主题 <strong>${clusters.length}</strong></span>` : ""}
         <span class="summary-strip-item">保存视图 <strong>${views.length}</strong></span>
       </div>
     `;

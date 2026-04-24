@@ -75,6 +75,16 @@ class RuntimeAPIBoundaryTests(unittest.TestCase):
                     "forks": 5,
                 }
             ],
+            "last_clusters": [
+                {
+                    "id": "cluster-rust",
+                    "label": "Rust",
+                    "count": 1,
+                    "repo_urls": ["https://github.com/octo/discovered"],
+                    "top_terms": ["rust"],
+                    "languages": ["Rust"],
+                }
+            ],
             "saved_views": [
                 {
                     "id": "view-1",
@@ -104,6 +114,7 @@ class RuntimeAPIBoundaryTests(unittest.TestCase):
         self.assertEqual(payload["counts"]["repos"], 3)
         self.assertEqual(payload["counts"]["favorite_updates"], 1)
         self.assertEqual(payload["discovery"]["saved_view_count"], 1)
+        self.assertEqual(payload["discovery"]["cluster_count"], 1)
 
     def test_repos_endpoint_payload_filters_by_view_state_and_query(self):
         runtime = self.build_runtime()

@@ -191,7 +191,8 @@ function renderRepoCards(repos, isChunk = false){
       ? `${selected ? selectedBadgeMarkup(selectedIdx) : ""}
          <span class="badge gain">综合 ${repo.composite_score || 0}</span>
          <span class="badge source">相关 ${repo.relevance_score || 0}</span>
-         <span class="badge source">热度 ${repo.hot_score || 0}</span>`
+         <span class="badge source">热度 ${repo.hot_score || 0}</span>
+         ${repo.cluster_label ? `<span class="badge source">${h(repo.cluster_label)}</span>` : ""}`
       : `${selected ? selectedBadgeMarkup(selectedIdx) : ""}
          <span class="badge ${gainBadgeClass(repo)}">${h(gainLabel(repo))}</span>
          <span class="badge source">${h(repo.source_label || "GitHub 来源")}</span>`;

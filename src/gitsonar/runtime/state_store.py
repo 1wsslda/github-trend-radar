@@ -5,6 +5,8 @@ import json
 import os
 from types import SimpleNamespace
 
+from .discovery_clusters import cluster_discovery_results
+
 
 def make_state_store(
     *,
@@ -327,6 +329,7 @@ def make_state_store(
         with DISCOVERY_LOCK:
             DISCOVERY_STATE["last_query"] = {}
             DISCOVERY_STATE["last_results"] = []
+            DISCOVERY_STATE["last_clusters"] = []
             DISCOVERY_STATE["last_related_terms"] = []
             DISCOVERY_STATE["last_generated_queries"] = []
             DISCOVERY_STATE["last_translated_query"] = ""
@@ -348,11 +351,13 @@ def make_state_store(
 
     def apply_discovery_result(query_payload: dict[str, object], discovery: dict[str, object], *, save_query: bool) -> dict[str, object]:
         results = [clean for item in discovery.get("results", []) if (clean := normalize_repo(item))]
+        results, clusters = cluster_discovery_results(results, normalize=normalize)
         last_run_at = normalize(discovery.get("run_at")) or iso_now()
         warnings = discovery_warning_list(normalize, discovery.get("warnings"), limit=8)
         with DISCOVERY_LOCK:
             DISCOVERY_STATE["last_query"] = query_payload
             DISCOVERY_STATE["last_results"] = results
+            DISCOVERY_STATE["last_clusters"] = clusters
             DISCOVERY_STATE["last_related_terms"] = [normalize(item) for item in discovery.get("related_terms", []) if normalize(item)][:12]
             DISCOVERY_STATE["last_generated_queries"] = [normalize(item) for item in discovery.get("generated_queries", []) if normalize(item)][:12]
             DISCOVERY_STATE["last_translated_query"] = normalize(discovery.get("translated_query"))

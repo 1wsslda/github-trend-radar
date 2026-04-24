@@ -391,7 +391,7 @@ function renderDiscoveryTop(){
       ${top.map(repo => `<article class="discover-top-card">
         <div class="discover-top-rank">#${repo.rank || "-"}</div>
         <div class="discover-chip-title">${h(repo.full_name)}</div>
-        <div class="discover-chip-note">综合 ${repo.composite_score || 0} · 相关 ${repo.relevance_score || 0} · 热度 ${repo.hot_score || 0}</div>
+        <div class="discover-chip-note">综合 ${repo.composite_score || 0} · 相关 ${repo.relevance_score || 0} · 热度 ${repo.hot_score || 0}${repo.cluster_label ? ` · ${h(repo.cluster_label)}` : ""}</div>
         <div class="reason-strip">${(repo.match_reasons || []).slice(0, 2).map(reason => `<span class="reason-pill">${h(reason)}</span>`).join("")}</div>
       </article>`).join("")}
     </div>
@@ -484,13 +484,16 @@ function renderDiscoveryResultsToolbar(){
   const query = activeOrLastDiscoveryQuery();
   const ranking = discoveryRankingLabel(query.ranking_profile || discoverDraft.rankingProfile);
   const rankingDescription = discoveryRankingDescription(query.ranking_profile || discoverDraft.rankingProfile);
+  const clusters = discoveryClusters();
+  const clusterSummary = clusters.slice(0, 4).map(cluster => `${cluster.label || "未命名"} ${cluster.count || 0}`).join(" · ");
   return `<section class="discover-results-toolbar">
     <div class="discover-results-toolbar-main">
       <div class="discover-results-toolbar-pills">
         <span class="summary-strip-item">候选项目 <strong>${results.length}</strong></span>
         <span class="summary-strip-item">排序方式 <strong>${h(ranking)}</strong></span>
+        ${clusters.length ? `<span class="summary-strip-item">主题分组 <strong>${clusters.length}</strong></span>` : ""}
       </div>
-      <span class="discover-toolbar-note">${h(rankingDescription)}</span>
+      <span class="discover-toolbar-note">${h(clusterSummary || rankingDescription)}</span>
     </div>
     <div class="discover-results-toolbar-actions">
       <button class="action-primary" type="button" onclick="analyzeVisible()">分析这批结果</button>

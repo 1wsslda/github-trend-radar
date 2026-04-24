@@ -216,6 +216,38 @@ class RuntimeStateFeatureTests(unittest.TestCase):
         self.assertEqual(saved_view["last_run_at"], "2026-04-23T10:00:00")
         self.assertEqual(saved_view["last_result_count"], 1)
 
+    def test_apply_discovery_result_persists_clusters_and_repo_labels(self):
+        runtime = build_state_runtime()
+
+        state = runtime.apply_discovery_result(
+            {"id": "view-1", "query": "automation", "limit": 25, "auto_expand": True, "ranking_profile": "balanced"},
+            {
+                "run_at": "2026-04-24T12:00:00",
+                "results": [
+                    {
+                        "full_name": "octo/win-rpa",
+                        "url": "https://github.com/octo/win-rpa",
+                        "description": "Desktop automation toolkit",
+                        "topics": ["desktop-automation", "windows"],
+                        "composite_score": 92,
+                    },
+                    {
+                        "full_name": "octo/rpa-runner",
+                        "url": "https://github.com/octo/rpa-runner",
+                        "description": "RPA runner for desktop automation",
+                        "topics": ["desktop-automation", "rpa"],
+                        "composite_score": 88,
+                    },
+                ],
+            },
+            save_query=True,
+        )
+
+        self.assertEqual(state["last_clusters"][0]["label"], "Desktop Automation")
+        self.assertEqual(state["last_clusters"][0]["count"], 2)
+        self.assertEqual(state["last_results"][0]["cluster_label"], "Desktop Automation")
+        self.assertEqual(state["last_results"][1]["cluster_id"], state["last_clusters"][0]["id"])
+
     def test_set_ai_insight_round_trip_and_delete(self):
         runtime = build_state_runtime()
         repo = {"full_name": "octo/demo", "url": "https://github.com/octo/demo"}

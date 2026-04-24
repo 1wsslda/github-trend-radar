@@ -27,7 +27,7 @@ Codex 选择当前 Auto Top 5 Batch 时，应按以下顺序判断：
 | 3 | `GS-P1-004` | `[x]` | 统一 Job / Event 模型 | `docs/plans/0013-job-event-model-mvp.md` | `-` | `-` | 已新增内存级 Job/Event runtime 和 `/api/jobs`、`/api/events` 只读端点。 |
 | 4 | `GS-P1-005` | `[x]` | SSE 进度与事件流 | `docs/plans/0014-sse-event-stream-mvp.md` | `-` | `-` | 已新增 `/api/events/stream` SSE 快照端点，保留 loopback/control-token 保护。 |
 | 5 | `GS-P1-006` | `[x]` | AI Artifact 生命周期与缓存 | `docs/plans/0015-ai-artifact-lifecycle-cache.md` | `-` | `-` | 已扩展本地 AI artifact 元数据与 `/api/ai-artifacts` 列表端点，不接入 provider。 |
-| 6 | `GS-P1-007` | `[ ]` | 发现结果聚类 | `-` | `-` | `-` | 本批跳过：已达到最多 5 个任务，留待下一批。 |
+| 6 | `GS-P1-007` | `[x]` | 发现结果聚类 | `docs/plans/0016-discovery-result-clustering.md` | `codex/runtime-control-compat` | `-` | 已新增本地 discovery result 聚类、state/API 字段和发现页主题展示。 |
 | 7 | `GS-P2-001` | `[ ]` | 仓库地图 / 可视化体验 | `-` | `-` | `-` | P2 后置，等待 P1 边界稳定。 |
 | 8 | `GS-P2-002` | `[ ]` | 可选本地翻译模型支持 | `-` | `-` | `-` | P2 后置，必须保持可选。 |
 | 9 | `GS-P2-003` | `[ ]` | 加密同步 / 备份 | `-` | `-` | `-` | P2 后置，涉及隐私和同步边界。 |

@@ -20,6 +20,23 @@ function discoveryResults(){
   return Array.isArray(discoveryState.last_results) ? discoveryState.last_results : [];
 }
 
+function discoveryClusters(){
+  if(activeDiscoveryJob && activeDiscoveryJob.status !== "completed" && Array.isArray(activeDiscoveryJob.preview_results) && activeDiscoveryJob.preview_results.length){
+    const grouped = new Map();
+    activeDiscoveryJob.preview_results.forEach(repo => {
+      const id = String(repo.cluster_id || "").trim();
+      const label = String(repo.cluster_label || "").trim();
+      if(!id || !label) return;
+      const item = grouped.get(id) || {id, label, count:0, repo_urls:[]};
+      item.count += 1;
+      if(repo.url) item.repo_urls.push(repo.url);
+      grouped.set(id, item);
+    });
+    return [...grouped.values()];
+  }
+  return Array.isArray(discoveryState.last_clusters) ? discoveryState.last_clusters : [];
+}
+
 function rememberedDiscoveryQuery(){
   return discoveryState && typeof discoveryState.remembered_query === "object" ? discoveryState.remembered_query : {};
 }

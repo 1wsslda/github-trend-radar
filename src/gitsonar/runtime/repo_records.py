@@ -94,6 +94,8 @@ def build_repo_record(
         "match_reasons": match_reasons,
         "ranking_profile": ranking_profile,
         "ranking_signal_score": clamp_int(payload.get("ranking_signal_score"), 0, 0, 100),
+        "cluster_id": normalize(payload.get("cluster_id")),
+        "cluster_label": normalize(payload.get("cluster_label")),
     }
     return repo_record
 

@@ -7,6 +7,7 @@ import time
 from collections import Counter
 from datetime import timezone
 
+from ..runtime.discovery_clusters import cluster_discovery_results
 from ..runtime.repo_records import build_repo_record
 
 from .shared import DiscoveryCancelledError
@@ -51,6 +52,7 @@ def build_discovery_api(*, deps, state, github_get, fetch_repo_details):
             "warnings": [normalize(item) for item in payload.get("warnings", []) if normalize(item)],
             "run_at": normalize(payload.get("run_at")),
             "results": [dict(item) for item in payload.get("results", []) if isinstance(item, dict)],
+            "clusters": [dict(item) for item in payload.get("clusters", []) if isinstance(item, dict)],
         }
 
     def extract_tokens(text: str) -> list[str]:
@@ -636,6 +638,7 @@ def build_discovery_api(*, deps, state, github_get, fetch_repo_details):
                 "warnings": list(dict.fromkeys(warnings))[:6],
                 "run_at": iso_now(),
                 "results": [],
+                "clusters": [],
             }
             store_discovery_cache(cache_key, payload, now)
             emit_discovery_progress(progress_callback, "completed", payload)
@@ -661,13 +664,15 @@ def build_discovery_api(*, deps, state, github_get, fetch_repo_details):
             allow_description_translation=False,
             ranking_profile=ranking_profile,
         )
+        preview_results, preview_clusters = cluster_discovery_results(preview_ranked[:limit], normalize=normalize)
         emit_discovery_progress(progress_callback, "initial_results", {
             "ranking_profile": ranking_profile,
             "translated_query": translated_query if translated_query.lower() != query.lower() else "",
             "generated_queries": generated_queries,
             "related_terms": [],
             "warnings": list(dict.fromkeys(warnings))[:6],
-            "results": preview_ranked[:limit],
+            "results": preview_results,
+            "clusters": preview_clusters,
         })
         ensure_discovery_not_cancelled(is_cancelled)
 
@@ -677,7 +682,8 @@ def build_discovery_api(*, deps, state, github_get, fetch_repo_details):
             "generated_queries": generated_queries,
             "related_terms": [],
             "warnings": list(dict.fromkeys(warnings))[:6],
-            "results": preview_ranked[:limit],
+            "results": preview_results,
+            "clusters": preview_clusters,
         })
         seed_details_map = fetch_discovery_details_map(
             initial_candidates,
@@ -703,7 +709,8 @@ def build_discovery_api(*, deps, state, github_get, fetch_repo_details):
                 "generated_queries": generated_queries,
                 "related_terms": related_terms,
                 "warnings": list(dict.fromkeys(warnings))[:6],
-                "results": preview_ranked[:limit],
+                "results": preview_results,
+                "clusters": preview_clusters,
             })
             try:
                 expansion_results = search_discovery_specs(
@@ -730,7 +737,8 @@ def build_discovery_api(*, deps, state, github_get, fetch_repo_details):
             "generated_queries": generated_queries,
             "related_terms": related_terms,
             "warnings": list(dict.fromkeys(warnings))[:6],
-            "results": preview_ranked[:limit],
+            "results": preview_results,
+            "clusters": preview_clusters,
         })
         details_map = dict(seed_details_map)
         details_map.update(
@@ -752,6 +760,7 @@ def build_discovery_api(*, deps, state, github_get, fetch_repo_details):
             limit=limit,
             ranking_profile=ranking_profile,
         )
+        clustered_results, clusters = cluster_discovery_results(ranked[:limit], normalize=normalize)
         flush_discovery_content_caches()
         payload = {
             "ranking_profile": ranking_profile,
@@ -760,7 +769,8 @@ def build_discovery_api(*, deps, state, github_get, fetch_repo_details):
             "generated_queries": generated_queries,
             "warnings": list(dict.fromkeys(warnings))[:6],
             "run_at": iso_now(),
-            "results": ranked[:limit],
+            "results": clustered_results,
+            "clusters": clusters,
         }
         store_discovery_cache(cache_key, payload, now)
         emit_discovery_progress(progress_callback, "completed", payload)
