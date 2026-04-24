@@ -698,6 +698,39 @@ def write_status(refreshing: bool, fetched_at: str = "", source: str = "", error
     )
 
 
+def create_runtime_job(job_type: str, *, title: str = "", payload: dict[str, object] | None = None) -> str:
+    runtime = job_event_runtime
+    if runtime is None or not callable(getattr(runtime, "create_job", None)):
+        return ""
+    try:
+        job = runtime.create_job(job_type, title=title, payload=payload if isinstance(payload, dict) else {})
+    except Exception as exc:
+        logger.warning("runtime_job_create_failed type=%s error=%s", job_type, redact_text(exc))
+        return ""
+    return normalize(job.get("id") if isinstance(job, dict) else "")
+
+
+def update_runtime_job(job_id: str, **changes) -> None:
+    clean_id = normalize(job_id)
+    runtime = job_event_runtime
+    if not clean_id or runtime is None or not callable(getattr(runtime, "update_job", None)):
+        return
+    try:
+        runtime.update_job(clean_id, **changes)
+    except Exception as exc:
+        logger.warning("runtime_job_update_failed job_id=%s error=%s", clean_id, redact_text(exc))
+
+
+def record_runtime_event(event_type: str, *, job_id: str = "", payload: dict[str, object] | None = None) -> None:
+    runtime = job_event_runtime
+    if runtime is None or not callable(getattr(runtime, "record_event", None)):
+        return
+    try:
+        runtime.record_event(event_type, job_id=job_id, payload=payload if isinstance(payload, dict) else {})
+    except Exception as exc:
+        logger.warning("runtime_event_record_failed type=%s error=%s", event_type, redact_text(exc))
+
+
 def write_html(snapshot: dict[str, object], note: str, pending: bool) -> None:
     atomic_write_text(
         runtime_paths().html_path,
@@ -716,7 +749,7 @@ def write_html(snapshot: dict[str, object], note: str, pending: bool) -> None:
     )
 
 
-def refresh_once_locked(source: str, status_written: bool = False) -> dict[str, object]:
+def refresh_once_locked(source: str, status_written: bool = False, runtime_job_id: str = "") -> dict[str, object]:
     global CURRENT_SNAPSHOT, AUTO_SYNC_USER_STARS_DONE
     started_ts = time.perf_counter()
     if not status_written:
@@ -731,9 +764,22 @@ def refresh_once_locked(source: str, status_written: bool = False) -> dict[str, 
             logger.warning("github_star_sync_failed source=%s error=%s", source, redact_text(exc))
     sync_repo_records(snapshot)
     new_update_count = github_runtime.track_favorite_updates()
+    record_runtime_event(
+        "favorite_updates.checked",
+        job_id=runtime_job_id,
+        payload={"source": source, "new_update_count": int(new_update_count or 0)},
+    )
     CURRENT_SNAPSHOT = snapshot
     write_html(snapshot, "已显示最新数据", False)
     write_status(False, str(snapshot.get("fetched_at", "")), source, "")
+    update_runtime_job(
+        runtime_job_id,
+        status="completed",
+        stage="completed",
+        progress=1.0,
+        message="刷新完成",
+        payload={"source": source, "new_update_count": int(new_update_count or 0)},
+    )
     logger.info(
         "refresh_completed source=%s periods=%d new_favorite_updates=%d duration_ms=%d",
         source,
@@ -746,23 +792,40 @@ def refresh_once_locked(source: str, status_written: bool = False) -> dict[str, 
     return snapshot
 
 
-def refresh_once(source: str = "network") -> dict[str, object]:
+def refresh_once(source: str = "network", runtime_job_id: str = "") -> dict[str, object]:
     if not REFRESH_LOCK.acquire(blocking=False):
         raise RuntimeError("后台正在刷新，请稍后")
     try:
-        return refresh_once_locked(source)
+        return refresh_once_locked(source, runtime_job_id=runtime_job_id)
     finally:
         REFRESH_LOCK.release()
 
 
 def refresh_once_safe(source: str = "network", lock_acquired: bool = False, status_written: bool = False) -> None:
+    runtime_job_id = create_runtime_job("refresh", title="刷新 GitHub 数据", payload={"source": source})
+    update_runtime_job(
+        runtime_job_id,
+        status="running",
+        stage="refreshing",
+        progress=0.05,
+        message="正在刷新 GitHub 数据",
+        payload={"source": source},
+    )
     try:
         if lock_acquired:
-            refresh_once_locked(source, status_written=status_written)
+            refresh_once_locked(source, status_written=status_written, runtime_job_id=runtime_job_id)
         else:
-            refresh_once(source)
+            refresh_once(source, runtime_job_id=runtime_job_id)
     except Exception as exc:
         write_status(False, str(CURRENT_SNAPSHOT.get("fetched_at", "")), source, SAFE_REFRESH_ERROR)
+        update_runtime_job(
+            runtime_job_id,
+            status="failed",
+            stage="failed",
+            progress=1.0,
+            message=SAFE_REFRESH_ERROR,
+            payload={"source": source},
+        )
         logger.error("refresh_failed source=%s error=%s", source, redact_text(exc))
     finally:
         if lock_acquired:
@@ -851,6 +914,11 @@ def _build_runtime_services() -> None:
             favorite_watch_max_checks_with_token=FAVORITE_WATCH_MAX_CHECKS_WITH_TOKEN,
         )
     if discovery_job_runtime is None:
+        if job_event_runtime is None:
+            job_event_runtime = make_job_event_runtime(
+                normalize=normalize,
+                iso_now=iso_now,
+            )
         discovery_job_runtime = make_discovery_job_runtime(
             settings=SETTINGS,
             normalize=normalize,
@@ -863,6 +931,7 @@ def _build_runtime_services() -> None:
             discovery_warning_list=discovery_warning_list,
             github_runtime=github_runtime,
             job_lock=DISCOVERY_JOB_LOCK,
+            event_runtime=job_event_runtime,
         )
         estimate_discovery_eta = discovery_job_runtime.estimate_discovery_eta
         update_discovery_job = discovery_job_runtime.update_discovery_job

@@ -32,7 +32,7 @@ Skipped or blocked tasks:
 | `GS-P2-005` code signing | Still blocked on certificate, private-key custody, password injection, and timestamp service decisions. |
 | SQLite implementation | Planned as `GS-P1-016`; this batch only documents the next queue and does not change persistence. |
 | AI provider implementation | Planned as `GS-P1-017`; this batch only documents opt-in design work and does not call providers. |
-| Full Job/Event/SSE migration | Planned as `GS-P1-014`; this batch does not touch runtime code. |
+| Full Job/Event/SSE migration | `GS-P1-014` is now completed as a small runtime bridge; it did not replace the existing frontend polling path. |
 
 ## 下一轮 Project Autopilot Safe Loop 候选队列
 
@@ -41,7 +41,7 @@ Skipped or blocked tasks:
 | 排名 | 任务 ID | 状态 | 任务 | Plan | Branch | Commit / PR | 备注 |
 |---:|---|---:|---|---|---|---|---|
 | 1 | `GS-P1-013` | `[x]` | 只读 API control-token 收紧评估与兼容迁移 | `docs/plans/0031-read-api-control-token-compat.md` | `codex/runtime-control-compat` | `fix(security): require control token for read APIs` | 已完成；无 token 直接读取返回 `403 invalid_control_token`，主界面请求继续携带 control header。 |
-| 2 | `GS-P1-014` | `[ ]` | 刷新 / 发现 / 更新检查接入统一 Job/Event/SSE | 待创建：`docs/plans/0032-unify-refresh-discovery-update-jobs.md` | `-` | `-` | 将现有后台流程逐步接入通用 runtime，不做大重写。 |
+| 2 | `GS-P1-014` | `[x]` | 刷新 / 发现 / 更新检查接入统一 Job/Event/SSE | `docs/plans/0032-unify-refresh-discovery-update-jobs.md` | `codex/runtime-control-compat` | `feat(runtime): bridge refresh and discovery to job events` | 已完成；focused 测试通过，现有 discovery job API 和 UI 轮询路径保持兼容。 |
 | 3 | `GS-P1-015` | `[ ]` | Update Inbox 增强：自上次查看以来、摘要、重要性解释 | 待创建：`docs/plans/0033-update-inbox-enhancements.md` | `-` | `-` | 基于现有 read/pin/dismiss/priority MVP 扩展研判和降噪体验。 |
 | 4 | `GS-P1-016` | `[ ]` | SQLite 迁移第一阶段：JSON 导入 / 导出兼容与回滚骨架 | 待创建：`docs/plans/0034-sqlite-migration-phase-1.md` | `-` | `-` | 只做迁移骨架和兼容验证，不默认切换事实存储。 |
 | 5 | `GS-P1-017` | `[ ]` | AI provider opt-in 设计与本地 Ollama / OpenAI-compatible pipeline | 待创建：`docs/plans/0035-ai-provider-opt-in-design.md` | `-` | `-` | 先设计 provider、隐私预览、artifact 可追溯和手动启用边界，不默认调用云端。 |

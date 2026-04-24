@@ -51,6 +51,7 @@ def make_discovery_job_runtime(
     discovery_warning_list,
     github_runtime,
     job_lock=None,
+    event_runtime=None,
 ):
     discovery_jobs: dict[str, dict[str, object]] = {}
     active_job_id = ""
@@ -162,6 +163,7 @@ def make_discovery_job_runtime(
             job = discovery_jobs.get(clean_id)
             if not isinstance(job, dict):
                 return None
+            event_job_id = normalize(job.get("event_job_id"))
             if "status" in changes and normalize(changes.get("status")) == "running" and not normalize(job.get("started_at")):
                 job["started_at"] = iso_now()
                 job["_started_ts"] = time.time()
@@ -196,7 +198,47 @@ def make_discovery_job_runtime(
                 active_job_id = clean_id
             snapshot = build_discovery_job_snapshot(job)
             prune_terminal_jobs()
-            return snapshot
+        mirror_discovery_event_job(event_job_id, snapshot)
+        return snapshot
+
+    def create_discovery_event_job(query_payload: dict[str, object]) -> str:
+        if event_runtime is None or not callable(getattr(event_runtime, "create_job", None)):
+            return ""
+        payload = {
+            "query": normalize(query_payload.get("query")),
+            "limit": clamp_int(query_payload.get("limit"), 20, 5, 100),
+            "auto_expand": as_bool(query_payload.get("auto_expand"), True),
+            "ranking_profile": normalize(query_payload.get("ranking_profile")) or "balanced",
+        }
+        try:
+            job = event_runtime.create_job("discovery", title="关键词发现", payload=payload)
+        except Exception as exc:
+            logger.warning("discovery_event_job_create_failed error=%s", redact_text(exc))
+            return ""
+        return normalize(job.get("id") if isinstance(job, dict) else "")
+
+    def mirror_discovery_event_job(event_job_id: str, snapshot: dict[str, object] | None) -> None:
+        if not event_job_id or event_runtime is None or not callable(getattr(event_runtime, "update_job", None)):
+            return
+        data = snapshot if isinstance(snapshot, dict) else {}
+        query = data.get("query") if isinstance(data.get("query"), dict) else {}
+        payload = {
+            "discovery_job_id": normalize(data.get("id")),
+            "query": normalize(query.get("query")) if isinstance(query, dict) else "",
+            "result_count": len(data.get("preview_results", [])) if isinstance(data.get("preview_results"), list) else 0,
+            "warning_count": len(data.get("warnings", [])) if isinstance(data.get("warnings"), list) else 0,
+        }
+        try:
+            event_runtime.update_job(
+                event_job_id,
+                status=normalize(data.get("status")) or "running",
+                stage=normalize(data.get("stage")),
+                progress=data.get("progress"),
+                message=normalize(data.get("message")),
+                payload=payload,
+            )
+        except Exception as exc:
+            logger.warning("discovery_event_job_update_failed job_id=%s error=%s", event_job_id, redact_text(exc))
 
     def run_discovery_search(payload: object) -> dict[str, object]:
         query_payload = normalize_discovery_query(payload)
@@ -221,6 +263,7 @@ def make_discovery_job_runtime(
         job_hash = hashlib.sha1(f"{query_payload['id']}-{time.time()}".encode("utf-8")).hexdigest()[:8]
         job_id = f"discover-{int(time.time() * 1000)}-{job_hash}"
         created_at = iso_now()
+        event_job_id = create_discovery_event_job(query_payload)
         with runtime_lock:
             for other_id, other in discovery_jobs.items():
                 if other_id == job_id:
@@ -250,6 +293,7 @@ def make_discovery_job_runtime(
                 "preview_results": [],
                 "error": "",
                 "discovery_state": None,
+                "event_job_id": event_job_id,
                 "_created_ts": time.time(),
                 "_started_ts": 0.0,
                 "_finished_ts": 0.0,

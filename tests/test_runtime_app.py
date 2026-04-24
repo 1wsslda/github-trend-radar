@@ -17,6 +17,67 @@ import gitsonar.runtime.app as runtime_app
 
 
 class RuntimeAppTests(unittest.TestCase):
+    def test_refresh_once_safe_records_job_events_and_update_check(self):
+        created_jobs: list[dict[str, object]] = []
+        updated_jobs: list[dict[str, object]] = []
+        recorded_events: list[dict[str, object]] = []
+        status_writes: list[dict[str, object]] = []
+
+        class FakeJobEventRuntime:
+            def create_job(self, job_type, *, title="", payload=None):
+                job = {
+                    "id": f"job-{len(created_jobs) + 1}",
+                    "job_type": job_type,
+                    "title": title,
+                    "payload": dict(payload or {}),
+                }
+                created_jobs.append(job)
+                return dict(job)
+
+            def update_job(self, job_id, **kwargs):
+                update = {"job_id": job_id, **kwargs}
+                updated_jobs.append(update)
+                return dict(update)
+
+            def record_event(self, event_type, *, job_id="", payload=None):
+                event = {
+                    "event_type": event_type,
+                    "job_id": job_id,
+                    "payload": dict(payload or {}),
+                }
+                recorded_events.append(event)
+                return dict(event)
+
+        github_runtime = SimpleNamespace(
+            fetch_all=lambda: {"daily": [], "weekly": [], "monthly": [], "fetched_at": "now"},
+            fetch_user_starred=lambda: [],
+            sync_local_favorites_with_starred=lambda _repos: {"total": 0},
+            track_favorite_updates=lambda: 2,
+        )
+
+        with (
+            patch.object(runtime_app, "github_runtime", github_runtime),
+            patch.object(runtime_app, "job_event_runtime", FakeJobEventRuntime()),
+            patch.object(runtime_app, "REFRESH_LOCK", threading.Lock()),
+            patch.object(runtime_app, "SETTINGS", {"github_token": "", "port": 8080}),
+            patch.object(runtime_app, "CURRENT_SNAPSHOT", {"fetched_at": "old"}),
+            patch.object(runtime_app, "AUTO_SYNC_USER_STARS_DONE", False),
+            patch.object(runtime_app, "save_snapshot", lambda _snapshot: None),
+            patch.object(runtime_app, "sync_repo_records", lambda _snapshot: None),
+            patch.object(runtime_app, "write_html", lambda *_args, **_kwargs: None),
+            patch.object(runtime_app, "write_status", lambda refreshing, fetched_at="", source="", error="": status_writes.append({"refreshing": refreshing, "fetched_at": fetched_at, "source": source, "error": error})),
+            patch.object(runtime_app, "shell_runtime", SimpleNamespace(notify_tray=lambda _message: None)),
+        ):
+            runtime_app.refresh_once_safe("manual")
+
+        self.assertEqual(created_jobs[0]["job_type"], "refresh")
+        self.assertEqual(created_jobs[0]["payload"]["source"], "manual")
+        self.assertEqual([item["status"] for item in updated_jobs], ["running", "completed"])
+        self.assertEqual(updated_jobs[-1]["payload"]["new_update_count"], 2)
+        self.assertEqual(recorded_events[-1]["event_type"], "favorite_updates.checked")
+        self.assertEqual(recorded_events[-1]["payload"]["new_update_count"], 2)
+        self.assertFalse(status_writes[-1]["refreshing"])
+
     def test_refresh_once_locked_auto_syncs_starred_only_once_per_process(self):
         starred_calls: list[str] = []
         sync_calls: list[list[dict[str, object]]] = []

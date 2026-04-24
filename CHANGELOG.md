@@ -33,6 +33,7 @@ This file follows a lightweight Keep a Changelog style.
   - SQLite migration design with JSON compatibility and rollback strategy;
   - in-memory Job / Event runtime and read endpoints;
   - SSE event snapshot endpoint;
+  - refresh, discovery, and favorite update check bridge into the Job / Event runtime;
   - AI artifact metadata cache and list endpoint;
   - local discovery result clustering;
   - lightweight repo map visualization;
@@ -48,7 +49,7 @@ This file follows a lightweight Keep a Changelog style.
 - Moved the main runtime UI implementation into the `src/gitsonar/runtime_ui/` package split by template, assets, CSS, and JS resources.
 - Refined the desktop interface toward a calmer, reading-first GitHub intelligence desk.
 - Clarified that current AI support is prompt handoff plus manual local Insight artifact storage, not an embedded provider pipeline.
-- Clarified that discovery jobs and the general Job / Event / SSE runtime exist but are not yet fully unified.
+- Clarified that discovery, refresh, and favorite update check now emit Job / Event runtime records while the UI still keeps its current polling path.
 
 ### Security
 

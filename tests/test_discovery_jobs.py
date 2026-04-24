@@ -13,6 +13,7 @@ if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
 from gitsonar.runtime.discovery_jobs import make_discovery_job_runtime
+from gitsonar.runtime.jobs import make_job_event_runtime
 from gitsonar.runtime.state import make_state_runtime
 from gitsonar.runtime.utils import as_bool, clamp_int, iso_now, normalize
 
@@ -99,20 +100,23 @@ def build_state_runtime(settings: dict[str, object] | None = None):
     )
 
 
-def build_job_runtime(settings: dict[str, object], state_runtime, github_runtime):
-    return make_discovery_job_runtime(
-        settings=settings,
-        normalize=normalize,
-        clamp_int=clamp_int,
-        as_bool=as_bool,
-        iso_now=iso_now,
-        normalize_repo=state_runtime.normalize_repo,
-        normalize_discovery_query=state_runtime.normalize_discovery_query,
-        apply_discovery_result=state_runtime.apply_discovery_result,
-        discovery_warning_list=state_runtime.discovery_warning_list,
-        github_runtime=github_runtime,
-        job_lock=threading.RLock(),
-    )
+def build_job_runtime(settings: dict[str, object], state_runtime, github_runtime, event_runtime=None):
+    kwargs = {
+        "settings": settings,
+        "normalize": normalize,
+        "clamp_int": clamp_int,
+        "as_bool": as_bool,
+        "iso_now": iso_now,
+        "normalize_repo": state_runtime.normalize_repo,
+        "normalize_discovery_query": state_runtime.normalize_discovery_query,
+        "apply_discovery_result": state_runtime.apply_discovery_result,
+        "discovery_warning_list": state_runtime.discovery_warning_list,
+        "github_runtime": github_runtime,
+        "job_lock": threading.RLock(),
+    }
+    if event_runtime is not None:
+        kwargs["event_runtime"] = event_runtime
+    return make_discovery_job_runtime(**kwargs)
 
 
 def wait_for_terminal(job_runtime, job_id: str, timeout: float = 2.0):
@@ -126,6 +130,27 @@ def wait_for_terminal(job_runtime, job_id: str, timeout: float = 2.0):
 
 
 class DiscoveryJobRuntimeTests(unittest.TestCase):
+    def test_discovery_job_mirrors_lifecycle_to_event_runtime(self):
+        settings = {"result_limit": 20, "github_token": "token"}
+        state_runtime = build_state_runtime(settings)
+        event_runtime = make_job_event_runtime(normalize=normalize, iso_now=iso_now, max_events=20)
+        job_runtime = build_job_runtime(settings, state_runtime, _SuccessfulGitHubRuntime(), event_runtime=event_runtime)
+
+        snapshot = job_runtime.start_discovery_job({"query": "agent", "save_query": True})
+        finished = wait_for_terminal(job_runtime, snapshot["id"])
+        jobs = event_runtime.export_jobs()["jobs"]
+        events = event_runtime.export_events()["events"]
+
+        self.assertEqual(finished["status"], "completed")
+        self.assertEqual(len(jobs), 1)
+        self.assertEqual(jobs[0]["job_type"], "discovery")
+        self.assertEqual(jobs[0]["status"], "completed")
+        self.assertEqual(jobs[0]["progress_percent"], 100)
+        self.assertEqual(jobs[0]["payload"]["query"], "agent")
+        self.assertIn("job.created", [event["event_type"] for event in events])
+        self.assertIn("job.updated", [event["event_type"] for event in events])
+        self.assertIn("job.completed", [event["event_type"] for event in events])
+
     def test_start_discovery_job_completes_and_updates_discovery_state(self):
         settings = {"result_limit": 20, "github_token": "token"}
         state_runtime = build_state_runtime(settings)

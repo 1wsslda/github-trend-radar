@@ -108,13 +108,13 @@ src/gitsonar/
 
 发现任务运行时。负责关键词发现的后台 job 状态、取消、错误摘要和结果回写。
 
-当前 discovery job runtime 已存在，但还没有完全接入通用 `jobs.py` Job / Event runtime。
+当前 discovery job runtime 保留 `/api/discovery/job` 兼容 payload，并通过可选 bridge 把 discovery 生命周期同步到通用 `jobs.py` Job / Event runtime。
 
 ### `src/gitsonar/runtime/jobs.py`
 
 通用内存级 Job / Event runtime。提供 job 创建、状态更新、事件历史、过滤和 SSE 快照数据。
 
-当前它已支撑 `/api/jobs`、`/api/events`、`/api/events/stream`，但 refresh、discovery、update check 等工作流尚未全部统一接入。
+当前它已支撑 `/api/jobs`、`/api/events`、`/api/events/stream`，并记录 refresh、discovery 与 favorite update check 的桥接事件；前端仍保留现有轮询路径。
 
 ### `src/gitsonar/runtime/ai_insight.py`
 
@@ -218,7 +218,7 @@ GitHub 数据层，按职责拆分：
 
 ### SSE MVP
 
-`GET /api/events/stream` 当前是 SSE 快照端点，输出已记录的 Job/Event 历史。它不是完整实时后台总线替代品，后续还需要把刷新、发现、更新检查等流程逐步接入统一 runtime。
+`GET /api/events/stream` 当前是 SSE 快照端点，输出已记录的 Job/Event 历史。它已包含 refresh、discovery 和 favorite update check 的桥接事件，但还不是完整实时后台总线替代品；前端尚未切换到 EventSource 驱动。
 
 ## 数据与持久化现状
 
@@ -285,7 +285,7 @@ runtime/http.py + runtime/shell.py + runtime_github/ + runtime_ui/
 - Vanilla JS 分片可维护性已改善，但复杂交互继续增长会带来维护压力。
 - Trending 数据仍依赖 GitHub 页面结构，页面结构变化会影响抓取稳定性。
 - 桌面壳仍偏浏览器 app mode，WebView2 native bridge 还不是主通道。
-- Discovery job runtime 与通用 Job / Event / SSE runtime 尚未完全统一。
+- Discovery、refresh 和 favorite update check 已桥接到通用 Job / Event runtime，但前端仍主要使用原轮询和局部 API 状态。
 - AI 仍是 prompt handoff + 手动 artifact，不是 provider pipeline。
 
 ## 运行时数据
