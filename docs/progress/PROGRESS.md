@@ -14,6 +14,8 @@
 
 | 日期 | 任务 ID | 状态 | 摘要 | Plan | Branch | Commit / PR | 验证 | 下一步 |
 |---|---|---|---|---|---|---|---|---|
+| `2026-04-24` | `GS-P2-006` | `[x]` | 完成前端现代化评估；结论为当前不启动 React / Vite 重写，继续用现有 Vanilla JS 分片和 JSON API，小步稳定后再考虑局部试点。 | `docs/plans/0022-frontend-modernization-evaluation.md` | `codex/runtime-control-compat` | `-` | 文档检查；无代码变更，未运行测试。 | 当前 P2 剩余未完成任务均已完成或阻塞；停止自动循环。 |
+| `2026-04-24` | `GS-P2-006` | `[~]` | 开始前端现代化评估；只做迁移时机与分阶段路径判断，不引入 React、Vite、TypeScript 或构建链。 | `docs/plans/0022-frontend-modernization-evaluation.md` | `codex/runtime-control-compat` | `-` | 待文档检查。 | 写清当前是否迁移、未来前置条件和回滚路径。 |
 | `2026-04-24` | `GS-P2-005` | `[!]` | 代码签名标记为阻塞；本轮只记录证书、私钥保管、密码注入和时间戳服务决策缺口，不实现签名脚本。 | `docs/plans/0021-code-signing-blocked.md` | `codex/runtime-control-compat` | `-` | 文档检查；无代码变更，未运行测试。 | 发布者明确证书来源和密钥保护方式后再重新打开。 |
 | `2026-04-24` | `GS-P2-003` | `[!]` | 加密同步 / 备份标记为阻塞；本轮只记录隐私、同步目标、密钥管理和冲突处理决策缺口，不实现任何同步或上传。 | `docs/plans/0020-encrypted-sync-backup-blocked.md` | `codex/runtime-control-compat` | `-` | 文档检查；无代码变更，未运行测试。 | 用户明确同步目标和密钥管理策略后再重新打开。 |
 | `2026-04-24` | `GS-P2-002` | `[x]` | 完成可选本地翻译模型支持：设置中可选择本机 Ollama 类 provider，翻译 URL 限制为 loopback，未配置模型或请求失败时返回原文且不回退到 Google。 | `docs/plans/0019-optional-local-translation-model.md` | `codex/runtime-control-compat` | `-` | `python -m pytest tests/test_runtime_translation.py tests/test_runtime_settings.py tests/test_runtime_http.py tests/test_runtime_ui_assets.py tests/test_ui_js_smoke.py -q`，88 passed，110 subtests passed。 | 继续处理 P2 同步/签名阻塞记录和前端现代化评估。 |

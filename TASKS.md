@@ -28,7 +28,7 @@
 |---|---:|---:|---:|---:|---:|---:|
 | `P0` | 9 | 0 | 0 | 0 | 9 | 0 |
 | `P1` | 7 | 0 | 0 | 0 | 7 | 0 |
-| `P2` | 6 | 1 | 0 | 2 | 3 | 0 |
+| `P2` | 6 | 0 | 0 | 2 | 4 | 0 |
 
 ## 当前 Auto Top 5 Batch 候选队列
 
@@ -47,6 +47,7 @@
 | 9 | `P2` | `[!]` | `GS-P2-003` | 加密同步 / 备份 | `docs/plans/0020-encrypted-sync-backup-blocked.md` | `codex/runtime-control-compat` | `-` | 阻塞：涉及隐私、同步目标、密钥管理、冲突处理和用户数据外发边界，不能在本轮安全实现。 |
 | 10 | `P2` | `[x]` | `GS-P2-004` | 发布加固与 AV 误报缓解 | `docs/plans/0018-release-hardening-av-mitigation.md` | `codex/runtime-control-compat` | `-` | 已新增本地 SHA256 release manifest 脚本，不改签名或打包策略。 |
 | 11 | `P2` | `[!]` | `GS-P2-005` | 代码签名 | `docs/plans/0021-code-signing-blocked.md` | `codex/runtime-control-compat` | `-` | 阻塞：需要代码签名证书、私钥保管、密码注入和时间戳服务决策，不能在本轮安全实现。 |
+| 12 | `P2` | `[x]` | `GS-P2-006` | 前端现代化评估 | `docs/plans/0022-frontend-modernization-evaluation.md` | `codex/runtime-control-compat` | `-` | 已完成评估；当前不启动 React / Vite 重写，未来只建议局部试点。 |
 
 ## 候选队列之外的任务池
 
@@ -58,4 +59,4 @@
 | `P2` | `[!]` | `GS-P2-003` | 加密同步 / 备份 | `docs/plans/0020-encrypted-sync-backup-blocked.md` | 阻塞：需先明确同步目标、密钥管理、冲突处理和显式 opt-in 设计。 |
 | `P2` | `[x]` | `GS-P2-004` | 发布加固与 AV 误报缓解 | `docs/plans/0018-release-hardening-av-mitigation.md` | 已补本地 release checksum manifest。 |
 | `P2` | `[!]` | `GS-P2-005` | 代码签名 | `docs/plans/0021-code-signing-blocked.md` | 阻塞：需要证书、私钥保管、密码注入和时间戳服务决策。 |
-| `P2` | `[ ]` | `GS-P2-006` | 前端现代化评估 | `-` | 只在当前工作流边界稳定后评估。 |
+| `P2` | `[x]` | `GS-P2-006` | 前端现代化评估 | `docs/plans/0022-frontend-modernization-evaluation.md` | 已完成评估，当前不启动完整前端迁移。 |
