@@ -120,6 +120,7 @@ GitSonar 本身：
 As of 2026-04-24, settings, bootstrap, diagnostics, status, and discovery job payloads must not expose plaintext proxy credentials, GitHub tokens, raw refresh/discovery exceptions, or local runtime paths.
 
 - Proxy URLs used internally may still contain credentials, but API/UI payloads show redacted values such as `http://***:***@127.0.0.1:7890`.
+- Windows DPAPI encrypt/decrypt calls use `CRYPTPROTECT_UI_FORBIDDEN`, so background Token / proxy secret handling does not request system UI.
 - Refresh failures write a user-safe status message; detailed exception text is only logged after redaction.
 - Discovery job failures return a safe summary instead of raw backend exception text.
 - Oversized local JSON API request bodies are rejected with `413 payload_too_large`.

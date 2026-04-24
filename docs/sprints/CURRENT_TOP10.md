@@ -38,6 +38,23 @@ Skipped or blocked tasks:
 | DPAPI `CRYPTPROTECT_UI_FORBIDDEN` | Lower priority than current UI/API leakage risk. |
 | Repository-wide log redaction refactor | Larger scope; this batch fixes user-visible and high-risk paths first. |
 
+## Project Autopilot Safe Loop batch - 2026-04-24
+
+Selected tasks:
+
+| Rank | Task ID | Status | Task | Plan | Branch | Commit / PR | Notes |
+|---:|---|---:|---|---|---|---|---|
+| 1 | `GS-P1-011` | `[x]` | Forbid DPAPI UI prompts | `docs/plans/0028-dpapi-ui-forbidden.md` | `codex/runtime-control-compat` | `fix(security): forbid dpapi ui prompts` | DPAPI encrypt/decrypt now pass `CRYPTPROTECT_UI_FORBIDDEN`. |
+
+Skipped or blocked tasks:
+
+| Task | Reason |
+|---|---|
+| `GS-P2-003` encrypted sync / backup | Still blocked on sync target, key management, conflict strategy, and explicit opt-in decisions. |
+| `GS-P2-005` code signing | Still blocked on certificate, private-key custody, password injection, and timestamp service decisions. |
+| Full read API control-token migration | Larger compatibility boundary; not safe to mix with this small security hardening task. |
+| Repository-wide log redaction refactor | Larger scope; this task only handles DPAPI flags. |
+
 ## 当前候选队列
 
 即使本表包含多于 5 个候选，当前批次也只处理前 5 个可安全执行的任务。

@@ -27,7 +27,7 @@
 | 优先级 | 总数 | `[ ]` | `[~]` | `[!]` | `[x]` | `[-]` |
 |---|---:|---:|---:|---:|---:|---:|
 | `P0` | 11 | 0 | 0 | 0 | 11 | 0 |
-| `P1` | 10 | 0 | 0 | 0 | 10 | 0 |
+| `P1` | 11 | 0 | 0 | 0 | 11 | 0 |
 | `P2` | 6 | 0 | 0 | 2 | 4 | 0 |
 
 ## 当前 Auto Top 5 Batch 候选队列
@@ -58,6 +58,12 @@
 | `P1` | `[x]` | `GS-P1-008` | Sanitize discovery job failures | `docs/plans/0025-safe-discovery-job-errors.md` | `-` | `-` | Failed discovery jobs store a safe summary while logs use redacted detail. |
 | `P1` | `[x]` | `GS-P1-009` | Limit JSON request body size | `docs/plans/0026-json-body-size-limit.md` | `-` | `-` | Local JSON POST routes now reject oversized request bodies with `413 payload_too_large`. |
 | `P1` | `[x]` | `GS-P1-010` | Protect `/api/repo-details` side-effect GET | `docs/plans/0027-protect-repo-details-endpoint.md` | `-` | `-` | Repository details now require loopback and the existing control token. |
+
+## Project Autopilot Safe Loop batch - 2026-04-24
+
+| Priority | Status | Task ID | Task | Plan | Branch | Commit / PR | Notes |
+|---|---:|---|---|---|---|---|---|
+| `P1` | `[x]` | `GS-P1-011` | Forbid DPAPI UI prompts | `docs/plans/0028-dpapi-ui-forbidden.md` | `codex/runtime-control-compat` | `fix(security): forbid dpapi ui prompts` | DPAPI encrypt/decrypt now pass `CRYPTPROTECT_UI_FORBIDDEN` while preserving stored JSON compatibility. |
 
 ## 候选队列之外的任务池
 

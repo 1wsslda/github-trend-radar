@@ -14,6 +14,7 @@ from html import escape
 from urllib.parse import urlparse
 
 _DPAPI_PREFIX = 'dpapi:'
+_CRYPTPROTECT_UI_FORBIDDEN = 0x1
 logger = logging.getLogger(__name__)
 
 
@@ -30,7 +31,7 @@ def encrypt_secret(plaintext: str) -> str:
         in_blob = _DataBlob(len(data), ctypes.cast(ctypes.c_char_p(data), ctypes.POINTER(ctypes.c_char)))
         out_blob = _DataBlob()
         if not ctypes.windll.crypt32.CryptProtectData(
-            ctypes.byref(in_blob), None, None, None, None, 0, ctypes.byref(out_blob)
+            ctypes.byref(in_blob), None, None, None, None, _CRYPTPROTECT_UI_FORBIDDEN, ctypes.byref(out_blob)
         ):
             return plaintext
         encrypted = bytes(ctypes.string_at(out_blob.pbData, out_blob.cbData))
@@ -51,7 +52,7 @@ def decrypt_secret(ciphertext: str) -> str:
         in_blob = _DataBlob(len(data), ctypes.cast(ctypes.c_char_p(data), ctypes.POINTER(ctypes.c_char)))
         out_blob = _DataBlob()
         if not ctypes.windll.crypt32.CryptUnprotectData(
-            ctypes.byref(in_blob), None, None, None, None, 0, ctypes.byref(out_blob)
+            ctypes.byref(in_blob), None, None, None, None, _CRYPTPROTECT_UI_FORBIDDEN, ctypes.byref(out_blob)
         ):
             return ''
         plaintext_bytes = bytes(ctypes.string_at(out_blob.pbData, out_blob.cbData))
