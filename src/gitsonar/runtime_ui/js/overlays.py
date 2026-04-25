@@ -339,6 +339,12 @@ function closeDiagnostics(){
 let currentDetailUrl = "";
 let currentDetailRepo = null;
 let currentDetailData = null;
+const detailReadmeExpandedUrls = new Set();
+
+function resetDetailBodyScroll(){
+  const body = document.getElementById("detail-body");
+  if(body) body.scrollTop = 0;
+}
 
 function renderRepoTagChip(url, tag, selected = false){
   const clean = String(tag || "").trim();
@@ -383,6 +389,51 @@ function renderRepoOrganizer(repo, detail, tags, note){
     </div>`;
 }
 
+function detailReadmeContent(detail){
+  const target = detail && typeof detail === "object" ? detail : {};
+  return String(target.readme_summary || target.readme_summary_raw || "").trim();
+}
+
+function detailReadmeUrl(repo, detail){
+  return String(repo?.url || detail?.html_url || currentDetailUrl || "").trim();
+}
+
+function renderDetailReadmeSection(repo, detail){
+  const readme = detailReadmeContent(detail);
+  const url = detailReadmeUrl(repo, detail);
+  const isLong = readme.length > DETAIL_README_PREVIEW_CHARS;
+  const expanded = isLong && detailReadmeExpandedUrls.has(url);
+  const visibleReadme = readme
+    ? (isLong && !expanded ? readme.slice(0, DETAIL_README_PREVIEW_CHARS) : readme)
+    : "暂无 README 摘要";
+  const hiddenCount = Math.max(0, readme.length - DETAIL_README_PREVIEW_CHARS);
+  const hiddenMarkup = isLong && !expanded
+    ? `<span class="muted">已隐藏 ${h(hiddenCount.toLocaleString("zh-CN"))} 个字符</span>`
+    : "";
+  const toggleLabel = expanded ? "收起预览" : "展开全文";
+  const nextExpanded = expanded ? "false" : "true";
+  return `<div class="detail-section" id="detail-readme-section" data-readme-expanded="${expanded ? "true" : "false"}">
+      <div class="section-label">README 摘要</div>
+      <div class="readme-block" id="detail-readme-block">${h(visibleReadme)}</div>
+      ${isLong ? `<div class="panel-actions detail-readme-actions">${hiddenMarkup}<button class="action-quiet" type="button" aria-controls="detail-readme-block" aria-expanded="${expanded ? "true" : "false"}" onclick='toggleDetailReadmeExpanded(${JSON.stringify(url)}, ${nextExpanded})'>${toggleLabel}</button></div>` : ""}
+    </div>`;
+}
+
+function toggleDetailReadmeExpanded(url, expanded){
+  const key = String(url || currentDetailUrl || "").trim();
+  const body = document.getElementById("detail-body");
+  const scrollTop = body ? body.scrollTop : 0;
+  if(!key) return;
+  if(expanded){
+    detailReadmeExpandedUrls.add(key);
+  }else{
+    detailReadmeExpandedUrls.delete(key);
+  }
+  renderCurrentDetailPanel();
+  const nextBody = document.getElementById("detail-body");
+  if(nextBody) nextBody.scrollTop = scrollTop;
+}
+
 function renderCurrentDetailPanel(){
   if(!currentDetailRepo || !currentDetailData){
     document.getElementById("detail-body").innerHTML = `<div class="empty">${emptyIcon}<span>详情尚未加载完成。</span></div>`;
@@ -424,10 +475,7 @@ function renderCurrentDetailPanel(){
       </div>
     </div>
     ${renderRepoOrganizer(repo, detail, tags, note)}
-    <div class="detail-section">
-      <div class="section-label">README 摘要</div>
-      <div class="readme-block">${h(detail.readme_summary || detail.readme_summary_raw || "暂无 README 摘要")}</div>
-    </div>
+    ${renderDetailReadmeSection(repo, detail)}
     ${topics.length ? `<div class="detail-section"><div class="section-label">主题</div><div class="topic-list">${topics.map(topic => `<span class="topic">${h(topic)}</span>`).join("")}</div></div>` : ""}
     <div class="panel-actions">
       <button class="action-quiet" type="button" onclick='copyRepoMarkdownSummary(${JSON.stringify(repo.url)})'>复制 Markdown 摘要</button>
@@ -440,6 +488,7 @@ async function openDetail(owner, name, label){
   setOverlayVisible("detail-modal", true);
   document.getElementById("detail-title").textContent = label;
   document.getElementById("detail-body").innerHTML = `<div class="empty">${emptyIcon}<span>正在拉取仓库详情...</span></div>`;
+  resetDetailBodyScroll();
   try{
     const detail = await fetchRepoDetails({owner, name});
     currentDetailUrl = detail.html_url || `https://github.com/${owner}/${name}`;
@@ -459,6 +508,7 @@ async function openDetail(owner, name, label){
     };
     currentDetailData = detail;
     renderCurrentDetailPanel();
+    resetDetailBodyScroll();
   }catch(error){
     currentDetailUrl = "";
     currentDetailRepo = null;

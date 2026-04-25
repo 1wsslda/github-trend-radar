@@ -386,6 +386,24 @@ class RuntimeUILayoutSmokeTests(unittest.TestCase):
 
         self.assertIn('"/api/repo-annotations"', JS)
 
+    def test_detail_readme_preview_contract_is_in_detail_drawer_assets(self):
+        for token in (
+            "const DETAIL_README_PREVIEW_CHARS = 12000;",
+            "function renderDetailReadmeSection(repo, detail){",
+            "function toggleDetailReadmeExpanded(url, expanded){",
+            "const detailReadmeExpandedUrls = new Set();",
+            'id="detail-readme-section"',
+            'id="detail-readme-block"',
+            "展开全文",
+            "收起预览",
+            "已隐藏",
+        ):
+            with self.subTest(token=token):
+                self.assertIn(token, JS)
+
+        self.assertNotIn("gtr-detail-readme", JS)
+        self.assertNotIn("readme_expanded", JS)
+
 
 if __name__ == "__main__":
     unittest.main()

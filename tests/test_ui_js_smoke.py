@@ -303,6 +303,55 @@ class UIJSSmokeTests(unittest.TestCase):
         self.assertIn("refreshRepoAnnotationSurfaces", save_body)
         self.assertIn("refreshVisibleCards();", function_body(JS, "refreshRepoAnnotationSurfaces"))
 
+    def test_detail_readme_preview_contract_uses_helper_in_detail_panel(self):
+        body = function_body(JS, "renderCurrentDetailPanel")
+
+        self.assertIn("${renderDetailReadmeSection(repo, detail)}", body)
+        self.assertNotIn('detail.readme_summary || detail.readme_summary_raw || "暂无 README 摘要"', body)
+
+    def test_detail_readme_preview_helper_defaults_to_preview_then_expands(self):
+        body = function_body(JS, "renderDetailReadmeSection")
+
+        for token in (
+            "DETAIL_README_PREVIEW_CHARS",
+            "readme.length > DETAIL_README_PREVIEW_CHARS",
+            "detailReadmeExpandedUrls.has(url)",
+            "readme.slice(0, DETAIL_README_PREVIEW_CHARS)",
+            "hiddenCount",
+            "展开全文",
+            "收起预览",
+            "detail-readme-section",
+            "detail-readme-block",
+        ):
+            with self.subTest(token=token):
+                self.assertIn(token, body)
+
+    def test_detail_readme_toggle_keeps_state_in_frontend_session_only(self):
+        self.assertIn("const detailReadmeExpandedUrls = new Set();", JS)
+        body = function_body(JS, "toggleDetailReadmeExpanded")
+
+        self.assertIn("detailReadmeExpandedUrls.add(key);", body)
+        self.assertIn("detailReadmeExpandedUrls.delete(key);", body)
+        self.assertIn("renderCurrentDetailPanel();", body)
+        self.assertIn("nextBody.scrollTop = scrollTop;", body)
+        self.assertNotIn("localStorage", body)
+        self.assertNotIn("userState", body)
+
+    def test_open_detail_resets_detail_body_scroll_for_new_repo(self):
+        self.assertIn("function resetDetailBodyScroll(){", JS)
+        body = function_body(JS, "openDetail")
+
+        self.assertGreaterEqual(body.count("resetDetailBodyScroll();"), 2)
+
+    def test_copy_markdown_summary_uses_full_detail_readme(self):
+        copy_body = function_body(JS, "copyRepoMarkdownSummary")
+        summary_body = function_body(JS, "buildRepoMarkdownSummary")
+
+        self.assertIn("const detail = repo.owner && repo.name ? await fetchRepoDetails(repo) : null;", copy_body)
+        self.assertIn("buildRepoMarkdownSummary(repo, detail)", copy_body)
+        self.assertIn("target.readme_summary || target.readme_summary_raw", summary_body)
+        self.assertNotIn("DETAIL_README_PREVIEW_CHARS", summary_body)
+
 
 if __name__ == "__main__":
     unittest.main()

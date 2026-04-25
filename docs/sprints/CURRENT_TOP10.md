@@ -16,6 +16,22 @@ Codex 选择当前 Auto Top 5 Batch 时，应按以下顺序判断：
 5. 保持本地优先与 Windows 桌面工作流的优先
 6. 不需要大重写的优先
 
+## 详情抽屉 README 滚动卡顿修复批次 - 2026-04-25
+
+Selected tasks:
+
+| Rank | Task ID | Status | Task | Plan | Branch | Commit / PR | Notes |
+|---:|---|---:|---|---|---|---|---|
+| 1 | `GS-P1-021` | `[x]` | 详情抽屉 README 滚动卡顿修复 | `docs/plans/0039-detail-drawer-readme-jank.md` | `codex/runtime-control-compat` | `-` | 已完成；默认只渲染 README 摘要前 `12000` 字，提供“展开全文 / 收起预览”，复制 Markdown 摘要继续使用完整详情内容。推荐 commit message：`perf(ui): reduce detail drawer readme scroll jank`。 |
+
+Skipped or blocked tasks:
+
+| Task | Reason |
+|---|---|
+| React / Vite rewrite | 本批只在当前 Vanilla JS/CSS 前端内做详情抽屉局部性能修复。 |
+| FastAPI / SQLite migration | 本批不改变 HTTP API、运行时服务、detail cache 或 JSON 事实存储。 |
+| AI provider / cloud telemetry | 本批不新增 AI、云 API、同步、性能上报或用户数据外发。 |
+
 ## 标签与笔记编辑体验优化批次 - 2026-04-25
 
 Selected tasks:
