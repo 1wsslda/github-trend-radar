@@ -12,6 +12,33 @@ if (-not $DistRoot) {
   $DistRoot = Join-Path $root "artifacts\dist"
 }
 
+function Get-Sha256Hex {
+  param(
+    [Parameter(Mandatory = $true)]
+    [string]$Path
+  )
+
+  if (Get-Command Get-FileHash -ErrorAction SilentlyContinue) {
+    try {
+      return (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash.ToLowerInvariant()
+    } catch {
+      # Some minimal PowerShell hosts omit Get-FileHash or expose a broken shim.
+    }
+  }
+
+  $stream = [System.IO.File]::OpenRead($Path)
+  try {
+    $sha256 = [System.Security.Cryptography.SHA256]::Create()
+    try {
+      return [System.BitConverter]::ToString($sha256.ComputeHash($stream)).Replace("-", "").ToLowerInvariant()
+    } finally {
+      $sha256.Dispose()
+    }
+  } finally {
+    $stream.Dispose()
+  }
+}
+
 $artifactSpecs = @(
   @{ Path = "GitSonar.exe"; Kind = "portable-exe" },
   @{ Path = "installer\GitSonarSetup.exe"; Kind = "installer" }
@@ -26,7 +53,7 @@ foreach ($spec in $artifactSpecs) {
   }
 
   $file = Get-Item -LiteralPath $fullPath
-  $hash = (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+  $hash = Get-Sha256Hex -Path $file.FullName
   $artifacts += [ordered]@{
     path = $relativePath.Replace("\", "/")
     kind = [string]$spec.Kind
