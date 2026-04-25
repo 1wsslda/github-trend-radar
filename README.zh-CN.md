@@ -2,99 +2,213 @@
 
 [English](README.md) | [简体中文](README.zh-CN.md)
 
-**GitSonar 是一个 Windows 桌面 GitHub 情报台，把日常的 GitHub 浏览收束成一条持续工作流：发现 → 整理 → 跟踪 → 判断。**
+**GitSonar 是一个 Windows 本地优先的 GitHub 开源项目情报工作台。它把“发现项目、整理线索、持续跟踪、形成判断”放到一个桌面工作流里。**
 
 ![GitSonar 主界面](assets/screenshots/trending.png)
 
-GitSonar 不是把 GitHub Trending 页面搬到桌面。它把趋势发现、关键词发现、本地状态整理、关注更新、仓库详情、双仓库对比、Markdown 判断导出和 AI 提示词交接放进一个桌面工作台，适合需要持续筛选和跟进 GitHub 项目的人。
+GitSonar 不只是 GitHub Trending 查看器。它更像一个给开发者、产品人、研究者使用的开源项目雷达：先帮你发现值得看的仓库，再让你用本地状态、标签、笔记、更新收件箱、对比视图和 Markdown / AI 提示词交接，把一次性浏览变成可持续积累。
 
-## 它解决什么问题
+## 系统亮点
 
-- Trending 能帮你发现项目，但很难帮你决定哪些值得继续看。
-- 浏览器标签页适合一次性看榜，不适合长期整理、持续跟踪和回头判断。
-- GitSonar 把“发现后的动作”放回桌面：先标记、再跟踪、再对比、再判断。
+| 能力 | 你能做什么 |
+|---|---|
+| **趋势与关键词发现** | 查看今日 / 本周 / 本月趋势，用中英文关键词发现仓库，保存发现视图，下次一键重跑。 |
+| **可解释推荐** | 在结果卡片里看到推荐原因、排序依据、本地聚类主题和轻量仓库地图，不只看 Star 数。 |
+| **本地整理台** | 用 `关注 / 稍后看 / 已读 / 忽略` 四态管理候选仓库，补充标签、笔记、忽略原因，支持批量操作和导入 / 导出。 |
+| **Update Inbox** | 持续跟踪关注仓库的 Push、Star / Fork、Release 变化，按已读、置顶、忽略、优先级整理更新。 |
+| **详情、对比与导出** | 在详情抽屉阅读 README 摘要、Topics、License、主页信息，并做双仓库对比或导出 Markdown 摘要。 |
+| **隐私优先** | 数据默认留在本机。GitHub Token 和带凭据代理 URL 使用 Windows DPAPI 本地加密；本地 API 有 loopback 和 control token 保护。 |
 
-## 核心工作流
+## 适合谁
 
-1. **发现**
-   今天 / 本周 / 本月趋势榜，加上关键词发现、保存发现视图、排序模式、推荐原因、本地聚类和轻量仓库地图。
-2. **整理**
-   用 `关注 / 稍后看 / 已读 / 忽略` 四态本地状态做去噪，支持标签、笔记、忽略反馈、搜索、筛选、排序、批量操作，以及用户状态导出 / 导入。
-3. **跟踪**
-   关注列表的 Push、Star / Fork、Release 变化会进入 Update Inbox，支持已读、置顶、忽略、优先级、自上次查看以来提示、本地摘要和重要性解释。
-4. **判断**
-   用详情抽屉、README 摘要、双仓库并排对比、Markdown 摘要导出和 AI 提示词交接完成判断。
+- 经常看 GitHub Trending，但希望把好项目沉淀下来的人。
+- 做技术选型、竞品观察、开源项目研究的开发者和产品人。
+- 需要跟踪某批仓库更新，而不是只收藏一个链接的人。
+- 使用中文关键词寻找英文开源项目，并希望保留判断过程的人。
+- 想把仓库信息交给 ChatGPT / Gemini 分析，但希望先在本地筛选和整理上下文的人。
 
-## 已实现的核心能力
+## 5 分钟上手
 
-- **趋势与发现**：今天 / 本周 / 本月趋势聚合，关键词发现，保存发现视图，保存搜索，排序模式切换。
-- **可解释发现**：推荐原因展示，本地发现结果聚类，轻量二维仓库地图。
-- **整理与沉淀**：四态本地状态，标签，笔记，忽略原因反馈，批量操作，导出 / 导入用户状态。
-- **变化跟踪**：关注仓库的 Push、Star / Fork、Release 变化追踪，以及支持已读、置顶、忽略、优先级、自上次查看以来提示、本地摘要和重要性解释的 Update Inbox。
-- **仓库理解**：详情抽屉、README 摘要、Topics、License、主页等关键信息。
-- **对比与导出**：双仓库对比，单仓库 / 批量 / 对比 Markdown 摘要导出。
-- **提示词交接**：单仓库 / 批量 / 对比三种 ChatGPT / Gemini 提示词交接，支持多目标同时打开或仅复制。
-- **AI provider opt-in 设计**：已有本地 / 云端 provider 模式、隐私预览和 artifact 可追溯设计；当前还没有运行时 provider 实现。
-- **本地 API 与事件**：已有 JSON API 边界、Job / Event 内存运行时和 SSE 快照端点。
-- **SQLite 迁移骨架**：已有第一阶段 schema、dry-run 计数和备份 / 回滚路径规划；JSON 仍是事实存储。
-- **诊断与安全**：本地诊断面板，DPAPI 非交互加固，用户可见脱敏，诊断脱敏，刷新 / 发现错误安全化，JSON body size limit，以及 `/api/repo-details` control token 保护。
-- **桌面体验**：单实例唤醒、关闭行为、开机启动、代理支持。
-- **本地运行**：GitHub Token 本地加密保存，旧数据目录迁移，开发态 `runtime-data/` 与打包态 `%LOCALAPPDATA%\GitSonar`。
-- **可选 OpenAI-compatible 翻译 API**：显式 opt-in 的翻译 provider，API Key 使用本地 DPAPI 加密保存，默认 Google 翻译路径保持不变。
+### 1. 下载和启动
 
-## 当前 AI 边界
+从 [GitHub Releases](https://github.com/1wsslda/github-trend-radar/releases) 下载：
 
-GitSonar 当前不会默认调用内嵌 AI provider，也不会在应用内自动返回模型生成的结论。
+- 安装版：`GitSonarSetup.exe`
+- 便携版：`GitSonar.exe`
+- 校验文件：`SHA256SUMS.txt` 和 `release-manifest.json`
 
-已经实现的是：
+当前版本没有自动更新，也没有代码签名。Windows SmartScreen 可能会提示风险；请确认下载来源和 SHA256 后再运行。
 
-- 把上下文交给外部 ChatGPT 或 Gemini 的提示词交接；
-- 仅复制提示词的工作流；
+### 2. 首次配置
 
-此前的手动结构化 Insight 保存 / 缓存工作流已经移除。后续如果接入 provider，必须另起显式 opt-in 设计，并在调用本地或云端 provider 前展示将发送的数据。
+打开右上角设置，根据需要填写：
 
-相关 opt-in provider 设计见 `docs/plans/0035-ai-provider-opt-in-design.md`；运行时调用、API Key 存储、预览 UI 和模型输出验证仍是后续工作。
+- `GitHub Token`：长期使用、同步 GitHub Stars、提高 GitHub API 稳定性时建议配置。
+- `代理地址`：你的网络无法稳定访问 GitHub 时配置。
+- `刷新间隔`：控制后台刷新频率。
+- `结果上限`：控制趋势和发现列表规模。
+- `翻译 provider`：默认使用 Google 翻译路径；OpenAI-compatible 翻译 API 需要你显式启用并填写 Endpoint、Model 和 API Key。
 
-## 它适合谁
+不配置 Token 也可以浏览趋势和做本地整理，只是 GitHub API 稳定性、Star 同步和更新追踪能力会受限。
 
-- 需要长期跟踪 GitHub 项目，而不是只看一次榜单的人。
-- 做技术选型、竞品观察、产品研究的开发者和产品人。
-- 独立开发者、开源重度用户、中文关键词检索需求较强的人。
-- 希望先整理候选，再集中做判断的人。
+### 3. 发现仓库
 
-## 为什么它不是普通的 Trending 查看器
+1. 在主界面切换 `今日 / 本周 / 本月` 查看趋势榜。
+2. 用搜索、语言、状态和排序控件缩小范围。
+3. 打开关键词发现，输入中文或英文关键词，例如 `本地 AI 工具`、`terminal ui`、`data visualization`。
+4. 查看结果里的推荐原因、聚类主题和仓库地图，判断哪些值得进入候选池。
+5. 对有价值的查询保存发现视图，下次可以直接加载或重跑。
 
-- 普通 Trending viewer 主要解决“今天有什么火”；GitSonar 继续处理“哪些值得继续看、为什么值得继续看”。
-- 普通 Trending viewer 更像一次性浏览；GitSonar 强调桌面上的持续整理、刷新和回头判断。
-- 普通 Trending viewer 往往停在 GitHub Star；GitSonar 增加了本地状态、标签、笔记、更新跟踪、详情阅读、对比和提示词工作流。
+### 4. 整理候选仓库
 
-## 术语说明
+对每个仓库做本地状态标记：
 
-- **应用内的 `关注 / 收藏 / favorites`**
-  当前界面和代码里还存在“关注”“收藏”“favorites”混用，它们在文档里统一指 GitSonar 的本地关注列表，是一条应用内工作流状态。
-- **GitHub `Star`**
-  这是 GitHub 平台上的公开动作和指标，不等同于应用内状态。配置 Token 后，GitSonar 在你把仓库标记为“关注”时会尝试同步 GitHub Star，也支持把现有 GitHub 星标批量导入到本地关注列表。
+- `关注`：值得长期跟踪，会进入关注列表和更新追踪。
+- `稍后看`：暂时有兴趣，但还没判断。
+- `已读`：已经看过，不需要继续出现在待处理列表里。
+- `忽略`：明确不关注，可以记录忽略原因，帮助后续排序去噪。
 
-## 快速开始
+在详情抽屉里可以补充标签和笔记。比如：
 
-### 普通用户
+- 标签：`ai-agent`、`cli`、`database`、`值得试用`
+- 笔记：记录你为什么关注、风险点、适用场景、后续验证动作
 
-- GitSonar 是一个 Windows 桌面应用，当前 README 以 Windows 10 及以上为目标环境。
-- 如果当前仓库已经发布版本，优先从 [GitHub Releases](https://github.com/1wsslda/github-trend-radar/releases) 下载：
-  - 安装版：`GitSonarSetup.exe`
-  - 便携版：`GitSonar.exe`
-- `artifacts/` 是仓库内的构建输出目录，不是面向普通用户的默认下载入口。
-- 当前**没有自动更新，也没有代码签名**。如果 Windows SmartScreen 拦截，请按你的环境判断后再选择是否继续运行。
+状态、标签、笔记都保存在本机，也可以导出 / 导入。
 
-首次启动后，按需配置这些项目：
+### 5. 跟踪更新
 
-- `GitHub Token`：建议长期使用时填写。
-- `代理地址`：网络无法稳定访问 GitHub 时填写。
-- `刷新间隔`。
-- `结果上限`。
-- `翻译 provider`：默认保持现有 Google 路径，OpenAI-compatible API provider 需要显式启用并配置 Endpoint、Model 和 API Key。
+进入 `Update Inbox` 查看关注仓库的变化：
 
-### 开发者 / 维护者
+- Push 活跃度变化
+- Star / Fork 数变化
+- 新 Release
+- 本地生成的变化摘要
+- 重要性解释
+- 自上次查看以来的提示
+
+你可以把更新标记为已读、置顶、忽略，或按优先级处理。它的目标不是替代 GitHub 通知，而是帮你从“我关注的一批项目里”挑出真正值得回看的变化。
+
+### 6. 阅读、对比和形成判断
+
+常用判断路径：
+
+1. 打开仓库详情，先看描述、语言、Topics、License、主页、README 摘要。
+2. 给候选项目加标签和笔记。
+3. 选两个仓库做并排对比，快速看定位差异。
+4. 导出单仓库、批量仓库或对比 Markdown 摘要。
+5. 把整理好的上下文交给 ChatGPT / Gemini，或只复制提示词到你自己的工作流。
+
+GitSonar 当前不会在应用内默认调用 AI provider。AI 相关功能是提示词交接，由你主动点击后才会打开外部目标或复制内容。
+
+## 典型工作流
+
+### 每日开源雷达
+
+1. 打开今日趋势。
+2. 用语言和排序筛掉无关项目。
+3. 把 3 到 5 个项目标记为关注或稍后看。
+4. 给重点项目加标签。
+5. 晚些时候从 Update Inbox 看它们是否有新的 Release 或活跃变化。
+
+### 技术选型候选池
+
+1. 用关键词发现找某个方向的项目，例如 `vector database` 或 `workflow engine`。
+2. 保存发现视图，保留查询条件和结果上下文。
+3. 给候选项目添加标签，例如 `成熟`、`轻量`、`风险待查`。
+4. 用对比视图比较两个最接近的项目。
+5. 导出 Markdown 摘要进入方案文档。
+
+### AI 辅助判断
+
+1. 先在 GitSonar 里筛选项目，补标签和笔记。
+2. 打开单仓库、批量或对比分析入口。
+3. 选择 ChatGPT、Gemini 或仅复制提示词。
+4. 在外部 AI 工具里继续分析，不把 GitHub Token、代理凭据或本地路径交给模型。
+
+## 界面操作指南
+
+### 趋势页
+
+- `今日 / 本周 / 本月`：切换 GitHub Trending 时间范围。
+- 搜索和筛选：按仓库名、描述、语言、状态快速缩小列表。
+- 排序：按 Star、增长、更新时间或推荐信号查看不同优先级。
+- 批量操作：对当前筛选结果批量标记、分析或导出。
+
+### 关键词发现
+
+- 输入中文关键词时，GitSonar 会按当前翻译设置尝试生成英文查询。
+- 发现任务在后台执行，可以查看进度，也可以取消。
+- 发现结果支持推荐原因、聚类主题和仓库地图。
+- 常用查询可以保存成发现视图，后续加载、重跑或删除。
+
+### 关注列表
+
+- 关注列表是 GitSonar 的本地工作流状态，不等同于 GitHub Star。
+- 配置 GitHub Token 后，标记关注时会尝试同步 GitHub Star，也可以把已有 GitHub Stars 导入本地关注列表。
+- 你可以继续用标签、笔记、筛选和批量操作整理关注仓库。
+
+### Update Inbox
+
+- 展示关注仓库的 Push、Star / Fork、Release 变化。
+- 支持已读、置顶、忽略和优先级。
+- 本地摘要和重要性解释帮助你判断哪些更新值得打开。
+- 这个面板适合定期清理，不需要每条更新都跳转到 GitHub。
+
+### 详情抽屉和对比
+
+- 详情抽屉用于阅读 README 摘要、Topics、License、主页等信息。
+- 标签和笔记编辑也在详情抽屉里完成。
+- 对比视图适合在两个相似仓库之间做选择。
+- Markdown 导出适合进入笔记、PRD、技术方案或外部 AI 工具。
+
+### 设置与诊断
+
+- 设置里管理 GitHub Token、代理、刷新间隔、结果上限、翻译 provider 和开机启动。
+- 诊断面板会检查运行目录、端口、代理、Token 状态、GitHub 可达性等信息。
+- 诊断输出会脱敏，不应暴露明文 Token、代理凭据或本地绝对路径。
+
+## 截图
+
+**主界面：趋势、筛选、批量分析**
+
+![GitSonar 主界面](assets/screenshots/trending.png)
+
+**关注列表：本地状态整理与批量动作**
+
+![状态管理](assets/screenshots/favorites.png)
+
+**仓库详情：抽屉阅读与 README 摘要**
+
+![仓库详情](assets/screenshots/detail.png)
+
+## 当前实现边界
+
+### AI 边界
+
+已经实现：
+
+- ChatGPT / Gemini 提示词交接
+- 仅复制提示词
+- 单仓库、批量、对比三种上下文整理
+
+尚未实现：
+
+- 默认内嵌 AI provider
+- 应用内自动返回模型结论
+- OpenAI-compatible AI 分析 provider pipeline
+- 手动结构化 Insight 本地缓存工作流
+
+OpenAI-compatible 当前只用于可选翻译 provider，不等同于内嵌 AI 分析功能。
+
+### 存储边界
+
+- 当前事实存储仍是本地 JSON 文件。
+- SQLite 已有迁移设计和 dry-run 骨架，但尚未切换为运行时事实存储。
+- 打包版数据默认在 `%LOCALAPPDATA%\GitSonar`。
+- 开发态数据默认在仓库内 `runtime-data/`。
+- 旧目录 `%LOCALAPPDATA%\GitHubTrendRadar` 会在首次运行时尝试合并到新目录。
+
+## 开发者运行
 
 环境要求：
 
@@ -108,7 +222,7 @@ python -m pip install -r requirements.txt
 python src/gitsonar/__main__.py
 ```
 
-构建 EXE：
+构建便携 EXE：
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\build_exe.ps1
@@ -126,51 +240,40 @@ powershell -ExecutionPolicy Bypass -File .\scripts\build_setup.ps1
 scripts\build_all_click.cmd
 ```
 
-## 典型工作流
+生成发布校验清单：
 
-1. 在 `今天 / 本周 / 本月` 或关键词发现里找候选仓库。
-2. 保存发现视图，查看推荐原因、聚类主题或仓库地图。
-3. 先用 `关注 / 稍后看 / 已读 / 忽略`、标签和笔记做整理，不急着立刻下结论。
-4. 在程序运行期间，回到 Update Inbox 看哪些仓库发生了 Push / Star / Release 变化，并用摘要和重要性解释快速判断是否需要跟进。
-5. 打开详情或对比视图，再把单仓库 / 批量 / 对比提示词交给 ChatGPT / Gemini，或复制 Markdown 摘要进入外部工作流。
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\write_release_manifest.ps1
+```
 
-## 截图
+运行验证：
 
-**主界面：趋势、筛选、批量分析**
+```powershell
+python scripts\verify_runtime.py
+python -m pytest -q
+```
 
-![GitSonar 主界面](assets/screenshots/trending.png)
+## 安全与隐私
 
-**关注列表：本地状态整理与批量动作**
-
-![状态管理](assets/screenshots/favorites.png)
-
-**仓库详情：抽屉阅读与 README 摘要**
-
-![仓库详情](assets/screenshots/detail.png)
-
-**更新追踪面板**
-
-当前仓库里还没有这部分的真实截图，后续补充。
-
-## 规划中
-
-以下是真实剩余项，不包含已经完成的 MVP 能力：
-
-- **SQLite 运行时切换**：在 dry-run 骨架之后，实现 SQLite 导入 / 导出和受控存储切换。
-- **AI provider 实施**：按已完成的 opt-in 设计，实现设置、隐私预览 API、本地 / 云端执行路径和结果保存确认。
-- **加密备份 / 同步**：在同步目标、密钥管理和冲突策略明确后再启动。
-- **代码签名与自动更新**：在证书、私钥保管、时间戳服务和发布策略明确后再启动。
-
-## 安全、数据目录与迁移
-
-- 打包版运行时数据默认在 `%LOCALAPPDATA%\GitSonar`。
-- 开发态直接运行时使用仓库内的 `runtime-data/`。
-- 旧目录 `%LOCALAPPDATA%\GitHubTrendRadar` 会在首次运行时尝试合并到新目录。
-- GitHub Token 和带凭据的代理 URL 使用 Windows DPAPI 在本地加密保存。
-- 当前实现除了访问 GitHub，还可能访问 Google Translate 公共接口做翻译；OpenAI-compatible 翻译 API 需要显式启用，只会请求用户配置的 Endpoint。
-- ChatGPT / Gemini 功能目前是生成 / 复制提示词并打开外部目标，不是内嵌 AI provider，也不再保存手动结构化 Insight 缓存。
+- GitSonar 是本地运行工具，没有项目自建 SaaS 后台。
+- 本地 HTTP 服务默认绑定到 `127.0.0.1`。
+- 业务、状态、诊断、导出、事件和只读数据 API 要求 loopback 与 runtime control token。
+- GitHub Token 和带凭据代理 URL 使用 Windows DPAPI 本地加密保存。
+- 当前可能访问 GitHub 和 Google Translate；OpenAI-compatible 翻译 API 只有在你显式启用后才会访问你配置的 Endpoint。
+- ChatGPT / Gemini 入口只在你主动点击时打开外部目标或复制提示词。
+- 当前没有默认云同步、默认备份上传、代码签名或自动更新。
 
 更多细节见 [docs/SECURITY.md](docs/SECURITY.md)。
+
+## 路线图
+
+真实剩余项：
+
+- **SQLite 运行时切换**：在 dry-run 骨架之后，实现导入 / 导出和受控存储切换。
+- **AI provider 实施**：按 opt-in 设计实现设置、隐私预览、本地 / 云端执行路径和结果确认。
+- **前端现代化**：按 `docs/plans/0040-frontend-modernization-roadmap.md` 从低风险 React island 和 modern asset pipeline 开始，不做一次性大重写。
+- **加密备份 / 同步**：在同步目标、密钥管理和冲突策略明确后再启动。
+- **代码签名与自动更新**：在证书、私钥保管、时间戳服务和发布策略明确后再启动。
 
 ## 文档入口
 

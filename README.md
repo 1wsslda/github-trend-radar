@@ -2,94 +2,237 @@
 
 [English](README.md) | [简体中文](README.zh-CN.md)
 
-**GitSonar is a Windows desktop GitHub intelligence desk for ongoing repository discovery, organisation, tracking, and judgement.**
+**GitSonar is a Windows, local-first GitHub intelligence desk for discovering repositories, organizing leads, tracking changes, and making better open-source decisions.**
 
 ![GitSonar Screen](assets/screenshots/trending.png)
 
-GitSonar is not just a Trending viewer. It combines trend discovery, keyword discovery, local workflow states, update tracking, repo detail reading, side-by-side comparison, Markdown judgement exports, and AI prompt handoff in one desktop workspace.
+GitSonar is not just a GitHub Trending viewer. It is a desktop workflow for people who repeatedly scout, compare, and follow open-source projects. It combines trend discovery, keyword discovery, local states, tags, notes, an Update Inbox, repo details, side-by-side comparison, Markdown exports, and AI prompt handoff.
 
-## Workflow
+## Highlights
 
-1. **Discover**
-   Daily / weekly / monthly trend aggregation plus keyword discovery, saved discovery views, ranking profiles, recommendation reasons, local clustering, and a lightweight repo map.
-2. **Organise**
-   Local `Follow / Watch Later / Read / Ignore` states, tags, notes, ignore feedback, search, filters, sorting, batch actions, and state import / export.
-3. **Track**
-   Followed repo updates for push, star / fork, and release changes, with an Update Inbox for read, pin, dismiss, priority, since-last-viewed indicators, local summaries, and importance reasons.
-4. **Judge**
-   Repo detail drawer, README summary, side-by-side compare, Markdown summary export, and AI prompt handoff.
-
-## What Is Implemented Today
-
-- Trend aggregation for day / week / month.
-- Keyword discovery with saved discovery views, saved searches, ranking modes, recommendation reasons, local result clustering, and a lightweight two-dimensional repo map.
-- Local follow states, tags, notes, ignore feedback, batch actions, and user state import / export.
-- Followed repo update tracking and an Update Inbox with read, pin, dismiss, priority, since-last-viewed indicators, local summaries, and importance reasons.
-- Repo detail drawer, README summary, topics, license, homepage metadata, and side-by-side repo comparison.
-- Markdown summary export for single repo, batch, and compare workflows.
-- AI prompt handoff to ChatGPT web / desktop, Gemini web, or copy-only; multi-target handoff is supported.
-- AI provider opt-in design for local / cloud provider modes, privacy previews, and artifact traceability. It is not implemented as a runtime provider yet.
-- JSON API boundary MVP for bootstrap, repos, updates, discovery views, jobs, events, and SSE snapshots.
-- SQLite migration dry-run skeleton with phase-one schema and backup / rollback path planning. JSON remains the fact storage.
-- Local diagnostics panel for runtime status, proxy, token, GitHub reachability, and related troubleshooting signals.
-- Optional OpenAI-compatible translation API provider. It is explicit opt-in, stores the API key locally with DPAPI, and does not change the default Google translation path.
-- Security hardening for DPAPI non-interactive handling, user-visible redaction, safe diagnostics, safe refresh and discovery errors, JSON body limits, and control-token protection for `/api/repo-details`.
-- Single-instance wake-up, close-to-exit behavior, auto start, proxy support, and local token storage.
-
-## Current AI Boundary
-
-GitSonar does not currently call an embedded AI provider or return model-generated conclusions inside the app by default.
-
-Implemented AI-adjacent behavior is:
-
-- prompt handoff to external ChatGPT or Gemini targets;
-- copy-only prompt workflows;
-
-The previous manual structured Insight save/cache workflow has been removed. Future provider integration must start from a new explicit opt-in design and must show what data is sent before any cloud or local provider call.
-
-The opt-in provider design is documented in `docs/plans/0035-ai-provider-opt-in-design.md`; runtime execution, API key storage, preview UI, and model calls are still future work.
+| Capability | What you can do |
+|---|---|
+| **Trends and keyword discovery** | Browse daily / weekly / monthly trends, search by keywords, save discovery views, and rerun them later. |
+| **Explainable ranking** | See recommendation reasons, ranking signals, local clusters, and a lightweight repo map instead of judging only by stars. |
+| **Local research workspace** | Sort repos with `Follow / Watch Later / Read / Ignore`, then add tags, notes, ignore reasons, batch actions, and import / export. |
+| **Update Inbox** | Track push, star / fork, and release changes for followed repos, then mark updates as read, pinned, dismissed, or priority. |
+| **Details, compare, and export** | Read README summaries, topics, license, homepage metadata, compare two repos, and export Markdown summaries. |
+| **Privacy-first desktop model** | Data stays local by default. GitHub tokens and proxy credentials are encrypted with Windows DPAPI; local APIs use loopback and a runtime control token. |
 
 ## Who It Is For
 
-- People who follow GitHub projects over time, not just once.
-- Builders, researchers, product people, and heavy open-source users.
-- Anyone who wants a desktop workspace instead of a one-off Trending page.
-
-## Not Just A Trending Viewer
-
-- A viewer helps you discover repos. GitSonar keeps the follow-up workflow on desktop.
-- GitHub stars are only one signal. GitSonar adds local states, tags, notes, update tracking, detail reading, compare, and judgement tools.
-- The app keeps the follow-up workflow on desktop with single-instance wake-up and explicit relaunch when needed.
-
-## Terms
-
-- **Local `Follow / Favorites / favorites`**
-  The current UI and codebase still mix these labels. In practice they point to the same local follow list inside GitSonar.
-- **GitHub `Star`**
-  This is a GitHub platform action and metric. With a token configured, marking a repo as `Follow` will try to sync a GitHub star, and you can also import your existing GitHub stars into the local follow list.
+- Developers who check GitHub Trending but want to keep and revisit good finds.
+- Product people, researchers, and builders doing technical selection or competitive research.
+- Heavy open-source users who need to track changes across a curated repo list.
+- People who search with Chinese or English keywords and want a repeatable discovery workflow.
+- Users who want to hand curated repo context to ChatGPT or Gemini only after local filtering.
 
 ## Quick Start
 
-### Users
+### 1. Download and Run
 
-- GitSonar is a Windows desktop app.
-- If this repository currently has published releases, download them from [GitHub Releases](https://github.com/1wsslda/github-trend-radar/releases):
-  - `GitSonarSetup.exe`
-  - `GitSonar.exe`
-- `artifacts/` is a repo build-output directory, not the default download entry for normal users.
-- There is currently **no auto-update and no code signing**. Windows SmartScreen may ask you to confirm before running.
+Download from [GitHub Releases](https://github.com/1wsslda/github-trend-radar/releases):
 
-### Developers
+- Installer: `GitSonarSetup.exe`
+- Portable app: `GitSonar.exe`
+- Verification files: `SHA256SUMS.txt` and `release-manifest.json`
+
+There is currently no auto-update and no code signing. Windows SmartScreen may warn before launch; verify the download source and SHA256 before running.
+
+### 2. First-Time Setup
+
+Open Settings and configure what you need:
+
+- `GitHub Token`: recommended for long-term use, GitHub Star sync, and more stable GitHub API access.
+- `Proxy`: useful when your network cannot reliably reach GitHub.
+- `Refresh interval`: controls background refresh frequency.
+- `Result limit`: controls trend and discovery list size.
+- `Translation provider`: Google is the default path. OpenAI-compatible translation requires explicit opt-in plus Endpoint, Model, and API Key.
+
+You can use GitSonar without a token for trend browsing and local organization. Token-free usage has less stable API access and limited Star sync / update tracking.
+
+### 3. Discover Repositories
+
+1. Switch between daily, weekly, and monthly trends.
+2. Use search, language, state, and sort controls to narrow the list.
+3. Run keyword discovery with Chinese or English queries such as `local AI tools`, `terminal ui`, or `data visualization`.
+4. Review recommendation reasons, clusters, and the repo map.
+5. Save useful discovery views so you can load or rerun them later.
+
+### 4. Organize Candidates
+
+Use local workflow states:
+
+- `Follow`: worth tracking over time.
+- `Watch Later`: interesting but not decided yet.
+- `Read`: already reviewed.
+- `Ignore`: not relevant. You can record an ignore reason to reduce future noise.
+
+Open the detail drawer to add tags and notes, for example:
+
+- Tags: `ai-agent`, `cli`, `database`, `try-next`
+- Notes: why it matters, risks, fit, and next validation steps
+
+States, tags, and notes are stored locally and can be exported or imported.
+
+### 5. Track Updates
+
+Use the Update Inbox to review followed repo changes:
+
+- Push activity
+- Star / fork changes
+- New releases
+- Local change summaries
+- Importance reasons
+- Since-last-viewed indicators
+
+You can mark updates as read, pin important ones, dismiss noise, and process the list by priority. The goal is not to replace GitHub notifications; it is to identify which changes matter inside your curated watchlist.
+
+### 6. Read, Compare, and Decide
+
+A common judgement path:
+
+1. Open repo details and review description, language, topics, license, homepage, and README summary.
+2. Add tags and notes.
+3. Compare two similar repos side by side.
+4. Export single-repo, batch, or comparison Markdown summaries.
+5. Send the curated context to ChatGPT / Gemini, or copy the prompt into your own workflow.
+
+GitSonar does not call an embedded AI provider by default. AI-related features are prompt handoff actions that only run when you click them.
+
+## Common Workflows
+
+### Daily Open-Source Radar
+
+1. Open daily trends.
+2. Filter by language and sort mode.
+3. Mark a few repos as Follow or Watch Later.
+4. Add tags to important repos.
+5. Check the Update Inbox later for releases or activity changes.
+
+### Technical Selection Shortlist
+
+1. Run keyword discovery for a domain such as `vector database` or `workflow engine`.
+2. Save the discovery view.
+3. Tag candidates as `mature`, `lightweight`, or `risk-to-check`.
+4. Compare the two closest options.
+5. Export Markdown into a note, PRD, or technical proposal.
+
+### AI-Assisted Review
+
+1. Filter repos locally first.
+2. Add tags and notes.
+3. Open single-repo, batch, or comparison analysis.
+4. Send the prompt to ChatGPT / Gemini or copy it.
+5. Keep GitHub tokens, proxy credentials, and local paths out of the AI payload.
+
+## UI Guide
+
+### Trends
+
+- Daily / weekly / monthly tabs switch the Trending period.
+- Search and filters narrow repos by name, description, language, and local state.
+- Sort modes help you inspect stars, growth, update signals, and recommendation signals.
+- Batch actions let you mark, analyze, or export the current result set.
+
+### Keyword Discovery
+
+- Chinese queries are translated to English according to the current translation settings.
+- Discovery runs as a background job with progress and cancellation.
+- Results include recommendation reasons, clusters, and a repo map.
+- Saved discovery views can be loaded, rerun, or deleted.
+
+### Follow List
+
+- The GitSonar follow list is a local workflow state, not the same thing as a GitHub Star.
+- With a GitHub token configured, marking a repo as Follow will try to sync a GitHub Star.
+- Existing GitHub Stars can also be imported into the local follow list.
+- Tags, notes, filters, and batch actions keep the list useful over time.
+
+### Update Inbox
+
+- Shows push, star / fork, and release changes for followed repos.
+- Supports read, pinned, dismissed, and priority states.
+- Local summaries and importance reasons help you decide what to open.
+- Designed for periodic triage rather than one notification per event.
+
+### Details and Compare
+
+- The detail drawer shows README summary, topics, license, homepage, and related metadata.
+- Tags and notes are edited in the detail drawer.
+- Comparison view is useful when two repos solve a similar problem.
+- Markdown exports are designed for notes, PRDs, technical proposals, and external AI tools.
+
+### Settings and Diagnostics
+
+- Settings cover GitHub Token, proxy, refresh interval, result limit, translation provider, and auto start.
+- Diagnostics check runtime directories, port, proxy, token status, GitHub reachability, and related signals.
+- Diagnostic output is redacted and should not expose raw tokens, proxy credentials, or local absolute paths.
+
+## Screenshots
+
+**Main workspace: trends, filters, and batch analysis**
+
+![GitSonar Screen](assets/screenshots/trending.png)
+
+**Follow list: local states and batch actions**
+
+![State Management](assets/screenshots/favorites.png)
+
+**Repo detail drawer: reading and README summary**
+
+![Repo Detail](assets/screenshots/detail.png)
+
+## Current Boundaries
+
+### AI Boundary
+
+Implemented:
+
+- ChatGPT / Gemini prompt handoff
+- Copy-only prompts
+- Single-repo, batch, and comparison context preparation
+
+Not implemented:
+
+- Default embedded AI provider
+- In-app model-generated conclusions
+- OpenAI-compatible AI analysis provider pipeline
+- Manual structured Insight cache workflow
+
+OpenAI-compatible support currently applies only to the optional translation provider. It is not an embedded AI analysis feature.
+
+### Storage Boundary
+
+- JSON files remain the fact storage.
+- SQLite has a migration design and dry-run skeleton, but runtime storage has not switched.
+- Packaged app data lives under `%LOCALAPPDATA%\GitSonar`.
+- Development runs use `runtime-data/` in the repository.
+- Legacy `%LOCALAPPDATA%\GitHubTrendRadar` data is merged on first run when needed.
+
+## Development
 
 Requirements:
 
 - Windows
 - Python 3.12+
 
+Run from source:
+
 ```powershell
 python -m pip install -r requirements.txt
 python src/gitsonar/__main__.py
+```
+
+Build the portable EXE:
+
+```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\build_exe.ps1
+```
+
+Build the installer:
+
+```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\build_setup.ps1
 ```
 
@@ -99,14 +242,28 @@ One-click packaging:
 scripts\build_all_click.cmd
 ```
 
-## Security & Data
+Write release checksums:
 
-- Packaged app data lives under `%LOCALAPPDATA%\GitSonar`.
-- Repository development runs use `runtime-data/`.
-- Legacy `%LOCALAPPDATA%\GitHubTrendRadar` data is merged on first run when needed.
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\write_release_manifest.ps1
+```
+
+Verify:
+
+```powershell
+python scripts\verify_runtime.py
+python -m pytest -q
+```
+
+## Security and Privacy
+
+- GitSonar is a local desktop tool with no project-owned SaaS backend.
+- The local HTTP service binds to `127.0.0.1` by default.
+- Business, state, diagnostics, export, event, and read APIs require loopback plus a runtime control token.
 - GitHub tokens and proxy URLs with credentials are stored locally with Windows DPAPI.
-- Current network destinations may include GitHub and Google Translate. Optional OpenAI-compatible translation is explicit opt-in and only uses the endpoint configured by the user.
-- AI analysis currently means prompt handoff to external ChatGPT or Gemini targets. GitSonar does not silently call an embedded AI provider and no longer keeps a manual local Insight cache.
+- Current network destinations may include GitHub and Google Translate. Optional OpenAI-compatible translation is explicit opt-in and only uses the endpoint you configure.
+- ChatGPT / Gemini actions only open external targets or copy prompts after you click them.
+- There is no default cloud sync, default backup upload, code signing, or auto-update yet.
 
 See [docs/SECURITY.md](docs/SECURITY.md) for the exact security boundary.
 
@@ -114,10 +271,11 @@ See [docs/SECURITY.md](docs/SECURITY.md) for the exact security boundary.
 
 Remaining planned work:
 
-- SQLite runtime import / export and controlled storage cutover after the dry-run skeleton.
-- Implementing the opt-in AI provider settings, privacy preview API, and local / cloud execution path from the documented design.
-- Encrypted backup / sync design after sync target, key management, and conflict policy decisions are clear.
-- Code signing and auto-update only after certificate, private-key custody, timestamping, and release policy decisions are clear.
+- **SQLite runtime cutover**: import / export and controlled storage switching after the dry-run skeleton.
+- **AI provider implementation**: settings, privacy preview, local / cloud execution, and result confirmation from the opt-in design.
+- **Frontend modernization**: start with low-risk React islands and a modern asset pipeline from `docs/plans/0040-frontend-modernization-roadmap.md`, not a big rewrite.
+- **Encrypted backup / sync**: only after sync target, key management, and conflict policy decisions are clear.
+- **Code signing and auto-update**: only after certificate, private-key custody, timestamping, and release policy decisions are clear.
 
 ## Docs
 
