@@ -6,9 +6,6 @@ from types import SimpleNamespace
 from urllib.parse import urlparse
 
 
-DEFAULT_LOCAL_TRANSLATION_URL = "http://127.0.0.1:11434/api/generate"
-
-
 def make_translation_runtime(
     *,
     cache_path,
@@ -66,35 +63,45 @@ def make_translation_runtime(
 
     def translation_provider() -> str:
         key = normalize(SETTINGS.get("translation_provider", "google")).lower().replace("-", "_")
-        if key in {"local", "ollama", "local_ollama"}:
-            return "local_ollama"
+        if key in {"openai", "openai_compatible"}:
+            return "openai_compatible"
         return "google"
 
-    def local_translation_model() -> str:
-        return normalize(SETTINGS.get("translation_local_model", ""))
+    def translation_api_endpoint() -> str:
+        return normalize(SETTINGS.get("translation_api_endpoint", "")).rstrip("/")
 
-    def local_translation_url() -> str:
-        return (normalize(SETTINGS.get("translation_local_url", "")) or DEFAULT_LOCAL_TRANSLATION_URL).rstrip("/")
+    def translation_api_model() -> str:
+        return normalize(SETTINGS.get("translation_api_model", ""))
+
+    def translation_api_key() -> str:
+        return normalize(SETTINGS.get("translation_api_key", ""))
 
     def is_loopback_url(url: str) -> bool:
         parsed = urlparse(normalize(url))
         host = (parsed.hostname or "").lower()
         return parsed.scheme in {"http", "https"} and host in {"127.0.0.1", "localhost", "::1"}
 
+    def is_allowed_translation_api_endpoint(url: str) -> bool:
+        endpoint = normalize(url)
+        if not endpoint:
+            return False
+        parsed = urlparse(endpoint)
+        if not parsed.scheme or not parsed.hostname:
+            return False
+        if is_loopback_url(endpoint):
+            return True
+        return parsed.scheme == "https"
+
     def translation_cache_key(raw: str, target_lang: str) -> str:
-        if translation_provider() == "local_ollama":
-            return f"local_ollama::{local_translation_model()}::{target_lang}::{raw}"
+        if translation_provider() == "openai_compatible":
+            return f"openai_compatible::{translation_api_endpoint()}::{translation_api_model()}::{target_lang}::{raw}"
         if target_lang == "en":
             return f"en::{raw}"
         return raw
 
-    def local_translation_prompt(raw: str, target_lang: str) -> str:
+    def translation_user_prompt(raw: str, target_lang: str) -> str:
         target = "English" if target_lang == "en" else "Simplified Chinese"
-        return (
-            f"Translate the following text to {target}. "
-            "Return only the translated text, with no explanation or quotes.\n\n"
-            f"{raw}"
-        )
+        return f"Translate the following text to {target}:\n\n{raw}"
 
     def request_google_translation(raw: str, target_lang: str) -> str:
         translated = ''
@@ -122,30 +129,56 @@ def make_translation_runtime(
                     time.sleep(0.25 * (attempt + 1))
         return translated
 
-    def request_local_ollama_translation(raw: str, target_lang: str) -> str:
-        model = local_translation_model()
-        endpoint = local_translation_url()
-        if not model or not is_loopback_url(endpoint):
+    def request_openai_compatible_translation(raw: str, target_lang: str) -> str:
+        endpoint = translation_api_endpoint()
+        model = translation_api_model()
+        api_key = translation_api_key()
+        if not endpoint or not model or not api_key or not is_allowed_translation_api_endpoint(endpoint):
             return ""
         translated = ""
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+        }
+        request_kwargs: dict[str, object] = {"headers": headers}
+        if is_loopback_url(endpoint):
+            request_kwargs["proxies"] = {"http": None, "https": None}
         for attempt in range(TRANSLATE_RETRIES):
             try:
                 response = TRANSLATE_SESSION.post(
                     endpoint,
                     json={
                         "model": model,
-                        "prompt": local_translation_prompt(raw, target_lang),
+                        "messages": [
+                            {
+                                "role": "system",
+                                "content": "Translate text. Return only the translated text, with no explanation or quotes.",
+                            },
+                            {
+                                "role": "user",
+                                "content": translation_user_prompt(raw, target_lang),
+                            },
+                        ],
+                        "temperature": 0,
                         "stream": False,
-                        "options": {"temperature": 0},
                     },
                     timeout=TRANSLATE_TIMEOUT,
-                    proxies={"http": None, "https": None},
+                    **request_kwargs,
                 )
                 response.raise_for_status()
                 data = response.json()
+                response_received = True
                 if isinstance(data, dict):
-                    translated = normalize(data.get("response"))
+                    choices = data.get("choices")
+                    if isinstance(choices, list) and choices:
+                        first = choices[0]
+                        if isinstance(first, dict):
+                            message = first.get("message")
+                            if isinstance(message, dict):
+                                translated = normalize(message.get("content"))
                 if translated:
+                    break
+                if response_received:
                     break
             except Exception:
                 translated = ""
@@ -161,8 +194,8 @@ def make_translation_runtime(
             cached = TRANSLATION_CACHE.get(cache_key)
         if cached:
             return cached
-        if translation_provider() == "local_ollama":
-            translated = request_local_ollama_translation(raw, target_lang)
+        if translation_provider() == "openai_compatible":
+            translated = request_openai_compatible_translation(raw, target_lang)
         else:
             translated = request_google_translation(raw, target_lang)
         if not translated:

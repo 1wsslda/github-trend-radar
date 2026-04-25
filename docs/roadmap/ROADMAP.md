@@ -24,7 +24,7 @@
 | Priority | 目标 | 对应任务 | 当前说明 |
 |---|---|---|---|
 | `P0` | 补齐“发现之后的管理”闭环并完成文档现实同步 | `GS-P0-001` ~ `GS-P0-012` | 当前 P0 MVP、诊断、Markdown 导出、安全加固和文档同步均已完成。 |
-| `P1` | 稳定 API、持久化、任务事件和 AI-ready 边界 | `GS-P1-001` ~ `GS-P1-017` | 当前 P1 队列已完成，包括 API 安全兼容收紧、runtime bridge、Update Inbox 增强、SQLite dry-run 骨架和 AI provider opt-in 设计。 |
+| `P1` | 稳定 API、持久化、任务事件和 AI-ready 边界 | `GS-P1-001` ~ `GS-P1-018` | 当前 P1 队列已完成 OpenAI-compatible 翻译 API；AI 分析仍保持 prompt handoff 和手动 Insight 保存。 |
 | `P2` | 等边界稳定后推进差异化、发布和同步能力 | `GS-P2-001` ~ `GS-P2-006` | 聚类地图、本地翻译和发布 manifest 已完成；加密同步 / 备份、代码签名继续阻塞。 |
 
 ## 已完成的当前能力
@@ -57,7 +57,7 @@
 - AI provider opt-in design for local/cloud modes, privacy previews, and artifact traceability。
 - 本地发现结果聚类。
 - 轻量二维仓库地图。
-- 可选 loopback-only Ollama-style 本地翻译 provider。
+- 可选 OpenAI-compatible 翻译 API provider，默认仍为 Google Translate，API Key 本地 DPAPI 加密保存。
 
 ### 安全与发布
 
@@ -119,6 +119,7 @@
 | `GS-P1-015` | Update Inbox 增强 | `[x]` | 已增加自上次查看以来提示、本地变化摘要和重要性解释。 |
 | `GS-P1-016` | SQLite 迁移第一阶段 | `[x]` | 已新增 SQLite schema helper、dry-run 计数和备份 / 回滚路径规划；未切换事实存储。 |
 | `GS-P1-017` | AI provider opt-in 设计 | `[x]` | 已设计本地 / 云端 provider 模式、隐私预览、artifact 可追溯和后续实施切片；未实现 provider。 |
+| `GS-P1-018` | OpenAI-compatible 翻译 API | `[x]` | 已完成；删除旧本机翻译 provider 路径，默认保留 Google，新增显式 opt-in 的 Chat Completions 风格翻译 API。 |
 
 下一轮候选：
 
@@ -141,7 +142,7 @@ P1 执行规则：
 | Task ID | 任务主题 | 状态 | 说明 |
 |---|---|---:|---|
 | `GS-P2-001` | 仓库地图 / 可视化体验 | `[x]` | 已新增轻量二维主题地图。 |
-| `GS-P2-002` | 可选本地翻译模型支持 | `[x]` | 已新增显式 opt-in 的 loopback-only Ollama-style provider。 |
+| `GS-P2-002` | 可选本地翻译模型支持 | `[x]` | 历史任务已完成；方向已被 `GS-P1-018` 取代，后续使用 OpenAI-compatible 翻译 API。 |
 | `GS-P2-003` | 加密多设备同步 / 备份 | `[!]` | 阻塞于同步目标、密钥管理、冲突策略和 opt-in 决策。 |
 | `GS-P2-004` | 发布加固与 AV 误报缓解 | `[x]` | 已新增本地 SHA256 release manifest 脚本。 |
 | `GS-P2-005` | 代码签名 | `[!]` | 阻塞于证书、私钥保管、密码注入和时间戳服务决策。 |

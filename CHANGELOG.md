@@ -40,7 +40,7 @@ This file follows a lightweight Keep a Changelog style.
   - AI artifact metadata cache and list endpoint;
   - local discovery result clustering;
   - lightweight repo map visualization;
-  - optional loopback-only Ollama-style translation provider;
+  - optional OpenAI-compatible translation API provider with local DPAPI API key storage;
   - local release checksum manifest script.
 - 2026-04-24 documentation reality sync:
   - README, architecture, security, roadmap, changelog, task table, sprint queue, and progress log now reflect the current implemented surface;
@@ -53,6 +53,7 @@ This file follows a lightweight Keep a Changelog style.
 - Refined the desktop interface toward a calmer, reading-first GitHub intelligence desk.
 - Clarified that current AI support is prompt handoff plus manual local Insight artifact storage, not an embedded provider pipeline.
 - Clarified that discovery, refresh, and favorite update check now emit Job / Event runtime records while the UI still keeps its current polling path.
+- Replaced the old local translation model direction with an explicit OpenAI-compatible translation API provider while keeping Google as the default.
 
 ### Security
 

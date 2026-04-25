@@ -274,12 +274,18 @@ class RuntimeUILayoutSmokeTests(unittest.TestCase):
             'id="setting-proxy-presence"',
             'id="setting-clear-proxy"',
             'id="setting-translation-provider"',
-            'id="setting-translation-local-url"',
-            'id="setting-translation-local-model"',
+            'id="setting-translation-api-endpoint"',
+            'id="setting-translation-api-model"',
+            'id="setting-translation-api-key"',
+            'id="setting-clear-translation-api-key"',
         ):
             with self.subTest(token=token):
                 self.assertIn(token, html)
 
+        self.assertNotIn("local" + "_ollama", html)
+        self.assertNotIn("Ol" + "lama", html)
+        self.assertNotIn("setting-translation-local-url", html)
+        self.assertNotIn("setting-translation-local-model", html)
         self.assertNotIn("setting-close-behavior", html)
         self.assertNotIn("隐藏到托盘", html)
         self.assertIn("主窗口关闭会直接退出程序", html)

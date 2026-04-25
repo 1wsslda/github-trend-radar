@@ -146,8 +146,10 @@ function proxySourceLabel(source){
 function syncSensitiveSettingHints(){
   const tokenNode = document.getElementById("setting-token-presence");
   const proxyNode = document.getElementById("setting-proxy-presence");
+  const translationApiKeyNode = document.getElementById("setting-translation-api-key-presence");
   const clearToken = document.getElementById("setting-clear-token")?.checked;
   const clearProxy = document.getElementById("setting-clear-proxy")?.checked;
+  const clearTranslationApiKey = document.getElementById("setting-clear-translation-api-key")?.checked;
   if(tokenNode){
     tokenNode.textContent = clearToken
       ? "当前已标记为保存时清空 GitHub Token。"
@@ -161,6 +163,11 @@ function syncSensitiveSettingHints(){
           ? "当前已配置代理；留空保存会保留现有值。"
           : (settings.effective_proxy ? `当前自动代理 ${settings.effective_proxy}；留空时会继续自动探测。` : "当前未配置代理，留空时会继续自动探测。")
       );
+  }
+  if(translationApiKeyNode){
+    translationApiKeyNode.textContent = clearTranslationApiKey
+      ? "当前已标记为保存时清空翻译 API Key。"
+      : (settings.has_translation_api_key ? "当前已配置翻译 API Key；留空保存会保留现有值。" : "当前未配置翻译 API Key；留空不会新增。");
   }
 }
 
@@ -230,13 +237,15 @@ async function openSettings(){
   document.getElementById("setting-proxy").value = "";
   document.getElementById("setting-clear-token").checked = false;
   document.getElementById("setting-clear-proxy").checked = false;
+  document.getElementById("setting-clear-translation-api-key").checked = false;
   document.getElementById("setting-refresh-hours").value = settings.refresh_hours || 1;
   document.getElementById("setting-result-limit").value = settings.result_limit || 25;
   document.getElementById("setting-port").value = settings.port || 8080;
   document.getElementById("setting-auto-start").checked = !!settings.auto_start;
   document.getElementById("setting-translation-provider").value = settings.translation_provider || "google";
-  document.getElementById("setting-translation-local-url").value = settings.translation_local_url || "http://127.0.0.1:11434/api/generate";
-  document.getElementById("setting-translation-local-model").value = settings.translation_local_model || "";
+  document.getElementById("setting-translation-api-endpoint").value = settings.translation_api_endpoint || "";
+  document.getElementById("setting-translation-api-model").value = settings.translation_api_model || "";
+  document.getElementById("setting-translation-api-key").value = "";
   syncSensitiveSettingHints();
   document.getElementById("settings-runtime-hint").textContent = `当前生效端口 ${settings.effective_port || settings.port || 8080} · 当前代理 ${settings.effective_proxy || "未启用"} · 关闭主窗口时会直接退出程序 · 程序不提供 VPN${settings.restart_required ? " · 修改端口后需重启生效" : ""}`;
   setOverlayVisible("settings-modal", true);
@@ -259,8 +268,10 @@ async function saveSettings(){
     auto_start:document.getElementById("setting-auto-start").checked,
     default_sort:sortPrimary,
     translation_provider:document.getElementById("setting-translation-provider").value,
-    translation_local_url:document.getElementById("setting-translation-local-url").value,
-    translation_local_model:document.getElementById("setting-translation-local-model").value,
+    translation_api_endpoint:document.getElementById("setting-translation-api-endpoint").value,
+    translation_api_model:document.getElementById("setting-translation-api-model").value,
+    translation_api_key:document.getElementById("setting-translation-api-key").value,
+    clear_translation_api_key:document.getElementById("setting-clear-translation-api-key").checked,
   };
   try{
     const {resp, data} = await requestJson(

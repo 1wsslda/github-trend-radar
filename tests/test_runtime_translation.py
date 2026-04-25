@@ -28,7 +28,7 @@ class _DummyResponse:
         return [[[self._translated]]]
 
 
-class _DummyOllamaResponse:
+class _DummyChatResponse:
     def __init__(self, translated: str):
         self._translated = translated
 
@@ -36,7 +36,7 @@ class _DummyOllamaResponse:
         return None
 
     def json(self) -> dict[str, object]:
-        return {"response": self._translated}
+        return {"choices": [{"message": {"content": self._translated}}]}
 
 
 class _DummySession:
@@ -167,13 +167,14 @@ class RuntimeTranslationTests(unittest.TestCase):
         self.assertEqual(cache_store["en::开源"], "open source")
         self.assertEqual(session.calls[0]["params"]["tl"], "en")
 
-    def test_local_ollama_provider_uses_loopback_generate_endpoint_when_configured(self):
+    def test_openai_compatible_provider_posts_chat_completion_when_configured(self):
         runtime, cache_store, session, _writes = build_translation_runtime(
-            responses=[_DummyOllamaResponse("快速命令行工具")],
+            responses=[_DummyChatResponse("快速命令行工具")],
             settings={
-                "translation_provider": "local_ollama",
-                "translation_local_url": "http://127.0.0.1:11434/api/generate",
-                "translation_local_model": "qwen2.5:7b",
+                "translation_provider": "openai_compatible",
+                "translation_api_endpoint": "https://api.example.test/v1/chat/completions",
+                "translation_api_model": "gpt-4o-mini",
+                "translation_api_key": "test-key",
             },
         )
 
@@ -181,19 +182,40 @@ class RuntimeTranslationTests(unittest.TestCase):
 
         self.assertEqual(translated, "快速命令行工具")
         self.assertEqual(session.calls, [])
-        self.assertEqual(session.post_calls[0]["url"], "http://127.0.0.1:11434/api/generate")
-        self.assertEqual(session.post_calls[0]["json"]["model"], "qwen2.5:7b")
+        self.assertEqual(session.post_calls[0]["url"], "https://api.example.test/v1/chat/completions")
+        self.assertEqual(session.post_calls[0]["json"]["model"], "gpt-4o-mini")
+        self.assertEqual(session.post_calls[0]["json"]["temperature"], 0)
         self.assertFalse(session.post_calls[0]["json"]["stream"])
-        self.assertIn("Simplified Chinese", session.post_calls[0]["json"]["prompt"])
-        self.assertEqual(cache_store["local_ollama::qwen2.5:7b::zh-CN::fast cli tool"], "快速命令行工具")
+        self.assertEqual(
+            session.post_calls[0]["json"]["messages"],
+            [
+                {
+                    "role": "system",
+                    "content": "Translate text. Return only the translated text, with no explanation or quotes.",
+                },
+                {
+                    "role": "user",
+                    "content": "Translate the following text to Simplified Chinese:\n\nfast cli tool",
+                },
+            ],
+        )
+        self.assertEqual(session.post_calls[0]["kwargs"]["headers"]["Authorization"], "Bearer test-key")
+        self.assertNotIn("test-key", next(iter(cache_store)))
+        self.assertEqual(
+            cache_store[
+                "openai_compatible::https://api.example.test/v1/chat/completions::gpt-4o-mini::zh-CN::fast cli tool"
+            ],
+            "快速命令行工具",
+        )
 
-    def test_local_ollama_provider_requires_model_and_never_falls_back_to_google(self):
+    def test_openai_compatible_provider_requires_key_and_model_and_never_falls_back_to_google(self):
         runtime, cache_store, session, _writes = build_translation_runtime(
             responses=[_DummyResponse("should not be used")],
             settings={
-                "translation_provider": "local_ollama",
-                "translation_local_url": "http://127.0.0.1:11434/api/generate",
-                "translation_local_model": "",
+                "translation_provider": "openai_compatible",
+                "translation_api_endpoint": "https://api.example.test/v1/chat/completions",
+                "translation_api_model": "",
+                "translation_api_key": "test-key",
             },
         )
 
@@ -203,6 +225,24 @@ class RuntimeTranslationTests(unittest.TestCase):
         self.assertEqual(cache_store, {})
         self.assertEqual(session.calls, [])
         self.assertEqual(session.post_calls, [])
+
+    def test_openai_compatible_provider_empty_response_returns_original_without_google_fallback(self):
+        runtime, cache_store, session, _writes = build_translation_runtime(
+            responses=[_DummyChatResponse("")],
+            settings={
+                "translation_provider": "openai_compatible",
+                "translation_api_endpoint": "https://api.example.test/v1/chat/completions",
+                "translation_api_model": "gpt-4o-mini",
+                "translation_api_key": "test-key",
+            },
+        )
+
+        translated = runtime.translate_text("fast cli tool")
+
+        self.assertEqual(translated, "fast cli tool")
+        self.assertEqual(cache_store, {})
+        self.assertEqual(session.calls, [])
+        self.assertEqual(len(session.post_calls), 1)
 
     def test_translate_snapshot_flushes_cache_after_batch_translation(self):
         runtime, _cache_store, session, writes = build_translation_runtime(

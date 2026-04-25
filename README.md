@@ -33,7 +33,7 @@ GitSonar is not just a Trending viewer. It combines trend discovery, keyword dis
 - JSON API boundary MVP for bootstrap, repos, updates, discovery views, jobs, events, SSE snapshots, and AI artifacts.
 - SQLite migration dry-run skeleton with phase-one schema and backup / rollback path planning. JSON remains the fact storage.
 - Local diagnostics panel for runtime status, proxy, token, GitHub reachability, and related troubleshooting signals.
-- Optional local Ollama-style translation provider. It is explicit opt-in, loopback-only, and does not change the default translation path.
+- Optional OpenAI-compatible translation API provider. It is explicit opt-in, stores the API key locally with DPAPI, and does not change the default Google translation path.
 - Security hardening for DPAPI non-interactive handling, user-visible redaction, safe diagnostics, safe refresh and discovery errors, JSON body limits, and control-token protection for `/api/repo-details`.
 - Single-instance wake-up, close-to-exit behavior, auto start, proxy support, and local token storage.
 
@@ -108,7 +108,7 @@ scripts\build_all_click.cmd
 - Repository development runs use `runtime-data/`.
 - Legacy `%LOCALAPPDATA%\GitHubTrendRadar` data is merged on first run when needed.
 - GitHub tokens and proxy URLs with credentials are stored locally with Windows DPAPI.
-- Current network destinations may include GitHub and Google Translate. Optional local Ollama-style translation is loopback-only and explicit opt-in.
+- Current network destinations may include GitHub and Google Translate. Optional OpenAI-compatible translation is explicit opt-in and only uses the endpoint configured by the user.
 - AI analysis currently means prompt handoff to external ChatGPT or Gemini targets, plus manually saved local Insight artifacts. GitSonar does not silently call an embedded AI provider.
 
 See [docs/SECURITY.md](docs/SECURITY.md) for the exact security boundary.

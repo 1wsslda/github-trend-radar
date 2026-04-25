@@ -332,22 +332,31 @@ HTML_BODY = """</style>
           <span class="field-label">翻译方式</span>
           <select id="setting-translation-provider" class="field-input">
             <option value="google">Google Translate 公共接口</option>
-            <option value="local_ollama">本机 Ollama 模型</option>
+            <option value="openai_compatible">OpenAI-compatible API</option>
           </select>
-          <span class="field-meta">默认保持现有在线翻译；本机模型需要你自行运行 Ollama 或兼容服务。</span>
+          <span class="field-meta">默认保持现有在线翻译；API 翻译需要显式配置 Endpoint、模型和 Key。</span>
         </label>
         <div class="settings-inline">
           <label class="field">
-            <span class="field-label">本机翻译地址</span>
-            <input id="setting-translation-local-url" class="field-input" type="text" placeholder="http://127.0.0.1:11434/api/generate">
-            <span class="field-meta">只允许 127.0.0.1 / localhost / ::1。</span>
+            <span class="field-label">API Endpoint</span>
+            <input id="setting-translation-api-endpoint" class="field-input" type="text" placeholder="https://api.example.com/v1/chat/completions">
+            <span class="field-meta">允许 https://...；HTTP 仅允许 127.0.0.1 / localhost / ::1。</span>
           </label>
           <label class="field">
-            <span class="field-label">本机模型名</span>
-            <input id="setting-translation-local-model" class="field-input" type="text" placeholder="例如 qwen2.5:7b">
-            <span class="field-meta">留空时不会调用本机模型，也不会回退到 Google。</span>
+            <span class="field-label">Model</span>
+            <input id="setting-translation-api-model" class="field-input" type="text" placeholder="例如 gpt-4o-mini">
+            <span class="field-meta">发送 Chat Completions 风格请求。</span>
           </label>
         </div>
+        <label class="field">
+          <span class="field-label">API Key</span>
+          <input id="setting-translation-api-key" class="field-input" type="password" placeholder="仅本地 DPAPI 加密保存">
+          <span class="field-meta" id="setting-translation-api-key-presence">当前未配置翻译 API Key。</span>
+          <label class="checkline">
+            <input id="setting-clear-translation-api-key" type="checkbox">
+            <span>保存时清空当前翻译 API Key</span>
+          </label>
+        </label>
         <div class="switch-row">
           <div class="switch-copy">
             <div class="switch-title">开机启动</div>

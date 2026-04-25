@@ -16,8 +16,9 @@ DEFAULT_SETTINGS = {
     "default_sort": "stars",
     "auto_start": False,
     "translation_provider": "google",
-    "translation_local_url": "http://127.0.0.1:11434/api/generate",
-    "translation_local_model": "",
+    "translation_api_endpoint": "",
+    "translation_api_model": "",
+    "translation_api_key": "",
 }
 
 
@@ -60,8 +61,8 @@ def make_settings_runtime(
 
     def normalize_translation_provider(value: object) -> str:
         key = normalize(value).lower().replace("-", "_")
-        if key in {"local", "ollama", "local_ollama"}:
-            return "local_ollama"
+        if key in {"openai", "openai_compatible"}:
+            return "openai_compatible"
         return "google"
 
     def is_loopback_url(value: object) -> bool:
@@ -72,16 +73,27 @@ def make_settings_runtime(
         host = (parsed.hostname or "").lower()
         return parsed.scheme in {"http", "https"} and host in {"127.0.0.1", "localhost", "::1"}
 
-    def normalize_translation_local_url(value: object) -> str:
-        raw_url = normalize(value) or normalize(defaults.get("translation_local_url"))
-        if not is_loopback_url(raw_url):
-            return normalize(defaults.get("translation_local_url"))
+    def is_allowed_translation_api_endpoint(value: object) -> bool:
+        raw_url = normalize(value)
+        if not raw_url:
+            return True
+        parsed = urlparse(raw_url)
+        if not parsed.scheme or not parsed.hostname:
+            return False
+        if is_loopback_url(raw_url):
+            return True
+        return parsed.scheme == "https"
+
+    def normalize_translation_api_endpoint(value: object) -> str:
+        raw_url = normalize(value)
+        if not is_allowed_translation_api_endpoint(raw_url):
+            return ""
         return raw_url.rstrip("/")
 
-    def require_translation_local_url(value: object) -> str:
-        raw_url = normalize(value) or normalize(defaults.get("translation_local_url"))
-        if not is_loopback_url(raw_url):
-            raise ValueError("本地翻译地址只允许使用 127.0.0.1、localhost 或 ::1。")
+    def require_translation_api_endpoint(value: object) -> str:
+        raw_url = normalize(value)
+        if not is_allowed_translation_api_endpoint(raw_url):
+            raise ValueError("翻译 API Endpoint 只允许 https://...，或 loopback HTTP/HTTPS 地址。")
         return raw_url.rstrip("/")
 
     def normalize_settings(payload: object) -> dict[str, object]:
@@ -97,12 +109,13 @@ def make_settings_runtime(
         normalized["translation_provider"] = normalize_translation_provider(
             raw.get("translation_provider", defaults["translation_provider"])
         )
-        normalized["translation_local_url"] = normalize_translation_local_url(
-            raw.get("translation_local_url", defaults["translation_local_url"])
+        normalized["translation_api_endpoint"] = normalize_translation_api_endpoint(
+            raw.get("translation_api_endpoint", defaults["translation_api_endpoint"])
         )
-        normalized["translation_local_model"] = normalize(
-            raw.get("translation_local_model", defaults["translation_local_model"])
+        normalized["translation_api_model"] = normalize(
+            raw.get("translation_api_model", defaults["translation_api_model"])
         )
+        normalized["translation_api_key"] = decrypt_secret(normalize(raw.get("translation_api_key", "")))
         return normalized
 
     def merge_settings(payload: object, current: object | None = None) -> dict[str, object]:
@@ -131,10 +144,16 @@ def make_settings_runtime(
 
         if "translation_provider" in raw:
             merged["translation_provider"] = normalize_translation_provider(raw.get("translation_provider"))
-        if "translation_local_url" in raw:
-            merged["translation_local_url"] = require_translation_local_url(raw.get("translation_local_url"))
-        if "translation_local_model" in raw:
-            merged["translation_local_model"] = normalize(raw.get("translation_local_model"))
+        if "translation_api_endpoint" in raw:
+            merged["translation_api_endpoint"] = require_translation_api_endpoint(raw.get("translation_api_endpoint"))
+        if "translation_api_model" in raw:
+            merged["translation_api_model"] = normalize(raw.get("translation_api_model"))
+        if as_bool(raw.get("clear_translation_api_key"), False):
+            merged["translation_api_key"] = ""
+        elif "translation_api_key" in raw:
+            api_key = decrypt_secret(normalize(raw.get("translation_api_key", "")))
+            if api_key:
+                merged["translation_api_key"] = api_key
 
         return merged
 
@@ -154,10 +173,11 @@ def make_settings_runtime(
             "proxy_source": proxy_state["source"],
             "runtime_root": "",
             "translation_provider": normalize_translation_provider(SETTINGS.get("translation_provider", defaults["translation_provider"])),
-            "translation_local_url": normalize_translation_local_url(
-                SETTINGS.get("translation_local_url", defaults["translation_local_url"])
+            "translation_api_endpoint": normalize_translation_api_endpoint(
+                SETTINGS.get("translation_api_endpoint", defaults["translation_api_endpoint"])
             ),
-            "translation_local_model": normalize(SETTINGS.get("translation_local_model", "")),
+            "translation_api_model": normalize(SETTINGS.get("translation_api_model", "")),
+            "has_translation_api_key": bool(normalize(SETTINGS.get("translation_api_key", ""))),
         }
         if include_sensitive:
             # Preserve the legacy response shape without returning plaintext secrets.
@@ -175,6 +195,11 @@ def make_settings_runtime(
         if "proxy" in clean:
             proxy = normalize_proxy_setting(clean.get("proxy", ""))
             clean["proxy"] = encrypt_secret(proxy) if proxy and proxy_has_credentials(proxy) else proxy
+        api_key = normalize(clean.get("translation_api_key", ""))
+        if api_key:
+            clean["translation_api_key"] = encrypt_secret(api_key)
+        elif "translation_api_key" in clean:
+            clean["translation_api_key"] = ""
         atomic_write_json(SETTINGS_PATH, clean)
 
     def load_settings() -> dict[str, object]:

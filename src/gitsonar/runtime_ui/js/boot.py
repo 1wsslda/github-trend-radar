@@ -126,6 +126,18 @@ document.getElementById("setting-clear-proxy").addEventListener("change", event 
   syncSensitiveSettingHints();
 });
 
+document.getElementById("setting-translation-api-key").addEventListener("input", () => {
+  document.getElementById("setting-clear-translation-api-key").checked = false;
+  syncSensitiveSettingHints();
+});
+
+document.getElementById("setting-clear-translation-api-key").addEventListener("change", event => {
+  if(event.target.checked){
+    document.getElementById("setting-translation-api-key").value = "";
+  }
+  syncSensitiveSettingHints();
+});
+
 document.querySelectorAll("#state-filter-seg [data-value]").forEach(btn => {
   btn.addEventListener("click", () => {
     if(btn.disabled) return;

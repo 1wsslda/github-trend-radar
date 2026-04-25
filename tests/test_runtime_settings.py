@@ -129,10 +129,12 @@ class RuntimeSettingsTests(unittest.TestCase):
             self.assertEqual(payload["proxy"], "")
             self.assertEqual(payload["runtime_root"], "")
             self.assertEqual(payload["translation_provider"], "google")
-            self.assertEqual(payload["translation_local_url"], "http://127.0.0.1:11434/api/generate")
-            self.assertEqual(payload["translation_local_model"], "")
+            self.assertEqual(payload["translation_api_endpoint"], "")
+            self.assertEqual(payload["translation_api_model"], "")
+            self.assertFalse(payload["has_translation_api_key"])
+            self.assertNotIn("translation_api_key", payload)
 
-    def test_merge_settings_accepts_optional_loopback_local_translation_provider(self):
+    def test_merge_settings_accepts_openai_compatible_https_endpoint_and_api_key(self):
         with tempfile.TemporaryDirectory() as tempdir:
             settings = {
                 "port": 8080,
@@ -147,30 +149,75 @@ class RuntimeSettingsTests(unittest.TestCase):
 
             merged = runtime.merge_settings(
                 {
-                    "translation_provider": "local_ollama",
-                    "translation_local_url": "http://localhost:11434/api/generate",
-                    "translation_local_model": "qwen2.5:7b",
+                    "translation_provider": "openai_compatible",
+                    "translation_api_endpoint": "https://api.example.test/v1/chat/completions",
+                    "translation_api_model": "gpt-4o-mini",
+                    "translation_api_key": "test-key",
                 },
                 settings,
             )
 
-            self.assertEqual(merged["translation_provider"], "local_ollama")
-            self.assertEqual(merged["translation_local_url"], "http://localhost:11434/api/generate")
-            self.assertEqual(merged["translation_local_model"], "qwen2.5:7b")
+            self.assertEqual(merged["translation_provider"], "openai_compatible")
+            self.assertEqual(merged["translation_api_endpoint"], "https://api.example.test/v1/chat/completions")
+            self.assertEqual(merged["translation_api_model"], "gpt-4o-mini")
+            self.assertEqual(merged["translation_api_key"], "test-key")
 
-    def test_merge_settings_rejects_non_loopback_local_translation_url(self):
+    def test_merge_settings_rejects_remote_http_translation_api_endpoint(self):
         with tempfile.TemporaryDirectory() as tempdir:
             runtime = self.build_runtime({}, tempdir)
 
-            with self.assertRaisesRegex(ValueError, "本地翻译地址只允许"):
+            with self.assertRaisesRegex(ValueError, "翻译 API Endpoint"):
                 runtime.merge_settings(
                     {
-                        "translation_provider": "local_ollama",
-                        "translation_local_url": "https://example.com/api/generate",
-                        "translation_local_model": "qwen2.5:7b",
+                        "translation_provider": "openai_compatible",
+                        "translation_api_endpoint": "http://api.example.test/v1/chat/completions",
+                        "translation_api_model": "gpt-4o-mini",
                     },
                     {},
                 )
+
+    def test_merge_settings_accepts_loopback_http_translation_api_endpoint(self):
+        with tempfile.TemporaryDirectory() as tempdir:
+            runtime = self.build_runtime({}, tempdir)
+
+            merged = runtime.merge_settings(
+                {
+                    "translation_provider": "openai_compatible",
+                    "translation_api_endpoint": "http://127.0.0.1:8081/v1/chat/completions",
+                    "translation_api_model": "local-model",
+                },
+                {},
+            )
+
+            self.assertEqual(merged["translation_api_endpoint"], "http://127.0.0.1:8081/v1/chat/completions")
+            self.assertEqual(merged["translation_api_model"], "local-model")
+
+    def test_save_settings_encrypts_translation_api_key_and_sanitize_does_not_leak_it(self):
+        with tempfile.TemporaryDirectory() as tempdir:
+            settings = {
+                "port": 8080,
+                "refresh_hours": 1,
+                "result_limit": 25,
+                "default_sort": "stars",
+                "auto_start": False,
+                "github_token": "",
+                "proxy": "",
+                "translation_provider": "openai_compatible",
+                "translation_api_endpoint": "https://api.example.test/v1/chat/completions",
+                "translation_api_model": "gpt-4o-mini",
+                "translation_api_key": "test-key",
+            }
+            runtime = self.build_runtime(settings, tempdir)
+            runtime.save_settings(settings)
+
+            saved = json.loads((Path(tempdir) / "settings.json").read_text(encoding="utf-8"))
+            payload = runtime.sanitize_settings(True)
+            payload_text = json.dumps(payload, ensure_ascii=False)
+
+            self.assertEqual(saved["translation_api_key"], "enc:test-key")
+            self.assertTrue(payload["has_translation_api_key"])
+            self.assertNotIn("translation_api_key", payload)
+            self.assertNotIn("test-key", payload_text)
 
     def test_save_settings_encrypts_token_without_affecting_proxy_metadata(self):
         with tempfile.TemporaryDirectory() as tempdir:

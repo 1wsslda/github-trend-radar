@@ -142,8 +142,12 @@ class UIJSSmokeTests(unittest.TestCase):
     def test_save_settings_includes_translation_provider_fields(self):
         body = function_body(JS, "saveSettings")
         self.assertIn('translation_provider:document.getElementById("setting-translation-provider").value,', body)
-        self.assertIn('translation_local_url:document.getElementById("setting-translation-local-url").value,', body)
-        self.assertIn('translation_local_model:document.getElementById("setting-translation-local-model").value,', body)
+        self.assertIn('translation_api_endpoint:document.getElementById("setting-translation-api-endpoint").value,', body)
+        self.assertIn('translation_api_model:document.getElementById("setting-translation-api-model").value,', body)
+        self.assertIn('translation_api_key:document.getElementById("setting-translation-api-key").value,', body)
+        self.assertIn('clear_translation_api_key:document.getElementById("setting-clear-translation-api-key").checked,', body)
+        self.assertNotIn("translation_local_url", body)
+        self.assertNotIn("translation_local_model", body)
 
     def test_poll_uses_safe_refresh_status_message(self):
         self.assertIn("function refreshStatusMessage(", JS)

@@ -3,7 +3,7 @@
 本文件记录当前自动排序后的候选任务队列。
 文件名 `CURRENT_TOP10.md` 因历史兼容保留；Auto Top 5 Batch Sprint 每批只选择优先级最高、未完成、未阻塞的最多 5 个可安全执行任务。
 
-最后刷新：`2026-04-24`
+最后刷新：`2026-04-25`
 
 ## 选择规则
 
@@ -15,6 +15,21 @@ Codex 选择当前 Auto Top 5 Batch 时，应按以下顺序判断：
 4. 能解锁后续工作的优先
 5. 保持本地优先与 Windows 桌面工作流的优先
 6. 不需要大重写的优先
+
+## OpenAI-compatible 翻译 API 批次 - 2026-04-25
+
+Selected tasks:
+
+| Rank | Task ID | Status | Task | Plan | Branch | Commit / PR | Notes |
+|---:|---|---:|---|---|---|---|---|
+| 1 | `GS-P1-018` | `[x]` | 移除旧本机翻译路径并改为 OpenAI-compatible 翻译 API | `docs/plans/0036-openai-compatible-translation-api.md` | `codex/runtime-control-compat` | `feat(translation): use openai-compatible translation api` | 已完成；默认保留 Google Translate，新增显式 opt-in 的 OpenAI-compatible 翻译 API，API Key 本地 DPAPI 加密保存。 |
+
+Skipped or blocked tasks:
+
+| Task | Reason |
+|---|---|
+| AI provider implementation | 本批只影响翻译 provider；AI 分析继续保持 ChatGPT / Gemini 跳转、复制 Prompt 和手动保存 Insight。 |
+| `最新prompt.md` | 用户明确说明不处理未跟踪文件。 |
 
 ## 文档现实同步批次 - 2026-04-24
 
@@ -44,7 +59,7 @@ Skipped or blocked tasks:
 | 2 | `GS-P1-014` | `[x]` | 刷新 / 发现 / 更新检查接入统一 Job/Event/SSE | `docs/plans/0032-unify-refresh-discovery-update-jobs.md` | `codex/runtime-control-compat` | `feat(runtime): bridge refresh and discovery to job events` | 已完成；focused 测试通过，现有 discovery job API 和 UI 轮询路径保持兼容。 |
 | 3 | `GS-P1-015` | `[x]` | Update Inbox 增强：自上次查看以来、摘要、重要性解释 | `docs/plans/0033-update-inbox-enhancements.md` | `codex/runtime-control-compat` | `feat(updates): add inbox summaries and importance reasons` | 已完成；基于现有 read/pin/dismiss/priority MVP 补充本地摘要、重要性解释和自上次查看以来提示。 |
 | 4 | `GS-P1-016` | `[x]` | SQLite 迁移第一阶段：JSON 导入 / 导出兼容与回滚骨架 | `docs/plans/0034-sqlite-migration-phase-1.md` | `codex/runtime-control-compat` | `feat(storage): add sqlite migration dry-run skeleton` | 已完成；新增迁移骨架和兼容验证，不默认切换事实存储。 |
-| 5 | `GS-P1-017` | `[x]` | AI provider opt-in 设计与本地 Ollama / OpenAI-compatible pipeline | `docs/plans/0035-ai-provider-opt-in-design.md` | `codex/runtime-control-compat` | `docs(ai): design opt-in provider pipeline` | 已完成；已设计 provider、隐私预览、artifact 可追溯和手动启用边界，未调用云端。 |
+| 5 | `GS-P1-017` | `[x]` | AI provider opt-in 设计与 OpenAI-compatible pipeline | `docs/plans/0035-ai-provider-opt-in-design.md` | `codex/runtime-control-compat` | `docs(ai): design opt-in provider pipeline` | 已完成；已设计 provider、隐私预览、artifact 可追溯和手动启用边界，未调用云端。 |
 
 ## 已完成或阻塞的上一轮候选
 
@@ -57,7 +72,7 @@ Skipped or blocked tasks:
 | `GS-P1-006` | `[x]` | 已扩展本地 AI artifact metadata 与 `/api/ai-artifacts`。 |
 | `GS-P1-007` | `[x]` | 已完成发现结果聚类。 |
 | `GS-P2-001` | `[x]` | 已完成轻量二维仓库地图 MVP。 |
-| `GS-P2-002` | `[x]` | 已完成可选本地 Ollama-style 翻译 provider。 |
+| `GS-P2-002` | `[x]` | 历史任务已完成；方向已被 `GS-P1-018` 取代。 |
 | `GS-P2-003` | `[!]` | 阻塞：同步目标、密钥管理、冲突策略和显式 opt-in 决策未定。 |
 | `GS-P2-004` | `[x]` | 已新增本地 SHA256 release manifest。 |
 | `GS-P2-005` | `[!]` | 阻塞：证书、私钥保管、密码注入和时间戳服务决策未定。 |

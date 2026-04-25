@@ -41,7 +41,7 @@ AI Artifact 生命周期与缓存
 
 ## 非目标
 
-- 不调用 OpenAI、Ollama 或任何云 API。
+- 不调用 OpenAI、本地 AI 服务或任何云 API。
 - 不自动生成 AI 内容。
 - 不改变用户现有手动 prompt 工作流。
 

@@ -96,10 +96,11 @@ GitSonar 当前可能访问这些外部网络目标：
   代码当前会访问 `https://translate.googleapis.com/translate_a/single`，用于：
   - 把英文仓库描述和 README 摘要翻译成中文；
   - 把中文关键词发现查询翻译成英文。
-- **本机 Ollama 类翻译服务**
-  只有在用户主动把翻译方式切换为本机 Ollama 类 provider 并填写模型名时才会使用。
-  本地翻译地址只允许 `127.0.0.1`、`localhost` 或 `::1`，用于避免把翻译内容误发到远端服务。
-  如果未填写模型名或本机服务不可用，应用会保守返回原文，不会自动回退到 Google Translate。
+- **OpenAI-compatible 翻译 API**
+  只有在用户主动把翻译方式切换为 `openai_compatible`，并填写 Endpoint、Model 和 API Key 时才会使用。
+  Endpoint 允许 `https://...`，也允许 loopback HTTP/HTTPS；普通远端 `http://...` 会被拒绝。
+  API Key 使用本地 DPAPI 加密保存；settings/bootstrap/diagnostics/export 不返回明文 Key。
+  如果配置不完整、请求失败或返回空译文，应用会保守返回原文，不会自动回退到 Google Translate。
 - **ChatGPT / Gemini**
   只有在用户主动点击分析入口时才会触发。当前实现是生成或复制提示词，并打开 ChatGPT 网页版、桌面版或 Gemini 网页版。应用本身不会直接调用自定义 LLM API，也不会在应用内自动返回 AI provider 结论。
 

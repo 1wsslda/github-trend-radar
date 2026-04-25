@@ -2,7 +2,7 @@
 
 `TASKS.md` 是仓库级任务状态的事实来源。请配合 `docs/roadmap/ROADMAP.md`、`PLANS.md`、`docs/plans/*.md`、`docs/sprints/CURRENT_TOP10.md` 和 `docs/progress/PROGRESS.md` 一起使用。
 
-最后刷新：`2026-04-24`
+最后刷新：`2026-04-25`
 
 ## 状态说明
 
@@ -27,14 +27,15 @@
 | 优先级 | 总数 | `[ ]` | `[~]` | `[!]` | `[x]` | `[-]` |
 |---|---:|---:|---:|---:|---:|---:|
 | `P0` | 12 | 0 | 0 | 0 | 12 | 0 |
-| `P1` | 17 | 0 | 0 | 0 | 17 | 0 |
+| `P1` | 18 | 0 | 0 | 0 | 18 | 0 |
 | `P2` | 6 | 0 | 0 | 2 | 4 | 0 |
 
 ## 当前执行批次
 
 | 优先级 | 状态 | 任务 ID | 任务 | Plan | Branch | Commit / PR | 备注 |
 |---|---:|---|---|---|---|---|---|
-| `P1` | `[x]` | `GS-P1-017` | AI provider opt-in 设计与本地 Ollama / OpenAI-compatible pipeline | `docs/plans/0035-ai-provider-opt-in-design.md` | `codex/runtime-control-compat` | `docs(ai): design opt-in provider pipeline` | 已完成；已定义 provider 分层、隐私预览、artifact 可追溯、Key/Token 边界和后续实施切片，未实现 provider。 |
+| `P1` | `[x]` | `GS-P1-018` | 移除旧本机翻译路径并改为 OpenAI-compatible 翻译 API | `docs/plans/0036-openai-compatible-translation-api.md` | `codex/runtime-control-compat` | `feat(translation): use openai-compatible translation api` | 已完成；默认保留 Google Translate，新增显式 opt-in 的 OpenAI-compatible 翻译 API，API Key 本地 DPAPI 加密保存，不实现内嵌 AI provider。 |
+| `P1` | `[x]` | `GS-P1-017` | AI provider opt-in 设计与 OpenAI-compatible pipeline | `docs/plans/0035-ai-provider-opt-in-design.md` | `codex/runtime-control-compat` | `docs(ai): design opt-in provider pipeline` | 已完成；已定义 provider 分层、隐私预览、artifact 可追溯、Key/Token 边界和后续实施切片，未实现 provider。 |
 | `P1` | `[x]` | `GS-P1-016` | SQLite 迁移第一阶段：JSON 导入 / 导出兼容与回滚骨架 | `docs/plans/0034-sqlite-migration-phase-1.md` | `codex/runtime-control-compat` | `feat(storage): add sqlite migration dry-run skeleton` | 已完成；新增 SQLite schema helper、dry-run 计数和备份 / 回滚路径规划，未默认切换事实存储。 |
 | `P1` | `[x]` | `GS-P1-015` | Update Inbox 增强：自上次查看以来、摘要、重要性解释 | `docs/plans/0033-update-inbox-enhancements.md` | `codex/runtime-control-compat` | `feat(updates): add inbox summaries and importance reasons` | 已完成；favorite update 已增加本地变化摘要、重要性解释，Update Inbox 卡片会标明自上次查看以来的未处理更新。 |
 | `P1` | `[x]` | `GS-P1-014` | 刷新 / 发现 / 更新检查接入统一 Job/Event/SSE | `docs/plans/0032-unify-refresh-discovery-update-jobs.md` | `codex/runtime-control-compat` | `feat(runtime): bridge refresh and discovery to job events` | 已完成；refresh、discovery 和 favorite update check 已写入通用 Job/Event runtime，现有 UI 轮询路径保持不变。 |
@@ -51,7 +52,7 @@
 | 2 | `P1` | `[x]` | `GS-P1-014` | 刷新 / 发现 / 更新检查接入统一 Job/Event/SSE | `docs/plans/0032-unify-refresh-discovery-update-jobs.md` | `codex/runtime-control-compat` | `feat(runtime): bridge refresh and discovery to job events` | 已完成；focused 测试通过，现有 discovery job API 和 UI 轮询路径保持兼容。 |
 | 3 | `P1` | `[x]` | `GS-P1-015` | Update Inbox 增强：自上次查看以来、摘要、重要性解释 | `docs/plans/0033-update-inbox-enhancements.md` | `codex/runtime-control-compat` | `feat(updates): add inbox summaries and importance reasons` | 已完成；在现有 read/pin/dismiss/priority MVP 上补充本地摘要、重要性解释和自上次查看以来提示。 |
 | 4 | `P1` | `[x]` | `GS-P1-016` | SQLite 迁移第一阶段：JSON 导入 / 导出兼容与回滚骨架 | `docs/plans/0034-sqlite-migration-phase-1.md` | `codex/runtime-control-compat` | `feat(storage): add sqlite migration dry-run skeleton` | 已完成；新增迁移骨架和兼容验证，不默认切换事实存储。 |
-| 5 | `P1` | `[x]` | `GS-P1-017` | AI provider opt-in 设计与本地 Ollama / OpenAI-compatible pipeline | `docs/plans/0035-ai-provider-opt-in-design.md` | `codex/runtime-control-compat` | `docs(ai): design opt-in provider pipeline` | 已完成；已设计 provider、隐私预览、artifact 可追溯和手动启用边界，未调用云端。 |
+| 5 | `P1` | `[x]` | `GS-P1-017` | AI provider opt-in 设计与 OpenAI-compatible pipeline | `docs/plans/0035-ai-provider-opt-in-design.md` | `codex/runtime-control-compat` | `docs(ai): design opt-in provider pipeline` | 已完成；已设计 provider、隐私预览、artifact 可追溯和手动启用边界，未调用云端。 |
 
 ## 阻塞或暂不进入下一批的任务
 
@@ -87,7 +88,7 @@
 | `P1` | `[x]` | `GS-P1-006` | AI Artifact 生命周期与缓存 | `docs/plans/0015-ai-artifact-lifecycle-cache.md` | `-` | `-` | 已扩展本地 AI artifact metadata 和列表端点。 |
 | `P1` | `[x]` | `GS-P1-007` | 发现结果聚类 | `docs/plans/0016-discovery-result-clustering.md` | `codex/runtime-control-compat` | `-` | 已完成本地 discovery result 聚类。 |
 | `P2` | `[x]` | `GS-P2-001` | 仓库地图 / 可视化体验 | `docs/plans/0017-repo-map-visualization-mvp.md` | `codex/runtime-control-compat` | `-` | 已新增轻量二维主题地图。 |
-| `P2` | `[x]` | `GS-P2-002` | 可选本地翻译模型支持 | `docs/plans/0019-optional-local-translation-model.md` | `codex/runtime-control-compat` | `-` | 已新增显式可选的 loopback-only Ollama-style provider。 |
+| `P2` | `[x]` | `GS-P2-002` | 可选翻译模型支持 | `docs/plans/0019-optional-local-translation-model.md` | `codex/runtime-control-compat` | `-` | 历史任务已完成；方向已被 `GS-P1-018` 取代。 |
 | `P2` | `[x]` | `GS-P2-004` | 发布加固与 AV 误报缓解 | `docs/plans/0018-release-hardening-av-mitigation.md` | `codex/runtime-control-compat` | `-` | 已新增本地 SHA256 release manifest 脚本。 |
 | `P2` | `[x]` | `GS-P2-006` | 前端现代化评估 | `docs/plans/0022-frontend-modernization-evaluation.md` | `codex/runtime-control-compat` | `-` | 已完成评估，当前不启动 React / Vite 重写。 |
 | `P0` | `[x]` | `GS-P0-010` | Redact proxy credentials and local diagnostics details | `docs/plans/0023-redact-proxy-and-local-diagnostics.md` | `-` | `-` | Settings/bootstrap/diagnostics 不再暴露代理凭据或原始 runtime path。 |

@@ -1,4 +1,4 @@
-# GS-P1-017 AI provider opt-in 设计
+﻿# GS-P1-017 AI provider opt-in 设计
 
 ## 任务元信息
 
@@ -10,7 +10,7 @@
 
 ## 标题
 
-AI provider opt-in 设计与本地 Ollama / OpenAI-compatible pipeline
+AI provider opt-in 设计与本地 local model runner / OpenAI-compatible pipeline
 
 ## 摘要
 
@@ -43,7 +43,7 @@ AI provider opt-in 设计与本地 Ollama / OpenAI-compatible pipeline
 ## 目标
 
 - 主要目标：写清 AI provider opt-in 的目标架构和安全边界。
-- 次要目标：定义本地 Ollama-style、OpenAI-compatible local endpoint、cloud OpenAI-compatible endpoint 的分层策略。
+- 次要目标：定义本地 local model runner-style、OpenAI-compatible local endpoint、cloud OpenAI-compatible endpoint 的分层策略。
 - 成功标准：设计明确“关闭 / prompt handoff / 本地 provider / 云 provider”四种模式，并写清隐私预览、Key 存储、artifact 生命周期和回滚。
 
 ## 非目标
@@ -52,7 +52,7 @@ AI provider opt-in 设计与本地 Ollama / OpenAI-compatible pipeline
 - 不新增 `/api/ai/providers` 或 `/api/ai/repo-insight`。
 - 不修改设置 UI。
 - 不保存或迁移 API Key。
-- 不调用 OpenAI、Ollama、LocalAI 或任何兼容接口。
+- 不调用 OpenAI、local model runner、LocalAI 或任何兼容接口。
 
 ## 用户影响
 
@@ -94,7 +94,7 @@ AI provider opt-in 设计与本地 Ollama / OpenAI-compatible pipeline
   - `context_builder.py`
   - `privacy.py`
   - `openai_compatible.py`
-  - `local_ollama.py`
+  - `local_provider.py`
   - `artifacts.py`
   - `schemas.py`
 - HTTP / API 变更：本任务不新增；未来可能新增 provider 列表、预览、执行和 artifact 查询端点。
@@ -138,7 +138,7 @@ AI provider opt-in 设计与本地 Ollama / OpenAI-compatible pipeline
 |---|---|---|---|
 | `off` | 不展示内嵌 provider 执行入口，只保留当前 prompt handoff。 | 无新增网络调用。 | 默认 |
 | `prompt_handoff` | 继续生成可复制 prompt 或打开外部 ChatGPT / Gemini。 | 由用户主动打开外部目标。 | 当前行为 |
-| `local` | 调用用户显式配置的 loopback provider，例如 Ollama / LocalAI / OpenAI-compatible localhost。 | 只允许 `127.0.0.1`、`localhost`、`::1`。 | 关闭 |
+| `local` | 调用用户显式配置的 loopback provider，例如 local model runner / LocalAI / OpenAI-compatible localhost。 | 只允许 `127.0.0.1`、`localhost`、`::1`。 | 关闭 |
 | `cloud` | 调用用户显式配置的 OpenAI-compatible HTTPS endpoint。 | 只在用户配置 Key、启用 provider、确认预览后调用。 | 关闭 |
 
 Provider 启用必须是分层的：
@@ -158,7 +158,7 @@ Provider 启用必须是分层的：
 {
   "task": "repo_insight",
   "provider_mode": "local",
-  "provider_id": "local_ollama",
+  "provider_id": "local_provider",
   "model": "example-model",
   "fields": [
     {"name": "repo.full_name", "source": "repo_record", "included": true},
