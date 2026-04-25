@@ -14,6 +14,7 @@ OutputBaseFilename=GitSonarSetup
 Compression=lzma
 SolidCompression=yes
 WizardStyle=modern
+SetupIconFile=..\assets\icon.ico
 UninstallDisplayIcon={app}\{#MyAppExeName}
 
 [Tasks]

@@ -76,6 +76,7 @@ python -m PyInstaller `
   --distpath $distPath `
   --workpath $buildPath `
   --specpath $specPath `
+  --icon "$root\assets\icon.ico" `
   $entryScript
 
 if ($LASTEXITCODE -ne 0) {
