@@ -29,6 +29,7 @@ GitSonar is not just a Trending viewer. It combines trend discovery, keyword dis
 - Markdown summary export for single repo, batch, and compare workflows.
 - AI prompt handoff to ChatGPT web / desktop, Gemini web, or copy-only; multi-target handoff is supported.
 - Manual `gitsonar.repo_insight.v1` structured Insight save / list / delete and local artifact metadata cache. This is not an embedded provider pipeline.
+- AI provider opt-in design for local / cloud provider modes, privacy previews, and artifact traceability. It is not implemented as a runtime provider yet.
 - JSON API boundary MVP for bootstrap, repos, updates, discovery views, jobs, events, SSE snapshots, and AI artifacts.
 - SQLite migration dry-run skeleton with phase-one schema and backup / rollback path planning. JSON remains the fact storage.
 - Local diagnostics panel for runtime status, proxy, token, GitHub reachability, and related troubleshooting signals.
@@ -48,6 +49,8 @@ Implemented AI-adjacent behavior is:
 - local artifact metadata and listing.
 
 Future provider integration must remain explicit opt-in and must show what data is sent before any cloud or local provider call.
+
+The opt-in provider design is documented in `docs/plans/0035-ai-provider-opt-in-design.md`; runtime execution, API key storage, preview UI, and model calls are still future work.
 
 ## Who It Is For
 
@@ -115,7 +118,7 @@ See [docs/SECURITY.md](docs/SECURITY.md) for the exact security boundary.
 Remaining planned work:
 
 - SQLite runtime import / export and controlled storage cutover after the dry-run skeleton.
-- Explicit opt-in AI provider pipeline for local Ollama and OpenAI-compatible endpoints.
+- Implementing the opt-in AI provider settings, privacy preview API, and local / cloud execution path from the documented design.
 - Encrypted backup / sync design after sync target, key management, and conflict policy decisions are clear.
 - Code signing and auto-update only after certificate, private-key custody, timestamping, and release policy decisions are clear.
 

@@ -14,6 +14,7 @@ Python Runtime
 ```
 
 仓库已经完成了多轮增量拆分，但还没有迁移到 React、FastAPI、SQLite 或内嵌 AI provider。任何后续迁移都应继续按计划文件小步推进。
+AI provider 当前只有 opt-in 设计文档，还没有运行时代码、设置 UI、API Key 存储或模型调用。
 
 ## 当前运行链路
 
@@ -120,6 +121,8 @@ src/gitsonar/
 ### `src/gitsonar/runtime/ai_insight.py`
 
 结构化 Insight artifact 模块。当前支持手动保存、归一化、删除、列表和本地 metadata，不接入任何 AI provider。
+
+AI provider opt-in 的后续方向已记录在 `docs/plans/0035-ai-provider-opt-in-design.md`，包括本地 / 云端 provider 模式、隐私预览、artifact 可追溯和后续实施切片；当前尚未新增 `runtime_ai/` 运行时包。
 
 ### `src/gitsonar/runtime/discovery_clusters.py`
 
@@ -291,7 +294,7 @@ runtime/http.py + runtime/shell.py + runtime_github/ + runtime_ui/
 - Trending 数据仍依赖 GitHub 页面结构，页面结构变化会影响抓取稳定性。
 - 桌面壳仍偏浏览器 app mode，WebView2 native bridge 还不是主通道。
 - Discovery、refresh 和 favorite update check 已桥接到通用 Job / Event runtime，但前端仍主要使用原轮询和局部 API 状态。
-- AI 仍是 prompt handoff + 手动 artifact，不是 provider pipeline。
+- AI 仍是 prompt handoff + 手动 artifact，不是 provider pipeline；opt-in provider 目前只有设计文档，没有运行时执行入口。
 
 ## 运行时数据
 

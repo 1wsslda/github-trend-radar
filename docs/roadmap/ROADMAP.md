@@ -24,7 +24,7 @@
 | Priority | 目标 | 对应任务 | 当前说明 |
 |---|---|---|---|
 | `P0` | 补齐“发现之后的管理”闭环并完成文档现实同步 | `GS-P0-001` ~ `GS-P0-012` | 当前 P0 MVP、诊断、Markdown 导出、安全加固和文档同步均已完成。 |
-| `P1` | 稳定 API、持久化、任务事件和 AI-ready 边界 | `GS-P1-001` ~ `GS-P1-017` | P1 API 安全兼容收紧、runtime bridge、Update Inbox 增强和 SQLite dry-run 骨架已完成；下一轮优先处理 AI provider opt-in 设计。 |
+| `P1` | 稳定 API、持久化、任务事件和 AI-ready 边界 | `GS-P1-001` ~ `GS-P1-017` | 当前 P1 队列已完成，包括 API 安全兼容收紧、runtime bridge、Update Inbox 增强、SQLite dry-run 骨架和 AI provider opt-in 设计。 |
 | `P2` | 等边界稳定后推进差异化、发布和同步能力 | `GS-P2-001` ~ `GS-P2-006` | 聚类地图、本地翻译和发布 manifest 已完成；加密同步 / 备份、代码签名继续阻塞。 |
 
 ## 已完成的当前能力
@@ -54,6 +54,7 @@
 ### 智能化和可视化
 
 - 手动结构化 AI Insight artifact。
+- AI provider opt-in design for local/cloud modes, privacy previews, and artifact traceability。
 - 本地发现结果聚类。
 - 轻量二维仓库地图。
 - 可选 loopback-only Ollama-style 本地翻译 provider。
@@ -117,12 +118,13 @@
 | `GS-P1-014` | 刷新 / 发现 / 更新检查接入统一 Job/Event/SSE | `[x]` | Refresh、discovery 和 favorite update check 已桥接到通用 Job/Event runtime，现有 UI 轮询路径保持不变。 |
 | `GS-P1-015` | Update Inbox 增强 | `[x]` | 已增加自上次查看以来提示、本地变化摘要和重要性解释。 |
 | `GS-P1-016` | SQLite 迁移第一阶段 | `[x]` | 已新增 SQLite schema helper、dry-run 计数和备份 / 回滚路径规划；未切换事实存储。 |
+| `GS-P1-017` | AI provider opt-in 设计 | `[x]` | 已设计本地 / 云端 provider 模式、隐私预览、artifact 可追溯和后续实施切片；未实现 provider。 |
 
 下一轮候选：
 
 | Task ID | 任务主题 | 状态 | 说明 |
 |---|---|---:|---|
-| `GS-P1-017` | AI provider opt-in 设计 | `[ ]` | 设计本地 Ollama / OpenAI-compatible provider pipeline 和隐私预览。 |
+| `-` | 当前 P1 队列 | `[x]` | `GS-P1-001` ~ `GS-P1-017` 均已完成；新的 P1 任务需要单独进入下一轮队列。 |
 
 P1 执行规则：
 
@@ -153,8 +155,7 @@ P2 执行规则：
 
 ## 默认顺序
 
-1. `P1 AI provider opt-in`
-   本地 Ollama / OpenAI-compatible provider pipeline 设计。
+当前默认顺序中的 P1 队列已完成。下一轮应先重新读取 `TASKS.md` 与 `CURRENT_TOP10.md`，只选择仍未完成、未阻塞且安全的任务。
 
 ## 默认不做
 

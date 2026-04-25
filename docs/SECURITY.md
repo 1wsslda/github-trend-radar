@@ -10,7 +10,7 @@ GitSonar 是一个本地运行的 Windows 桌面工具。
 - 打包版运行时数据默认位于 `%LOCALAPPDATA%\GitSonar`。
 - 直接从仓库运行时，开发态数据位于 `runtime-data/`。
 - 没有账号系统、没有云同步、没有项目自建的 SaaS 后台。
-- AI 仍是 prompt handoff + 手动保存结构化 Insight artifact，不是默认内嵌 provider。
+- AI 仍是 prompt handoff + 手动保存结构化 Insight artifact，不是默认内嵌 provider；当前只有 opt-in provider 设计文档，没有运行时 provider 执行入口。
 
 默认原则：
 
@@ -120,6 +120,8 @@ GitSonar 当前可能访问这些外部网络目标：
 - OpenAI-compatible provider pipeline；
 - 自动向云端发送 repo、README、notes、tags、updates 或 Token；
 - 自动根据 AI 输出修改用户状态。
+
+当前已完成的 `GS-P1-017` 只定义 opt-in provider 设计，不保存 API Key、不调用本地或云端模型。后续实现必须在调用前展示隐私预览，并把用户确认绑定到 input hash。
 
 后续任何 AI provider 都必须满足：
 

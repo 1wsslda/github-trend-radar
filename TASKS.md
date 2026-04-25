@@ -27,13 +27,14 @@
 | 优先级 | 总数 | `[ ]` | `[~]` | `[!]` | `[x]` | `[-]` |
 |---|---:|---:|---:|---:|---:|---:|
 | `P0` | 12 | 0 | 0 | 0 | 12 | 0 |
-| `P1` | 17 | 1 | 0 | 0 | 16 | 0 |
+| `P1` | 17 | 0 | 0 | 0 | 17 | 0 |
 | `P2` | 6 | 0 | 0 | 2 | 4 | 0 |
 
 ## 当前执行批次
 
 | 优先级 | 状态 | 任务 ID | 任务 | Plan | Branch | Commit / PR | 备注 |
 |---|---:|---|---|---|---|---|---|
+| `P1` | `[x]` | `GS-P1-017` | AI provider opt-in 设计与本地 Ollama / OpenAI-compatible pipeline | `docs/plans/0035-ai-provider-opt-in-design.md` | `codex/runtime-control-compat` | `docs(ai): design opt-in provider pipeline` | 已完成；已定义 provider 分层、隐私预览、artifact 可追溯、Key/Token 边界和后续实施切片，未实现 provider。 |
 | `P1` | `[x]` | `GS-P1-016` | SQLite 迁移第一阶段：JSON 导入 / 导出兼容与回滚骨架 | `docs/plans/0034-sqlite-migration-phase-1.md` | `codex/runtime-control-compat` | `feat(storage): add sqlite migration dry-run skeleton` | 已完成；新增 SQLite schema helper、dry-run 计数和备份 / 回滚路径规划，未默认切换事实存储。 |
 | `P1` | `[x]` | `GS-P1-015` | Update Inbox 增强：自上次查看以来、摘要、重要性解释 | `docs/plans/0033-update-inbox-enhancements.md` | `codex/runtime-control-compat` | `feat(updates): add inbox summaries and importance reasons` | 已完成；favorite update 已增加本地变化摘要、重要性解释，Update Inbox 卡片会标明自上次查看以来的未处理更新。 |
 | `P1` | `[x]` | `GS-P1-014` | 刷新 / 发现 / 更新检查接入统一 Job/Event/SSE | `docs/plans/0032-unify-refresh-discovery-update-jobs.md` | `codex/runtime-control-compat` | `feat(runtime): bridge refresh and discovery to job events` | 已完成；refresh、discovery 和 favorite update check 已写入通用 Job/Event runtime，现有 UI 轮询路径保持不变。 |
@@ -50,7 +51,7 @@
 | 2 | `P1` | `[x]` | `GS-P1-014` | 刷新 / 发现 / 更新检查接入统一 Job/Event/SSE | `docs/plans/0032-unify-refresh-discovery-update-jobs.md` | `codex/runtime-control-compat` | `feat(runtime): bridge refresh and discovery to job events` | 已完成；focused 测试通过，现有 discovery job API 和 UI 轮询路径保持兼容。 |
 | 3 | `P1` | `[x]` | `GS-P1-015` | Update Inbox 增强：自上次查看以来、摘要、重要性解释 | `docs/plans/0033-update-inbox-enhancements.md` | `codex/runtime-control-compat` | `feat(updates): add inbox summaries and importance reasons` | 已完成；在现有 read/pin/dismiss/priority MVP 上补充本地摘要、重要性解释和自上次查看以来提示。 |
 | 4 | `P1` | `[x]` | `GS-P1-016` | SQLite 迁移第一阶段：JSON 导入 / 导出兼容与回滚骨架 | `docs/plans/0034-sqlite-migration-phase-1.md` | `codex/runtime-control-compat` | `feat(storage): add sqlite migration dry-run skeleton` | 已完成；新增迁移骨架和兼容验证，不默认切换事实存储。 |
-| 5 | `P1` | `[ ]` | `GS-P1-017` | AI provider opt-in 设计与本地 Ollama / OpenAI-compatible pipeline | 待创建：`docs/plans/0035-ai-provider-opt-in-design.md` | `-` | `-` | 先设计 provider、隐私预览、artifact 可追溯和手动启用边界，不默认调用云端。 |
+| 5 | `P1` | `[x]` | `GS-P1-017` | AI provider opt-in 设计与本地 Ollama / OpenAI-compatible pipeline | `docs/plans/0035-ai-provider-opt-in-design.md` | `codex/runtime-control-compat` | `docs(ai): design opt-in provider pipeline` | 已完成；已设计 provider、隐私预览、artifact 可追溯和手动启用边界，未调用云端。 |
 
 ## 阻塞或暂不进入下一批的任务
 
