@@ -24,7 +24,7 @@
 | Priority | 目标 | 对应任务 | 当前说明 |
 |---|---|---|---|
 | `P0` | 补齐“发现之后的管理”闭环并完成文档现实同步 | `GS-P0-001` ~ `GS-P0-012` | 当前 P0 MVP、诊断、Markdown 导出、安全加固和文档同步均已完成。 |
-| `P1` | 稳定 API、持久化、任务事件和 AI-ready 边界 | `GS-P1-001` ~ `GS-P1-018` | 当前 P1 队列已完成 OpenAI-compatible 翻译 API；AI 分析仍保持 prompt handoff 和手动 Insight 保存。 |
+| `P1` | 稳定 API、持久化、任务事件和 AI-ready 边界 | `GS-P1-001` ~ `GS-P1-019` | 当前 P1 队列已完成 OpenAI-compatible 翻译 API，并通过 `GS-P1-019` 将 AI 分析收回为 prompt handoff，不再维护手动 Insight JSON 缓存。 |
 | `P2` | 等边界稳定后推进差异化、发布和同步能力 | `GS-P2-001` ~ `GS-P2-006` | 聚类地图、本地翻译和发布 manifest 已完成；加密同步 / 备份、代码签名继续阻塞。 |
 
 ## 已完成的当前能力
@@ -49,11 +49,10 @@
 - Discovery job runtime。
 - Refresh / discovery / favorite update check bridge into Job/Event runtime。
 - SQLite migration dry-run schema and backup / rollback path skeleton。
-- AI artifact metadata cache。
 
 ### 智能化和可视化
 
-- 手动结构化 AI Insight artifact。
+- AI 分析当前只保留 prompt handoff：ChatGPT / Gemini 跳转、复制 Prompt 和 Markdown 摘要导出。
 - AI provider opt-in design for local/cloud modes, privacy previews, and artifact traceability。
 - 本地发现结果聚类。
 - 轻量二维仓库地图。
@@ -102,12 +101,12 @@
 
 | Task ID | 任务主题 | 状态 | 说明 |
 |---|---|---:|---|
-| `GS-P1-001` | AI Insight schema MVP | `[x]` | 已定义 `gitsonar.repo_insight.v1`，支持手动保存 / 删除。 |
+| `GS-P1-001` | AI Insight schema MVP | `[x]` | 历史任务已完成；对应运行时表面已被 `GS-P1-019` 取代，不再维护手动 JSON 保存工作流。 |
 | `GS-P1-002` | JSON API boundary MVP | `[x]` | 已新增 bootstrap、repos、updates、discovery views 只读边界。 |
 | `GS-P1-003` | SQLite 迁移设计 | `[x]` | 已完成设计，未实施存储切换。 |
 | `GS-P1-004` | Job / Event 模型 MVP | `[x]` | 已新增内存级 runtime 和 `/api/jobs`、`/api/events`。 |
 | `GS-P1-005` | SSE 事件流 MVP | `[x]` | 已新增 `/api/events/stream` SSE 快照端点。 |
-| `GS-P1-006` | AI Artifact 生命周期与缓存 | `[x]` | 已扩展 artifact metadata 和 `/api/ai-artifacts`。 |
+| `GS-P1-006` | AI Artifact 生命周期与缓存 | `[x]` | 历史任务已完成；对应缓存和列表运行时已被 `GS-P1-019` 取代。 |
 | `GS-P1-007` | 发现结果聚类 | `[x]` | 已完成本地聚类、state/API 字段和 UI 展示。 |
 | `GS-P1-008` | Discovery job failure 安全化 | `[x]` | 已返回安全摘要并脱敏日志。 |
 | `GS-P1-009` | JSON body size limit | `[x]` | 已限制本地 JSON POST body。 |
@@ -120,6 +119,7 @@
 | `GS-P1-016` | SQLite 迁移第一阶段 | `[x]` | 已新增 SQLite schema helper、dry-run 计数和备份 / 回滚路径规划；未切换事实存储。 |
 | `GS-P1-017` | AI provider opt-in 设计 | `[x]` | 已设计本地 / 云端 provider 模式、隐私预览、artifact 可追溯和后续实施切片；未实现 provider。 |
 | `GS-P1-018` | OpenAI-compatible 翻译 API | `[x]` | 已完成；删除旧本机翻译 provider 路径，默认保留 Google，新增显式 opt-in 的 Chat Completions 风格翻译 API。 |
+| `GS-P1-019` | 移除 AI Insight JSON 手动保存工作流 | `[x]` | 已完成；删除详情页手动 JSON 面板、本地缓存和旧 API，保留 prompt handoff 与 Markdown 摘要导出。 |
 
 下一轮候选：
 

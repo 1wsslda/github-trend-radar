@@ -65,7 +65,6 @@ def make_state_runtime(
         normalize_repo_annotation=schema.normalize_repo_annotation,
         normalize_favorite_update=schema.normalize_favorite_update,
         normalize_feedback_signal=schema.normalize_feedback_signal,
-        normalize_ai_insight=schema.normalize_ai_insight,
         normalize_saved_view=schema.normalize_saved_view,
         normalize_discovery_state=schema.normalize_discovery_state,
         normalize_user_state=schema.normalize_user_state,

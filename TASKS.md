@@ -27,13 +27,14 @@
 | 优先级 | 总数 | `[ ]` | `[~]` | `[!]` | `[x]` | `[-]` |
 |---|---:|---:|---:|---:|---:|---:|
 | `P0` | 12 | 0 | 0 | 0 | 12 | 0 |
-| `P1` | 18 | 0 | 0 | 0 | 18 | 0 |
+| `P1` | 19 | 0 | 0 | 0 | 19 | 0 |
 | `P2` | 6 | 0 | 0 | 2 | 4 | 0 |
 
 ## 当前执行批次
 
 | 优先级 | 状态 | 任务 ID | 任务 | Plan | Branch | Commit / PR | 备注 |
 |---|---:|---|---|---|---|---|---|
+| `P1` | `[x]` | `GS-P1-019` | 移除 AI Insight JSON 手动保存工作流 | `docs/plans/0037-remove-ai-insight-json-workflow.md` | `codex/runtime-control-compat` | `-` | 已完成；删除详情页手动 Insight JSON 面板、本地 legacy insight 缓存和旧 API，保留 ChatGPT / Gemini / 复制 Prompt / Markdown 摘要导出。推荐 commit message：`refactor(ai): remove manual insight json workflow`。 |
 | `P1` | `[x]` | `GS-P1-018` | 移除旧本机翻译路径并改为 OpenAI-compatible 翻译 API | `docs/plans/0036-openai-compatible-translation-api.md` | `codex/runtime-control-compat` | `feat(translation): use openai-compatible translation api` | 已完成；默认保留 Google Translate，新增显式 opt-in 的 OpenAI-compatible 翻译 API，API Key 本地 DPAPI 加密保存，不实现内嵌 AI provider。 |
 | `P1` | `[x]` | `GS-P1-017` | AI provider opt-in 设计与 OpenAI-compatible pipeline | `docs/plans/0035-ai-provider-opt-in-design.md` | `codex/runtime-control-compat` | `docs(ai): design opt-in provider pipeline` | 已完成；已定义 provider 分层、隐私预览、artifact 可追溯、Key/Token 边界和后续实施切片，未实现 provider。 |
 | `P1` | `[x]` | `GS-P1-016` | SQLite 迁移第一阶段：JSON 导入 / 导出兼容与回滚骨架 | `docs/plans/0034-sqlite-migration-phase-1.md` | `codex/runtime-control-compat` | `feat(storage): add sqlite migration dry-run skeleton` | 已完成；新增 SQLite schema helper、dry-run 计数和备份 / 回滚路径规划，未默认切换事实存储。 |
@@ -80,12 +81,13 @@
 
 | 优先级 | 状态 | 任务 ID | 任务 | Plan | Branch | Commit / PR | 备注 |
 |---|---:|---|---|---|---|---|---|
-| `P1` | `[x]` | `GS-P1-001` | AI Insight schema MVP | `docs/plans/0010-ai-insight-schema-mvp.md` | `-` | `-` | 已定义 `gitsonar.repo_insight.v1`，支持手动保存 / 删除。 |
+| `P1` | `[x]` | `GS-P1-001` | AI Insight schema MVP | `docs/plans/0010-ai-insight-schema-mvp.md` | `-` | `-` | 历史任务已完成；运行时手动 JSON 保存工作流已被 `GS-P1-019` 取代。 |
 | `P1` | `[x]` | `GS-P1-002` | JSON API boundary MVP | `docs/plans/0011-json-api-boundary-mvp.md` | `-` | `-` | 已新增 bootstrap、repos、updates、discovery views 只读边界。 |
 | `P1` | `[x]` | `GS-P1-003` | SQLite 迁移设计 | `docs/plans/0012-sqlite-migration-design.md` | `-` | `-` | 已完成迁移与回滚设计，未实施存储切换。 |
 | `P1` | `[x]` | `GS-P1-004` | 统一 Job / Event 模型 | `docs/plans/0013-job-event-model-mvp.md` | `-` | `-` | 已新增内存级 Job/Event runtime。 |
 | `P1` | `[x]` | `GS-P1-005` | SSE 进度与事件流 | `docs/plans/0014-sse-event-stream-mvp.md` | `-` | `-` | 已新增 `/api/events/stream` SSE 快照端点。 |
-| `P1` | `[x]` | `GS-P1-006` | AI Artifact 生命周期与缓存 | `docs/plans/0015-ai-artifact-lifecycle-cache.md` | `-` | `-` | 已扩展本地 AI artifact metadata 和列表端点。 |
+| `P1` | `[x]` | `GS-P1-006` | AI Artifact 生命周期与缓存 | `docs/plans/0015-ai-artifact-lifecycle-cache.md` | `-` | `-` | 历史任务已完成；本地 artifact 缓存和列表端点已被 `GS-P1-019` 取代。 |
+| `P1` | `[x]` | `GS-P1-019` | 移除 AI Insight JSON 手动保存工作流 | `docs/plans/0037-remove-ai-insight-json-workflow.md` | `codex/runtime-control-compat` | `-` | 已完成；删除手动 JSON 保存 / 缓存能力，保留 prompt handoff 和 Markdown 摘要导出。推荐 commit message：`refactor(ai): remove manual insight json workflow`。 |
 | `P1` | `[x]` | `GS-P1-007` | 发现结果聚类 | `docs/plans/0016-discovery-result-clustering.md` | `codex/runtime-control-compat` | `-` | 已完成本地 discovery result 聚类。 |
 | `P2` | `[x]` | `GS-P2-001` | 仓库地图 / 可视化体验 | `docs/plans/0017-repo-map-visualization-mvp.md` | `codex/runtime-control-compat` | `-` | 已新增轻量二维主题地图。 |
 | `P2` | `[x]` | `GS-P2-002` | 可选翻译模型支持 | `docs/plans/0019-optional-local-translation-model.md` | `codex/runtime-control-compat` | `-` | 历史任务已完成；方向已被 `GS-P1-018` 取代。 |

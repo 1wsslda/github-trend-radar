@@ -1,4 +1,6 @@
-# 0010 - 结构化 AI Insight Schema MVP
+# 0010 - 结构化 AI Insight schema MVP
+
+> 历史任务说明：本任务保持 `[x]`，但其运行时 UI/API/state 表面已由 `GS-P1-019` 取代。当前版本只保留 prompt handoff，不再维护手动结构化 Insight 保存工作流。
 
 ## 任务元信息
 
@@ -6,7 +8,7 @@
 - 优先级：`P1`
 - 当前状态：`[x]`
 - Sprint 候选排名：`10`
-- 推荐 commit message：`feat: 添加结构化 AI Insight Schema MVP`
+- 推荐 commit message：`feat: 添加结构化 AI Insight schema MVP`
 
 ## 摘要
 
@@ -23,9 +25,9 @@
 ## 当前状态
 
 - 已新增 `src/gitsonar/runtime/ai_insight.py`，定义 `gitsonar.repo_insight.v1` 和归一化规则。
-- 用户状态新增 `ai_insights`，支持本地保存、删除和导入 / 导出兼容。
-- 已新增 `/api/ai-insights` 与 `/api/ai-insights/delete`。
-- 详情面板提供 RepoContext JSON 复制、Insight JSON 手动粘贴保存、删除和本地展示入口。
+- 历史上曾新增 legacy insight 状态字段，支持本地保存、删除和导入 / 导出兼容。
+- 历史上曾新增 legacy insight 保存与删除端点。
+- 详情面板曾提供 RepoContext payload 复制、结构化 Insight 手动粘贴保存、删除和本地展示入口。
 - 当前不会自动调用云端 AI；所有外部模型使用都必须由用户显式复制出去并手动贴回。
 
 ## 目标
@@ -64,7 +66,7 @@
 ## 发布与回滚
 
 - 发布方式：默认启用本地 schema 和缓存能力，但不默认开启任何云调用。
-- 回滚方式：移除 `ai_insights` 状态字段、AI Insight API 和详情面板入口；现有 prompt handoff 路径不受影响。
+- 回滚方式：移除 legacy insight 状态字段、AI Insight API 和详情面板入口；现有 prompt handoff 路径不受影响。
 - 恢复路径：若后续 schema 需要演进，可通过 `schema_version` 增量兼容，不做 big-bang 迁移。
 
 ## 验证
@@ -80,7 +82,8 @@
 | 日期 | 状态 | 备注 |
 |---|---|---|
 | `2026-04-23` | `[~]` | 开始定义本地 schema、RepoContext 复制与手动缓存工作流。 |
-| `2026-04-23` | `[x]` | 完成 AI Insight Schema MVP，实现、测试和文档已同步。 |
+| `2026-04-25` | `[x]` | 历史任务保持完成状态；运行时表面已由 `GS-P1-019` 取代。 |
+| `2026-04-23` | `[x]` | 完成 AI Insight schema MVP，实现、测试和文档已同步。 |
 
 ## 验证记录
 

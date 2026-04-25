@@ -5,7 +5,6 @@ import hashlib
 from types import SimpleNamespace
 from urllib.parse import urlparse
 
-from .ai_insight import normalize_ai_insight as normalize_ai_insight_payload
 from .repo_records import build_repo_record
 
 DISCOVERY_RANKING_PROFILES = {"balanced", "hot", "fresh", "builder", "trend"}
@@ -38,7 +37,6 @@ def make_state_schema(
             "favorite_watch": {},
             "favorite_updates": [],
             "feedback_signals": {},
-            "ai_insights": {},
         }
 
     def default_discovery_state() -> dict[str, object]:
@@ -283,19 +281,6 @@ def make_state_schema(
             for url, item in feedback_signals.items()
             if normalize(url) and (clean := normalize_feedback_signal(item))
         }
-        ai_insights = raw.get("ai_insights", {}) if isinstance(raw.get("ai_insights"), dict) else {}
-        state["ai_insights"] = {
-            url: clean
-            for url, item in ai_insights.items()
-            if normalize(url) and (
-                clean := normalize_ai_insight_payload(
-                    item,
-                    normalize=normalize,
-                    clamp_int=clamp_int,
-                    iso_now=iso_now,
-                )
-            )
-        }
         return state
 
     def state_counts(state: dict[str, object]) -> dict[str, int]:
@@ -343,12 +328,6 @@ def make_state_schema(
         normalize_favorite_update=normalize_favorite_update,
         normalize_feedback_signal=normalize_feedback_signal,
         normalize_discovery_cluster=normalize_discovery_cluster,
-        normalize_ai_insight=lambda payload: normalize_ai_insight_payload(
-            payload,
-            normalize=normalize,
-            clamp_int=clamp_int,
-            iso_now=iso_now,
-        ),
         normalize_saved_view=normalize_saved_view,
         normalize_discovery_state=normalize_discovery_state,
         normalize_user_state=normalize_user_state,

@@ -1,5 +1,7 @@
 # AI Artifact 生命周期与缓存计划
 
+> 历史任务说明：本任务保持 `[x]`，但其运行时 UI/API/state 表面已由 `GS-P1-019` 取代。当前版本只保留 prompt handoff，不再维护手动结构化 Insight artifact 缓存。
+
 ## 任务元信息
 
 - 任务 ID：`GS-P1-006`
@@ -27,7 +29,7 @@ AI Artifact 生命周期与缓存
 
 ## 当前状态
 
-- 当前行为：`ai_insights` 存在于 `user_state.json`，支持手动保存和删除。
+- 当前行为：历史版本曾在 `user_state.json` 中保存 legacy insight 字段，支持手动保存和删除。
 - 当前技术形态：`runtime/ai_insight.py` 负责 schema normalize，`state_store.py` 负责写入。
 - 已知痛点：artifact 缺少稳定 id/input_hash/source metadata，列表 API 也不明确。
 - 现有约束：不接入云 provider，不自动调用 AI。
@@ -56,8 +58,8 @@ AI Artifact 生命周期与缓存
 ### 范围内
 
 - 增加 `artifact_id`、`artifact_type`、`input_hash`、`source_snapshot_id` 等本地元数据。
-- 新增 `/api/ai-artifacts` 只读列表。
-- 保持 `/api/ai-insights` 保存 / 删除兼容。
+- 历史上新增 legacy artifact 只读列表。
+- 历史上保持 legacy insight 保存 / 删除兼容。
 
 ### 范围外
 
@@ -68,8 +70,8 @@ AI Artifact 生命周期与缓存
 ## 架构触点
 
 - 运行时模块：`runtime/ai_insight.py`、`runtime/state_schema.py`、`runtime/state_store.py`、`runtime/http.py`
-- HTTP / API 变更：新增只读 `/api/ai-artifacts`
-- 状态 / 持久化变更：`user_state.ai_insights` 元数据向后兼容
+- HTTP / API 变更：历史上新增只读 artifact 列表端点
+- 状态 / 持久化变更：历史 legacy insight 状态字段元数据向后兼容
 - UI 变更：无
 - 后台任务变更：无
 
@@ -87,7 +89,7 @@ AI Artifact 生命周期与缓存
 
 ## 风险
 
-- 技术风险：破坏旧 `ai_insights` 兼容。测试必须覆盖旧 payload。
+- 技术风险：破坏旧 legacy insight 兼容。测试必须覆盖旧 payload。
 - 产品风险：列表 API 暂未 UI 消费。作为 provider 前置边界。
 - 隐私 / 安全风险：不能把 prompt 或敏感 Token 写入 artifact 元数据。
 
@@ -111,13 +113,14 @@ AI Artifact 生命周期与缓存
 | 日期 | 状态 | 备注 |
 |---|---|---|
 | `2026-04-24` | `[x]` | 已扩展本地 AI artifact 元数据和只读列表 API。 |
+| `2026-04-25` | `[x]` | 历史任务保持完成状态；运行时表面已由 `GS-P1-019` 取代。 |
 | `2026-04-24` | `[~]` | 开始 AI Artifact 生命周期与缓存增强，先写失败测试。 |
 | `2026-04-24` | `[ ]` | Auto Top 5 Batch Sprint 选中，等待执行。 |
 
 ## 验证记录
 
 - 已运行测试：`python -m pytest tests/test_runtime_state.py tests/test_runtime_http.py -q`，49 passed，4 subtests passed；本批最终 `python -m pytest -q`，173 passed，145 subtests passed。
-- 手动验证：确认本任务没有新增外部网络调用，`/api/ai-artifacts` 仍要求 loopback/control token。
+- 手动验证：确认本任务没有新增外部网络调用，历史 artifact 列表端点仍要求 loopback/control token。
 - 尚未覆盖的缺口：provider 接入、自动重生成和 UI 列表消费留给后续任务。
 
 ## 验收清单

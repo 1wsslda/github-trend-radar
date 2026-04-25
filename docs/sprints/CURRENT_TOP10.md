@@ -28,7 +28,22 @@ Skipped or blocked tasks:
 
 | Task | Reason |
 |---|---|
-| AI provider implementation | 本批只影响翻译 provider；AI 分析继续保持 ChatGPT / Gemini 跳转、复制 Prompt 和手动保存 Insight。 |
+| AI provider implementation | 本批只影响翻译 provider；AI 分析继续保持 ChatGPT / Gemini 跳转和复制 Prompt。 |
+| `最新prompt.md` | 用户明确说明不处理未跟踪文件。 |
+
+## 移除 AI Insight JSON 工作流批次 - 2026-04-25
+
+Selected tasks:
+
+| Rank | Task ID | Status | Task | Plan | Branch | Commit / PR | Notes |
+|---:|---|---:|---|---|---|---|---|
+| 1 | `GS-P1-019` | `[x]` | 移除 AI Insight JSON 手动保存工作流 | `docs/plans/0037-remove-ai-insight-json-workflow.md` | `codex/runtime-control-compat` | `-` | 已完成；删除手动 Insight JSON UI/API/state/artifact 缓存，保留 ChatGPT / Gemini / 复制 Prompt / Markdown 摘要导出。推荐 commit message：`refactor(ai): remove manual insight json workflow`。 |
+
+Skipped or blocked tasks:
+
+| Task | Reason |
+|---|---|
+| AI provider implementation | 本批不实现新的 provider、云 API 或 Agent；未来 AI 需要另起显式 opt-in 设计。 |
 | `最新prompt.md` | 用户明确说明不处理未跟踪文件。 |
 
 ## 文档现实同步批次 - 2026-04-24
@@ -69,7 +84,7 @@ Skipped or blocked tasks:
 | `GS-P1-003` | `[x]` | 已完成 SQLite 迁移与回滚设计，未实施存储切换。 |
 | `GS-P1-004` | `[x]` | 已新增内存级 Job/Event runtime 和 `/api/jobs`、`/api/events`。 |
 | `GS-P1-005` | `[x]` | 已新增 `/api/events/stream` SSE 快照端点。 |
-| `GS-P1-006` | `[x]` | 已扩展本地 AI artifact metadata 与 `/api/ai-artifacts`。 |
+| `GS-P1-006` | `[x]` | 历史任务已完成；对应缓存和列表端点已被 `GS-P1-019` 取代。 |
 | `GS-P1-007` | `[x]` | 已完成发现结果聚类。 |
 | `GS-P2-001` | `[x]` | 已完成轻量二维仓库地图 MVP。 |
 | `GS-P2-002` | `[x]` | 历史任务已完成；方向已被 `GS-P1-018` 取代。 |

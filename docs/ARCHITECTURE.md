@@ -38,7 +38,6 @@ src/gitsonar/
   __main__.py
   runtime/
     __init__.py
-    ai_insight.py
     api_boundary.py
     app.py
     detail_cache.py
@@ -118,12 +117,6 @@ src/gitsonar/
 
 当前它已支撑 `/api/jobs`、`/api/events`、`/api/events/stream`，并记录 refresh、discovery 与 favorite update check 的桥接事件；前端仍保留现有轮询路径。
 
-### `src/gitsonar/runtime/ai_insight.py`
-
-结构化 Insight artifact 模块。当前支持手动保存、归一化、删除、列表和本地 metadata，不接入任何 AI provider。
-
-AI provider opt-in 的后续方向已记录在 `docs/plans/0035-ai-provider-opt-in-design.md`，包括本地 / 云端 provider 模式、隐私预览、artifact 可追溯和后续实施切片；当前尚未新增 `runtime_ai/` 运行时包。
-
 ### `src/gitsonar/runtime/discovery_clusters.py`
 
 本地发现结果聚类模块。基于 repo 文本、topic、language 等本地信息生成轻量主题聚类，供 state/API/UI 展示。
@@ -134,7 +127,7 @@ AI provider opt-in 的后续方向已记录在 `docs/plans/0035-ai-provider-opt-
 
 ### `src/gitsonar/runtime/state_schema.py`
 
-状态 schema 与归一化规则。负责当前 JSON 状态中的 tags、notes、saved discovery views、favorite updates、AI insights、clusters 等结构兼容。`favorite_updates` 当前保留变化列表、已读 / 忽略 / 置顶、优先级、本地变化摘要和重要性解释。
+状态 schema 与归一化规则。负责当前 JSON 状态中的 tags、notes、saved discovery views、favorite updates、clusters 等结构兼容。旧手动 Insight 字段在加载和导入时会被忽略，不再导出。`favorite_updates` 当前保留变化列表、已读 / 忽略 / 置顶、优先级、本地变化摘要和重要性解释。
 
 ### `src/gitsonar/runtime/state_store.py`
 
@@ -213,14 +206,13 @@ GitHub 数据层，按职责拆分：
 - `GET /api/status`
 - `GET /api/discovery`
 - `GET /api/discovery/job`
-- `GET /api/ai-artifacts`
 - `GET /api/jobs`
 - `GET /api/events`
 - `GET /api/events/stream`
 - `GET /api/repo-details`
 - `GET /api/diagnostics`
 - `GET /api/export`
-- 所有状态、设置、导入、刷新、发现、AI Insight、窗口控制、外链打开和 GitHub star sync 的 POST 端点。
+- 所有状态、设置、导入、刷新、发现、窗口控制、外链打开和 GitHub star sync 的 POST 端点。
 
 主界面通过初始 HTML payload 中的 runtime control token 调用这些 API；缺少或错误 token 的直接 API 请求会返回 `403 invalid_control_token`。
 
@@ -294,7 +286,7 @@ runtime/http.py + runtime/shell.py + runtime_github/ + runtime_ui/
 - Trending 数据仍依赖 GitHub 页面结构，页面结构变化会影响抓取稳定性。
 - 桌面壳仍偏浏览器 app mode，WebView2 native bridge 还不是主通道。
 - Discovery、refresh 和 favorite update check 已桥接到通用 Job / Event runtime，但前端仍主要使用原轮询和局部 API 状态。
-- AI 仍是 prompt handoff + 手动 artifact，不是 provider pipeline；opt-in provider 目前只有设计文档，没有运行时执行入口。
+- AI 仍是 prompt handoff，不是手动 artifact 缓存或 provider pipeline；opt-in provider 目前只有设计文档，没有运行时执行入口。
 
 ## 运行时数据
 

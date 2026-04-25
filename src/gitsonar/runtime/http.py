@@ -124,8 +124,6 @@ class UserStateService:
     set_repo_state_batch: object | None = None
     set_repo_annotation: object | None = None
     set_favorite_update_state: object | None = None
-    set_ai_insight: object | None = None
-    delete_ai_insight: object | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -167,7 +165,6 @@ class AppHandlerDeps:
     export_api_repos: object | None = None
     export_api_updates: object | None = None
     export_api_discovery_views: object | None = None
-    export_ai_artifacts: object | None = None
     export_jobs: object | None = None
     export_events: object | None = None
 
@@ -188,8 +185,6 @@ def make_app_handler(
     set_repo_annotation=None,
     set_favorite_update_state=None,
     export_user_state,
-    set_ai_insight=None,
-    delete_ai_insight=None,
     import_user_state,
     normalize_settings,
     save_settings,
@@ -220,7 +215,6 @@ def make_app_handler(
     export_api_repos=None,
     export_api_updates=None,
     export_api_discovery_views=None,
-    export_ai_artifacts=None,
     export_jobs=None,
     export_events=None,
     merge_settings=None,
@@ -248,8 +242,6 @@ def make_app_handler(
             set_repo_annotation=set_repo_annotation,
             set_favorite_update_state=set_favorite_update_state,
             export_user_state=export_user_state,
-            set_ai_insight=set_ai_insight,
-            delete_ai_insight=delete_ai_insight,
             import_user_state=import_user_state,
             clear_favorite_updates=clear_favorite_updates,
             sync_favorite_repo=sync_favorite_repo,
@@ -283,7 +275,6 @@ def make_app_handler(
         export_api_repos=export_api_repos,
         export_api_updates=export_api_updates,
         export_api_discovery_views=export_api_discovery_views,
-        export_ai_artifacts=export_ai_artifacts,
         export_jobs=export_jobs,
         export_events=export_events,
     )
@@ -309,8 +300,6 @@ def build_app_handler(deps: AppHandlerDeps):
     set_repo_annotation = deps.user_state_service.set_repo_annotation
     set_favorite_update_state = deps.user_state_service.set_favorite_update_state
     export_user_state = deps.user_state_service.export_user_state
-    set_ai_insight = deps.user_state_service.set_ai_insight
-    delete_ai_insight = deps.user_state_service.delete_ai_insight
     import_user_state = deps.user_state_service.import_user_state
     clear_favorite_updates = deps.user_state_service.clear_favorite_updates
     sync_favorite_repo = deps.user_state_service.sync_favorite_repo
@@ -339,7 +328,6 @@ def build_app_handler(deps: AppHandlerDeps):
     export_api_repos = deps.export_api_repos or (lambda **_kwargs: {"ok": True, "view": "all", "count": 0, "repos": []})
     export_api_updates = deps.export_api_updates or (lambda: {"ok": True, "count": 0, "updates": []})
     export_api_discovery_views = deps.export_api_discovery_views or (lambda: {"ok": True, "count": 0, "views": []})
-    export_ai_artifacts = deps.export_ai_artifacts or (lambda: {"ok": True, "count": 0, "artifacts": []})
     export_jobs = deps.export_jobs or (lambda **_kwargs: {"ok": True, "status": "", "count": 0, "jobs": []})
     export_events = deps.export_events or (lambda **_kwargs: {"ok": True, "after_id": "", "count": 0, "events": []})
 
@@ -444,9 +432,6 @@ def build_app_handler(deps: AppHandlerDeps):
 
     def handle_get_discovery_views(_handler, _parsed, _payload):
         return export_api_discovery_views()
-
-    def handle_get_ai_artifacts(_handler, _parsed, _payload):
-        return export_ai_artifacts()
 
     def handle_get_jobs(_handler, parsed, _payload):
         params = parse_qs(parsed.query)
@@ -742,26 +727,6 @@ def build_app_handler(deps: AppHandlerDeps):
         discovery_state = clear_discovery_results()
         return {"ok": True, "message": "已清空本次搜索结果", "discovery_state": discovery_state}
 
-    def handle_post_ai_insight(_handler, _parsed, payload):
-        if set_ai_insight is None:
-            raise LocalAPIError("当前版本未启用 AI Insight 本地缓存。")
-        url = normalize(payload.get("url"))
-        repo = payload.get("repo") if isinstance(payload.get("repo"), dict) else None
-        try:
-            insight = set_ai_insight(url, payload.get("insight"), repo=repo)
-        except ValueError as exc:
-            raise LocalAPIError(localize_user_message(normalize, str(exc), "保存 AI Insight 失败。")) from exc
-        return {"ok": True, "insight": insight, "user_state": export_user_state()}
-
-    def handle_post_ai_insight_delete(_handler, _parsed, payload):
-        if delete_ai_insight is None:
-            raise LocalAPIError("当前版本未启用 AI Insight 本地缓存。")
-        try:
-            user_state = delete_ai_insight(payload.get("url"))
-        except ValueError as exc:
-            raise LocalAPIError(localize_user_message(normalize, str(exc), "删除 AI Insight 失败。")) from exc
-        return {"ok": True, "user_state": user_state}
-
     def handle_post_window_open(_handler, _parsed, _payload):
         return {"ok": True, "opened": open_main_window()}
 
@@ -793,7 +758,6 @@ def build_app_handler(deps: AppHandlerDeps):
         "/api/repos": Route(handle_get_repos, loopback_only=True, control_only=True),
         "/api/updates": Route(handle_get_updates, loopback_only=True, control_only=True),
         "/api/discovery/views": Route(handle_get_discovery_views, loopback_only=True, control_only=True),
-        "/api/ai-artifacts": Route(handle_get_ai_artifacts, loopback_only=True, control_only=True),
         "/api/jobs": Route(handle_get_jobs, loopback_only=True, control_only=True),
         "/api/events": Route(handle_get_events, loopback_only=True, control_only=True),
         "/api/events/stream": Route(handle_get_events_stream, loopback_only=True, control_only=True),
@@ -832,8 +796,6 @@ def build_app_handler(deps: AppHandlerDeps):
         "/api/discovery/views": Route(handle_post_discovery_view_save, loopback_only=True, control_only=True, json_body=True),
         "/api/discovery/views/delete": Route(handle_post_discovery_view_delete, loopback_only=True, control_only=True, json_body=True),
         "/api/discovery/clear": Route(handle_post_discovery_clear, loopback_only=True, control_only=True),
-        "/api/ai-insights": Route(handle_post_ai_insight, loopback_only=True, control_only=True, json_body=True),
-        "/api/ai-insights/delete": Route(handle_post_ai_insight_delete, loopback_only=True, control_only=True, json_body=True),
         "/api/window/open": Route(handle_post_window_open, loopback_only=True, control_only=True),
         "/api/window/exit": Route(handle_post_window_exit, loopback_only=True, control_only=True),
         "/api/sync-stars": Route(

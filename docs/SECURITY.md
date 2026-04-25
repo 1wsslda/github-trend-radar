@@ -10,7 +10,7 @@ GitSonar 是一个本地运行的 Windows 桌面工具。
 - 打包版运行时数据默认位于 `%LOCALAPPDATA%\GitSonar`。
 - 直接从仓库运行时，开发态数据位于 `runtime-data/`。
 - 没有账号系统、没有云同步、没有项目自建的 SaaS 后台。
-- AI 仍是 prompt handoff + 手动保存结构化 Insight artifact，不是默认内嵌 provider；当前只有 opt-in provider 设计文档，没有运行时 provider 执行入口。
+- AI 仍是 prompt handoff，不是默认内嵌 provider，也不保留手动结构化 Insight 缓存；当前只有 opt-in provider 设计文档，没有运行时 provider 执行入口。
 
 默认原则：
 
@@ -35,7 +35,6 @@ GitSonar 是一个本地运行的 Windows 桌面工具。
 - `GET /api/status`
 - `GET /api/discovery`
 - `GET /api/discovery/job`
-- `GET /api/ai-artifacts`
 - `GET /api/jobs`
 - `GET /api/events`
 - `GET /api/events/stream`
@@ -59,8 +58,6 @@ GitSonar 是一个本地运行的 Windows 桌面工具。
 - `POST /api/discovery/views`
 - `POST /api/discovery/views/delete`
 - `POST /api/discovery/clear`
-- `POST /api/ai-insights`
-- `POST /api/ai-insights/delete`
 - `POST /api/window/open`
 - `POST /api/window/exit`
 - `POST /api/sync-stars`
@@ -112,13 +109,12 @@ GitSonar 当前可能访问这些外部网络目标：
 
 - prompt handoff；
 - copy-only prompt；
-- 手动保存 `gitsonar.repo_insight.v1` 结构化 Insight JSON；
-- 本地 AI artifact metadata、列表和删除。
 
 当前未实现：
 
 - 默认内嵌 AI provider；
 - OpenAI-compatible provider pipeline；
+- 手动结构化 Insight 本地保存、列表和删除工作流；
 - 自动向云端发送 repo、README、notes、tags、updates 或 Token；
 - 自动根据 AI 输出修改用户状态。
 
@@ -129,7 +125,7 @@ GitSonar 当前可能访问这些外部网络目标：
 - 显式 opt-in；
 - 本地 provider 和云 provider 分开配置；
 - 调用前展示将发送字段；
-- 输出可缓存、可删除、可重新生成；
+- 输出是否缓存、如何删除和如何重新生成必须由新任务重新设计；
 - 不默认发送 GitHub Token、代理凭据、本地路径或未脱敏诊断信息。
 
 ## 本地存储

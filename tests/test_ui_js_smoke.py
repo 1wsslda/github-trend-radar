@@ -186,6 +186,37 @@ class UIJSSmokeTests(unittest.TestCase):
         self.assertIn("compareContext = null;", close_body)
         self.assertIn('setOverlayVisible("compare-modal", false);', close_body)
 
+    def test_ai_insight_json_workflow_is_removed_but_prompt_handoff_remains(self):
+        for removed_function in (
+            "buildAi" + "InsightContext",
+            "copyAi" + "InsightContext",
+            "saveAi" + "Insight",
+            "removeAi" + "Insight",
+            "saveCurrentDetailAi" + "Insight",
+            "clearCurrentDetailAi" + "Insight",
+            "ai" + "InsightByUrl",
+        ):
+            with self.subTest(removed_function=removed_function):
+                self.assertNotIn(f"function {removed_function}(", JS)
+
+        for removed_text in (
+            "AI Insight" + " Schema MVP",
+            "RepoContext" + " JSON",
+            "保存 Insight" + " JSON",
+            "清除 Insight",
+            "/api/ai-" + "insights",
+            "/api/ai-" + "artifacts",
+            "userState.ai_" + "insights",
+        ):
+            with self.subTest(removed_text=removed_text):
+                self.assertNotIn(removed_text, JS)
+
+        self.assertIn("function buildRepoPrompt(", JS)
+        self.assertIn("function buildCollectionPrompt(", JS)
+        self.assertIn("function buildComparePrompt(", JS)
+        self.assertIn('"/api/chatgpt/open"', JS)
+        self.assertIn('"/api/analysis/export-markdown"', JS)
+
 
 if __name__ == "__main__":
     unittest.main()

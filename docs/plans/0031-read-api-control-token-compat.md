@@ -33,7 +33,7 @@
 ## 当前状态
 
 - 任务开始前行为：
-  - `GET /api/ai-artifacts`、`/api/jobs`、`/api/events`、`/api/events/stream`、`/api/repo-details`、`/api/diagnostics`、`/api/export` 已要求 loopback + control token。
+  - 历史 AI artifact 列表、`/api/jobs`、`/api/events`、`/api/events/stream`、`/api/repo-details`、`/api/diagnostics`、`/api/export` 已要求 loopback + control token；历史 AI artifact 列表后续已由 `GS-P1-019` 移除。
 - 任务开始前，`GET /api/bootstrap`、`/api/repos`、`/api/updates`、`/api/discovery/views`、`/api/settings`、`/api/status`、`/api/discovery`、`/api/discovery/job` 仍未强制 control token。
 - 当前技术形态：
   - 前端 `requestJson()` 已通过 `localApiOptions()` 对所有 fetch 自动加 `X-GitSonar-Control`。

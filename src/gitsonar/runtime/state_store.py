@@ -33,7 +33,6 @@ def make_state_store(
     normalize_repo_annotation,
     normalize_favorite_update,
     normalize_feedback_signal,
-    normalize_ai_insight,
     normalize_saved_view,
     normalize_discovery_state,
     normalize_user_state,
@@ -167,42 +166,6 @@ def make_state_store(
         with STATE_LOCK:
             return json.loads(json.dumps(USER_STATE, ensure_ascii=False))
 
-    def set_ai_insight(url: object, payload: object, repo: object | None = None) -> dict[str, object]:
-        clean_url = normalize(url)
-        if not clean_url:
-            raise ValueError("missing repo")
-        insight = normalize_ai_insight(payload)
-        if not insight:
-            raise ValueError("invalid ai insight")
-        with STATE_LOCK:
-            if repo is not None:
-                upsert_repo_record(repo)
-            USER_STATE.setdefault("ai_insights", {})[clean_url] = insight
-            save_user_state()
-            return insight
-
-    def delete_ai_insight(url: object) -> dict[str, object]:
-        clean_url = normalize(url)
-        if not clean_url:
-            raise ValueError("missing repo")
-        with STATE_LOCK:
-            USER_STATE.setdefault("ai_insights", {}).pop(clean_url, None)
-            save_user_state()
-            return export_user_state()
-
-    def list_ai_artifacts() -> dict[str, object]:
-        with STATE_LOCK:
-            artifacts: list[dict[str, object]] = []
-            insights = USER_STATE.get("ai_insights", {})
-            if isinstance(insights, dict):
-                for url, item in insights.items():
-                    clean_url = normalize(url)
-                    clean = normalize_ai_insight(item)
-                    if clean_url and clean:
-                        artifacts.append({"url": clean_url, **clean})
-            artifacts.sort(key=lambda item: normalize(item.get("updated_at")), reverse=True)
-            return {"ok": True, "count": len(artifacts), "artifacts": json.loads(json.dumps(artifacts, ensure_ascii=False))}
-
     def coerce_import_user_state(payload: object) -> dict[str, object]:
         if isinstance(payload, dict):
             if isinstance(payload.get("data"), dict):
@@ -243,8 +206,6 @@ def make_state_store(
                 )
                 next_state["feedback_signals"] = dict(USER_STATE.get("feedback_signals", {}))
                 next_state["feedback_signals"].update(imported.get("feedback_signals", {}))
-                next_state["ai_insights"] = dict(USER_STATE.get("ai_insights", {}))
-                next_state["ai_insights"].update(imported.get("ai_insights", {}))
 
             favorite_urls = set(next_state.get("favorites", []))
             next_state["favorite_watch"] = {
@@ -266,11 +227,6 @@ def make_state_store(
                 url: item
                 for url, item in next_state.get("feedback_signals", {}).items()
                 if normalize(url) and normalize_feedback_signal(item)
-            }
-            next_state["ai_insights"] = {
-                url: item
-                for url, item in next_state.get("ai_insights", {}).items()
-                if normalize(url) and normalize_ai_insight(item)
             }
             USER_STATE.clear()
             USER_STATE.update(normalize_user_state(next_state))
@@ -411,9 +367,6 @@ def make_state_store(
         set_repo_annotation=set_repo_annotation,
         set_favorite_update_state=set_favorite_update_state,
         export_user_state=export_user_state,
-        set_ai_insight=set_ai_insight,
-        delete_ai_insight=delete_ai_insight,
-        list_ai_artifacts=list_ai_artifacts,
         import_user_state=import_user_state,
         load_discovery_state=load_discovery_state,
         save_discovery_state=save_discovery_state,

@@ -6,7 +6,7 @@
 
 ![GitSonar Screen](assets/screenshots/trending.png)
 
-GitSonar is not just a Trending viewer. It combines trend discovery, keyword discovery, local workflow states, update tracking, repo detail reading, side-by-side comparison, saved judgement artifacts, and AI prompt handoff in one desktop workspace.
+GitSonar is not just a Trending viewer. It combines trend discovery, keyword discovery, local workflow states, update tracking, repo detail reading, side-by-side comparison, Markdown judgement exports, and AI prompt handoff in one desktop workspace.
 
 ## Workflow
 
@@ -17,7 +17,7 @@ GitSonar is not just a Trending viewer. It combines trend discovery, keyword dis
 3. **Track**
    Followed repo updates for push, star / fork, and release changes, with an Update Inbox for read, pin, dismiss, priority, since-last-viewed indicators, local summaries, and importance reasons.
 4. **Judge**
-   Repo detail drawer, README summary, side-by-side compare, Markdown summary export, AI prompt handoff, and manually saved structured Insight artifacts.
+   Repo detail drawer, README summary, side-by-side compare, Markdown summary export, and AI prompt handoff.
 
 ## What Is Implemented Today
 
@@ -28,9 +28,8 @@ GitSonar is not just a Trending viewer. It combines trend discovery, keyword dis
 - Repo detail drawer, README summary, topics, license, homepage metadata, and side-by-side repo comparison.
 - Markdown summary export for single repo, batch, and compare workflows.
 - AI prompt handoff to ChatGPT web / desktop, Gemini web, or copy-only; multi-target handoff is supported.
-- Manual `gitsonar.repo_insight.v1` structured Insight save / list / delete and local artifact metadata cache. This is not an embedded provider pipeline.
 - AI provider opt-in design for local / cloud provider modes, privacy previews, and artifact traceability. It is not implemented as a runtime provider yet.
-- JSON API boundary MVP for bootstrap, repos, updates, discovery views, jobs, events, SSE snapshots, and AI artifacts.
+- JSON API boundary MVP for bootstrap, repos, updates, discovery views, jobs, events, and SSE snapshots.
 - SQLite migration dry-run skeleton with phase-one schema and backup / rollback path planning. JSON remains the fact storage.
 - Local diagnostics panel for runtime status, proxy, token, GitHub reachability, and related troubleshooting signals.
 - Optional OpenAI-compatible translation API provider. It is explicit opt-in, stores the API key locally with DPAPI, and does not change the default Google translation path.
@@ -45,10 +44,8 @@ Implemented AI-adjacent behavior is:
 
 - prompt handoff to external ChatGPT or Gemini targets;
 - copy-only prompt workflows;
-- manually saving structured Insight JSON back into the local app;
-- local artifact metadata and listing.
 
-Future provider integration must remain explicit opt-in and must show what data is sent before any cloud or local provider call.
+The previous manual structured Insight save/cache workflow has been removed. Future provider integration must start from a new explicit opt-in design and must show what data is sent before any cloud or local provider call.
 
 The opt-in provider design is documented in `docs/plans/0035-ai-provider-opt-in-design.md`; runtime execution, API key storage, preview UI, and model calls are still future work.
 
@@ -109,7 +106,7 @@ scripts\build_all_click.cmd
 - Legacy `%LOCALAPPDATA%\GitHubTrendRadar` data is merged on first run when needed.
 - GitHub tokens and proxy URLs with credentials are stored locally with Windows DPAPI.
 - Current network destinations may include GitHub and Google Translate. Optional OpenAI-compatible translation is explicit opt-in and only uses the endpoint configured by the user.
-- AI analysis currently means prompt handoff to external ChatGPT or Gemini targets, plus manually saved local Insight artifacts. GitSonar does not silently call an embedded AI provider.
+- AI analysis currently means prompt handoff to external ChatGPT or Gemini targets. GitSonar does not silently call an embedded AI provider and no longer keeps a manual local Insight cache.
 
 See [docs/SECURITY.md](docs/SECURITY.md) for the exact security boundary.
 

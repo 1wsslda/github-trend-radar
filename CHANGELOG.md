@@ -26,8 +26,7 @@ This file follows a lightweight Keep a Changelog style.
   - Update Inbox MVP with read, pin, dismiss, and priority state;
   - recommendation / ranking reasons;
   - ignore feedback captured into local state;
-  - Markdown summary export;
-  - manual structured AI Insight artifact save / delete.
+  - Markdown summary export.
 - 2026-04-24 architecture and intelligence MVPs:
   - read JSON API boundary for bootstrap, repos, updates, and discovery views;
   - SQLite migration design with JSON compatibility and rollback strategy;
@@ -37,7 +36,6 @@ This file follows a lightweight Keep a Changelog style.
   - Update Inbox summaries, importance reasons, and since-last-viewed indicators;
   - SQLite migration dry-run schema and backup / rollback path skeleton;
   - AI provider opt-in design for privacy previews, provider modes, and artifact traceability;
-  - AI artifact metadata cache and list endpoint;
   - local discovery result clustering;
   - lightweight repo map visualization;
   - optional OpenAI-compatible translation API provider with local DPAPI API key storage;
@@ -51,9 +49,14 @@ This file follows a lightweight Keep a Changelog style.
 - Reorganized the repository into `src/`, `scripts/`, `packaging/`, and `docs/`.
 - Moved the main runtime UI implementation into the `src/gitsonar/runtime_ui/` package split by template, assets, CSS, and JS resources.
 - Refined the desktop interface toward a calmer, reading-first GitHub intelligence desk.
-- Clarified that current AI support is prompt handoff plus manual local Insight artifact storage, not an embedded provider pipeline.
+- Clarified that current AI support is prompt handoff only, not a manual local Insight cache or embedded provider pipeline.
 - Clarified that discovery, refresh, and favorite update check now emit Job / Event runtime records while the UI still keeps its current polling path.
 - Replaced the old local translation model direction with an explicit OpenAI-compatible translation API provider while keeping Google as the default.
+
+### Removed
+
+- Removed the repo-detail manual Insight JSON panel and its local save / clear workflow.
+- Removed the local AI artifact cache/list runtime surface; existing legacy user-state fields are ignored on load or import and are not exported.
 
 ### Security
 

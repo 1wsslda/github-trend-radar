@@ -32,7 +32,6 @@ def build_state_runtime(*, user_state: dict[str, object] | None = None, write_ca
             "favorite_watch": {},
             "favorite_updates": [],
             "feedback_signals": {},
-            "ai_insights": {},
         },
         discovery_state={},
         state_lock=threading.RLock(),
@@ -175,7 +174,6 @@ class RuntimeStateFeatureTests(unittest.TestCase):
                     }
                 ],
                 "feedback_signals": {},
-                "ai_insights": {},
             }
         )
 
@@ -282,33 +280,40 @@ class RuntimeStateFeatureTests(unittest.TestCase):
         self.assertEqual(state["last_results"][0]["cluster_label"], "Desktop Automation")
         self.assertEqual(state["last_results"][1]["cluster_id"], state["last_clusters"][0]["id"])
 
-    def test_set_ai_insight_round_trip_and_delete(self):
+    def test_ai_insight_runtime_helpers_are_removed(self):
         runtime = build_state_runtime()
-        repo = {"full_name": "octo/demo", "url": "https://github.com/octo/demo"}
 
-        insight = runtime.set_ai_insight(
-            "https://github.com/octo/demo",
+        self.assertNotIn("ai_" + "insights", runtime.default_user_state())
+        self.assertFalse(hasattr(runtime, "set_ai_" + "insight"))
+        self.assertFalse(hasattr(runtime, "delete_ai_" + "insight"))
+        self.assertFalse(hasattr(runtime, "list_ai_" + "artifacts"))
+
+    def test_legacy_manual_insight_state_is_ignored_on_import_and_export(self):
+        runtime = build_state_runtime()
+
+        result = runtime.import_user_state(
             {
-                "summary": "适合学习工程结构",
-                "best_for": ["学习目录划分"],
-                "next_actions": ["先看 README"],
-            },
-            repo=repo,
+                "mode": "replace",
+                "user_state": {
+                    "favorites": ["https://github.com/octo/demo"],
+                    "repo_records": {
+                        "https://github.com/octo/demo": {
+                            "full_name": "octo/demo",
+                            "url": "https://github.com/octo/demo",
+                        }
+                    },
+                    "ai_" + "insights": {
+                        "https://github.com/octo/demo": {
+                            "schema_version": "gitsonar.repo_insight.v1",
+                            "summary": "旧手动 Insight",
+                        }
+                    },
+                },
+            }
         )
 
-        self.assertEqual(insight["schema_version"], "gitsonar.repo_insight.v1")
-        self.assertEqual(insight["artifact_type"], "repo_insight")
-        self.assertTrue(insight["artifact_id"].startswith("repo_insight_"))
-        self.assertTrue(insight["input_hash"])
-        self.assertEqual(runtime.export_user_state()["ai_insights"]["https://github.com/octo/demo"]["provider"], "manual")
-        artifacts = runtime.list_ai_artifacts()
-        self.assertEqual(artifacts["count"], 1)
-        self.assertEqual(artifacts["artifacts"][0]["url"], "https://github.com/octo/demo")
-        self.assertEqual(artifacts["artifacts"][0]["artifact_id"], insight["artifact_id"])
-
-        state = runtime.delete_ai_insight("https://github.com/octo/demo")
-
-        self.assertEqual(state["ai_insights"], {})
+        self.assertNotIn("ai_" + "insights", result["user_state"])
+        self.assertNotIn("ai_" + "insights", runtime.export_user_state())
 
 
 class RuntimeStateImportTests(unittest.TestCase):

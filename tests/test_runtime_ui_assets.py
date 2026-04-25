@@ -298,13 +298,40 @@ class RuntimeUILayoutSmokeTests(unittest.TestCase):
             'id="diagnostics-modal"',
             'onclick="openDiagnostics()"',
             "运行诊断",
-            "AI Insight Schema MVP",
             "复制 Markdown 摘要",
             "保存当前视图",
             "为什么推荐",
         ):
             with self.subTest(token=token):
                 self.assertIn(token, html if token.startswith("id=") or token.startswith("onclick=") or token == "运行诊断" else JS)
+
+        for removed in (
+            "AI Insight" + " Schema MVP",
+            "RepoContext" + " JSON",
+            "保存 Insight" + " JSON",
+            "清除 Insight",
+            "/api/ai-" + "insights",
+            "/api/ai-" + "artifacts",
+            "buildAi" + "InsightContext",
+            "copyAi" + "InsightContext",
+            "saveAi" + "Insight",
+            "removeAi" + "Insight",
+            "saveCurrentDetailAi" + "Insight",
+            "clearCurrentDetailAi" + "Insight",
+        ):
+            with self.subTest(removed=removed):
+                self.assertNotIn(removed, JS)
+
+        for retained in (
+            "ChatGPT 网页版",
+            "Gemini 网页版",
+            "仅复制提示词",
+            "buildRepoPrompt",
+            "buildCollectionPrompt",
+            "buildComparePrompt",
+        ):
+            with self.subTest(retained=retained):
+                self.assertIn(retained, JS)
 
 
 if __name__ == "__main__":

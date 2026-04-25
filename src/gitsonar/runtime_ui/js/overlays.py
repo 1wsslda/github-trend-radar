@@ -350,9 +350,7 @@ function renderCurrentDetailPanel(){
   const topics = Array.isArray(detail.topics) ? detail.topics.filter(Boolean) : [];
   const tags = repoTagsForUrl(repo.url);
   const note = repoNoteForUrl(repo.url);
-  const insight = aiInsightByUrl(repo.url);
   const matchReasons = Array.isArray(repo.match_reasons) ? repo.match_reasons.filter(Boolean) : [];
-  const insightText = insight ? JSON.stringify(insight, null, 2) : "";
   const metricMarkup = [
     metricPillMarkup("星标", `<span class="metric-number">${detail.stars || 0}</span>`),
     metricPillMarkup("派生", `<span class="metric-number">${detail.forks || 0}</span>`),
@@ -396,53 +394,11 @@ function renderCurrentDetailPanel(){
       <div class="readme-block">${h(detail.readme_summary || detail.readme_summary_raw || "暂无 README 摘要")}</div>
     </div>
     ${topics.length ? `<div class="detail-section"><div class="section-label">主题</div><div class="topic-list">${topics.map(topic => `<span class="topic">${h(topic)}</span>`).join("")}</div></div>` : ""}
-    <div class="detail-section">
-      <div class="section-label">AI Insight Schema MVP</div>
-      <div class="sub">显式 opt-in：这里不会自动调用云端 AI。你可以复制 RepoContext JSON，去外部工具生成结构化结果后再手动贴回本地。</div>
-      <textarea id="detail-ai-insight-input" class="field-input" style="min-height:180px;">${h(insightText)}</textarea>
-      <div class="panel-actions">
-        <button class="action-quiet compact" type="button" onclick='copyAiInsightContext(${JSON.stringify(repo.url)}, currentDetailData)'>复制 RepoContext JSON</button>
-        <button class="action-primary compact" type="button" onclick="saveCurrentDetailAiInsight()">保存 Insight JSON</button>
-        <button class="action-quiet compact" type="button" onclick="clearCurrentDetailAiInsight()">清除 Insight</button>
-      </div>
-    </div>
     <div class="panel-actions">
       <button class="action-quiet" type="button" onclick='copyRepoMarkdownSummary(${JSON.stringify(repo.url)})'>复制 Markdown 摘要</button>
       <a class="action-quiet" href="${h(detail.html_url || repo.url || "#")}" target="_blank" rel="noopener" data-external-url="${h(detail.html_url || repo.url || "#")}">打开 GitHub</a>
     </div>
   `;
-}
-
-async function saveCurrentDetailAiInsight(){
-  if(!currentDetailRepo || !currentDetailUrl){
-    toast("当前没有可保存的 AI Insight");
-    return;
-  }
-  const raw = document.getElementById("detail-ai-insight-input")?.value || "";
-  try{
-    await saveAiInsight(currentDetailUrl, raw, currentDetailRepo);
-    render();
-    renderCurrentDetailPanel();
-    toast("AI Insight 已保存到本地");
-  }catch(error){
-    toast(error.message || "保存 AI Insight 失败");
-  }
-}
-
-async function clearCurrentDetailAiInsight(){
-  if(!currentDetailUrl){
-    toast("当前没有可清除的 AI Insight");
-    return;
-  }
-  if(!window.confirm("确认清除这个仓库的 AI Insight 吗？")) return;
-  try{
-    await removeAiInsight(currentDetailUrl);
-    render();
-    renderCurrentDetailPanel();
-    toast("AI Insight 已清除");
-  }catch(error){
-    toast(error.message || "删除 AI Insight 失败");
-  }
 }
 
 async function openDetail(owner, name, label){

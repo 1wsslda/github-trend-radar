@@ -57,10 +57,6 @@ function repoNoteForUrl(url){
   return String(repoAnnotationByUrl(url).note || "").trim();
 }
 
-function aiInsightByUrl(url){
-  return userState.ai_insights?.[url] || null;
-}
-
 function updateByUrl(url){
   return (userState.favorite_updates || []).find(item => item.url === url) || null;
 }

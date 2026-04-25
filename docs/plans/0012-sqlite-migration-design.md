@@ -101,7 +101,7 @@ SQLite 迁移设计
 | `discovery_views` | `id`, `name`, `query`, `limit`, `auto_expand`, `ranking_profile`, `last_run_at`, `last_result_count` | `saved_views` |
 | `discovery_runs` | `id`, `query_json`, `run_at`, `result_count`, `warnings_json` | `last_query`, `last_run_at`, `last_warnings` |
 | `discovery_results` | `run_id`, `repo_id`, `rank`, `score_json`, `raw_json` | `last_results` |
-| `ai_artifacts` | `id`, `repo_id`, `artifact_type`, `schema_version`, `provider`, `model`, `input_hash`, `output_json`, `created_at`, `updated_at` | `ai_insights` |
+| `ai_artifacts` | `id`, `repo_id`, `artifact_type`, `schema_version`, `provider`, `model`, `input_hash`, `output_json`, `created_at`, `updated_at` | historical manual insight field |
 | `settings_kv` | `key`, `value_json`, `updated_at` | 仅非敏感设置，Token / proxy 仍由 DPAPI 设置层处理 |
 
 第二阶段可追加：
@@ -148,7 +148,7 @@ SQLite 迁移设计
 - `favorite_updates` 数量一致，且 `read_at`、`dismissed_at`、`pinned` 保留。
 - `saved_views` 数量一致，且 `query`、`limit`、`ranking_profile` 保留。
 - `repo_annotations` 的 tags/note 保留。
-- `ai_insights` 输出 JSON 可反序列化，schema version 保留。
+- historical manual insight 输出 JSON 可反序列化，schema version 保留。
 - 明文 GitHub Token 和明文代理凭据不进入数据库。
 
 ## 回滚策略
@@ -217,7 +217,7 @@ SQLite 迁移设计
 ## 验证记录
 
 - 已运行测试：不涉及运行时代码，未运行代码测试。
-- 手动验证：已用全文检索核对计划覆盖 `user_state`、`discovery_state`、`favorite_updates`、`saved_views`、`ai_insights`、`settings`、`rollback` 等关键迁移字段。
+- 手动验证：已用全文检索核对计划覆盖 `user_state`、`discovery_state`、`favorite_updates`、`saved_views`、historical manual insight、`settings`、`rollback` 等关键迁移字段。
 - 尚未覆盖的缺口：后续实施阶段仍需补真实 SQLite 导入、SQLite -> JSON 导出、受控切换和损坏恢复测试。
 
 ## 验收清单

@@ -41,7 +41,6 @@ class RuntimeHTTPHandlerTests(unittest.TestCase):
             "favorite_watch": {},
             "favorite_updates": [],
             "feedback_signals": {},
-            "ai_insights": {},
         }
         self.discovery_state = {"remembered_query": {}, "last_results": [], "saved_views": []}
         self.state_updates: list[tuple[str, bool, dict[str, object] | None]] = []
@@ -130,27 +129,6 @@ class RuntimeHTTPHandlerTests(unittest.TestCase):
                 return update
             raise ValueError("favorite update not found")
 
-        def set_ai_insight(url: object, payload: object, repo: object | None = None):
-            clean_url = normalize(url)
-            if not clean_url:
-                raise ValueError("missing repo")
-            if not isinstance(payload, dict) or not normalize(payload.get("summary")):
-                raise ValueError("invalid ai insight")
-            if isinstance(repo, dict) and repo.get("url"):
-                self.user_state["repo_records"][str(repo["url"])] = dict(repo)
-            insight = dict(payload)
-            insight.setdefault("schema_version", "gitsonar.repo_insight.v1")
-            insight.setdefault("provider", "manual")
-            self.user_state["ai_insights"][clean_url] = insight
-            return insight
-
-        def delete_ai_insight(url: object):
-            clean_url = normalize(url)
-            if not clean_url:
-                raise ValueError("missing repo")
-            self.user_state["ai_insights"].pop(clean_url, None)
-            return json.loads(json.dumps(self.user_state))
-
         def save_discovery_view(payload: object):
             raw = dict(payload) if isinstance(payload, dict) else {}
             if not normalize(raw.get("id")) or not normalize(raw.get("name")) or not normalize(raw.get("query")):
@@ -227,8 +205,6 @@ class RuntimeHTTPHandlerTests(unittest.TestCase):
             set_repo_annotation=set_repo_annotation,
             set_favorite_update_state=set_favorite_update_state,
             export_user_state=lambda: json.loads(json.dumps(self.user_state)),
-            set_ai_insight=set_ai_insight,
-            delete_ai_insight=delete_ai_insight,
             import_user_state=lambda payload: {
                 "mode": payload.get("mode", "merge"),
                 "before_counts": {},
@@ -269,17 +245,6 @@ class RuntimeHTTPHandlerTests(unittest.TestCase):
             export_api_repos=export_api_repos,
             export_api_updates=lambda: {"ok": True, "count": 0, "updates": []},
             export_api_discovery_views=lambda: {"ok": True, "count": 0, "views": []},
-            export_ai_artifacts=lambda: {
-                "ok": True,
-                "count": 1,
-                "artifacts": [
-                    {
-                        "url": "https://github.com/octo/demo",
-                        "artifact_id": "repo_insight_demo",
-                        "artifact_type": "repo_insight",
-                    }
-                ],
-            },
             export_jobs=lambda **kwargs: {
                 "ok": True,
                 "status": kwargs.get("status") or "",
@@ -576,14 +541,19 @@ class RuntimeHTTPHandlerTests(unittest.TestCase):
         self.assertEqual(payload["after_id"], "event-0")
         self.assertEqual(payload["events"][0]["event_type"], "job.updated")
 
-    def test_get_ai_artifacts_returns_local_artifact_list(self):
-        resp, data = self.request("GET", "/api/ai-artifacts")
-        payload = json.loads(data.decode("utf-8"))
+    def test_removed_ai_insight_routes_return_404(self):
+        for method, path, body in (
+            ("GET", "/api/ai-" + "artifacts", None),
+            ("POST", "/api/ai-" + "insights", {"url": "https://github.com/octo/demo", "insight": {}}),
+            ("POST", "/api/ai-" + "insights/delete", {"url": "https://github.com/octo/demo"}),
+        ):
+            with self.subTest(path=path):
+                resp, data = self.request(method, path, body)
+                payload = json.loads(data.decode("utf-8"))
 
-        self.assertEqual(resp.status, 200)
-        self.assertTrue(payload["ok"])
-        self.assertEqual(payload["count"], 1)
-        self.assertEqual(payload["artifacts"][0]["artifact_type"], "repo_insight")
+                self.assertEqual(resp.status, 404)
+                self.assertFalse(payload["ok"])
+                self.assertEqual(payload["code"], "not_found")
 
     def test_get_events_stream_returns_sse_snapshot_and_requires_control_token(self):
         resp, data = self.request("GET", "/api/events/stream?after_id=event-0")
@@ -890,34 +860,6 @@ class RuntimeHTTPHandlerTests(unittest.TestCase):
         self.assertEqual(resp.status, 200)
         self.assertTrue(payload["ok"])
         self.assertEqual(payload["discovery_state"]["saved_views"], [])
-
-    def test_post_ai_insight_save_and_delete_round_trip(self):
-        resp, data = self.request(
-            "POST",
-            "/api/ai-insights",
-            {
-                "url": "https://github.com/octo/demo",
-                "repo": {"full_name": "octo/demo", "url": "https://github.com/octo/demo"},
-                "insight": {
-                    "summary": "适合学习仓库组织方式",
-                    "best_for": ["学习结构"],
-                    "next_actions": ["先读 README"],
-                },
-            },
-        )
-        payload = json.loads(data.decode("utf-8"))
-
-        self.assertEqual(resp.status, 200)
-        self.assertTrue(payload["ok"])
-        self.assertEqual(payload["insight"]["schema_version"], "gitsonar.repo_insight.v1")
-        self.assertEqual(payload["user_state"]["ai_insights"]["https://github.com/octo/demo"]["summary"], "适合学习仓库组织方式")
-
-        resp, data = self.request("POST", "/api/ai-insights/delete", {"url": "https://github.com/octo/demo"})
-        payload = json.loads(data.decode("utf-8"))
-
-        self.assertEqual(resp.status, 200)
-        self.assertTrue(payload["ok"])
-        self.assertEqual(payload["user_state"]["ai_insights"], {})
 
     def test_post_refresh_returns_409_when_refresh_in_progress(self):
         self.refresh_started = False

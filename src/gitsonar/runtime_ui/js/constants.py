@@ -246,7 +246,6 @@ function normalizeRuntimePayload(){
   if(!userState.repo_records || typeof userState.repo_records !== "object") userState.repo_records = {};
   if(!userState.repo_annotations || typeof userState.repo_annotations !== "object") userState.repo_annotations = {};
   if(!userState.feedback_signals || typeof userState.feedback_signals !== "object") userState.feedback_signals = {};
-  if(!userState.ai_insights || typeof userState.ai_insights !== "object") userState.ai_insights = {};
   if(!Array.isArray(userState.favorite_updates)) userState.favorite_updates = [];
   if(!discoveryState || typeof discoveryState !== "object") discoveryState = {};
   discoveryState = normalizeDiscoveryStatePayload(discoveryState);

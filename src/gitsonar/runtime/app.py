@@ -213,9 +213,6 @@ set_repo_state_batch = None
 set_repo_annotation = None
 set_favorite_update_state = None
 export_user_state = None
-set_ai_insight = None
-delete_ai_insight = None
-list_ai_artifacts = None
 import_user_state = None
 load_discovery_state = None
 save_discovery_state = None
@@ -445,7 +442,7 @@ def build_runtime_context(*, rebuild: bool = False) -> RuntimeAppContext:
     global default_user_state, default_discovery_state, normalize_discovery_ranking_profile, discovery_query_id, normalize_discovery_query
     global normalize_repo, repo_from_url, normalize_watch_entry, normalize_favorite_update, normalize_discovery_state, normalize_user_state
     global load_user_state, save_user_state, set_repo_state_batch, set_repo_annotation, set_favorite_update_state
-    global export_user_state, set_ai_insight, delete_ai_insight, list_ai_artifacts, import_user_state, load_discovery_state, save_discovery_state
+    global export_user_state, import_user_state, load_discovery_state, save_discovery_state
     global export_discovery_state, save_discovery_view, delete_discovery_view, clear_discovery_results, apply_discovery_result, discovery_warning_list, empty_snapshot, load_snapshot
     global save_snapshot, state_counts, ordered_unique_urls, merge_favorite_updates
     global startup_dir, startup_launcher_path, startup_cmd_path, startup_launch_command, startup_launcher_script
@@ -586,9 +583,6 @@ def build_runtime_context(*, rebuild: bool = False) -> RuntimeAppContext:
     set_repo_annotation = state_runtime.set_repo_annotation
     set_favorite_update_state = state_runtime.set_favorite_update_state
     export_user_state = state_runtime.export_user_state
-    set_ai_insight = state_runtime.set_ai_insight
-    delete_ai_insight = state_runtime.delete_ai_insight
-    list_ai_artifacts = state_runtime.list_ai_artifacts
     import_user_state = state_runtime.import_user_state
     load_discovery_state = state_runtime.load_discovery_state
     save_discovery_state = state_runtime.save_discovery_state
@@ -987,9 +981,6 @@ def _build_runtime_services() -> None:
             set_repo_annotation=set_repo_annotation,
             set_favorite_update_state=set_favorite_update_state,
             export_user_state=export_user_state,
-            set_ai_insight=set_ai_insight,
-            delete_ai_insight=delete_ai_insight,
-            export_ai_artifacts=list_ai_artifacts,
             import_user_state=import_user_state,
             normalize_settings=normalize_settings,
             merge_settings=merge_settings,

@@ -20,7 +20,6 @@ PHASE_ONE_TABLES = (
     "discovery_views",
     "discovery_runs",
     "discovery_results",
-    "ai_artifacts",
     "settings_kv",
 )
 
@@ -162,21 +161,6 @@ def sqlite_schema_statements() -> list[str]:
         )
         """,
         """
-        create table if not exists ai_artifacts (
-            id text primary key,
-            repo_id integer not null,
-            artifact_type text not null default '',
-            schema_version text not null default '',
-            provider text not null default '',
-            model text not null default '',
-            input_hash text not null default '',
-            output_json text not null default '{}',
-            created_at text not null default '',
-            updated_at text not null default '',
-            foreign key (repo_id) references repos(id) on delete cascade
-        )
-        """,
-        """
         create table if not exists settings_kv (
             key text primary key,
             value_json text not null default 'null',
@@ -307,7 +291,6 @@ def dry_run_sqlite_migration(
     _collect_repo_urls_from_mapping(repo_urls, user.get("favorite_watch"))
     _collect_repo_urls_from_list(repo_urls, user.get("favorite_updates"))
     _collect_repo_urls_from_mapping(repo_urls, user.get("feedback_signals"))
-    _collect_repo_urls_from_mapping(repo_urls, user.get("ai_insights"))
     _collect_repo_urls_from_list(repo_urls, discovery.get("last_results"))
     _collect_snapshot_repo_urls(repo_urls, latest)
 
@@ -333,7 +316,6 @@ def dry_run_sqlite_migration(
         "feedback_signals": _safe_json_mapping_count(user.get("feedback_signals")),
         "discovery_views": _safe_json_list_count(discovery.get("saved_views")),
         "discovery_results": _safe_json_list_count(discovery.get("last_results")),
-        "ai_artifacts": _safe_json_mapping_count(user.get("ai_insights")),
         "settings_kv": len(settings_keys),
     }
 

@@ -44,10 +44,10 @@ class SQLiteMigrationSkeletonTests(unittest.TestCase):
                 "discovery_views",
                 "discovery_runs",
                 "discovery_results",
-                "ai_artifacts",
                 "settings_kv",
             }.issubset(tables)
         )
+        self.assertNotIn("ai_" + "artifacts", tables)
         update_columns = {row[1] for row in connection.execute("pragma table_info(update_events)")}
         for column in (
             "id",
@@ -105,8 +105,8 @@ class SQLiteMigrationSkeletonTests(unittest.TestCase):
                 "feedback_signals": {
                     "https://github.com/octo/b": {"reason": "只是 demo", "count": 1, "state": "ignored"}
                 },
-                "ai_insights": {
-                    "https://github.com/octo/a": {
+                "ai_" + "insights": {
+                    "https://github.com/octo/legacy": {
                         "schema_version": "gitsonar.repo_insight.v1",
                         "summary": "适合研究",
                     }
@@ -158,7 +158,7 @@ class SQLiteMigrationSkeletonTests(unittest.TestCase):
         self.assertEqual(result["counts"]["feedback_signals"], 1)
         self.assertEqual(result["counts"]["discovery_views"], 1)
         self.assertEqual(result["counts"]["discovery_results"], 1)
-        self.assertEqual(result["counts"]["ai_artifacts"], 1)
+        self.assertNotIn("ai_" + "artifacts", result["counts"])
         self.assertEqual(result["settings_keys"], ["refresh_hours", "result_limit"])
         self.assertIn("github_token", result["excluded_sensitive_settings"])
         self.assertIn("proxy_url", result["excluded_sensitive_settings"])
