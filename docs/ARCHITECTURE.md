@@ -13,7 +13,7 @@ Python Runtime
   -> Embedded HTML / CSS / JS
 ```
 
-仓库已经完成了多轮增量拆分，但还没有迁移到 React、FastAPI、SQLite 或内嵌 AI provider。任何后续迁移都应继续按计划文件小步推进。
+仓库已经完成了多轮增量拆分，但还没有把运行时迁移到 React、FastAPI、SQLite 或内嵌 AI provider。任何后续迁移都应继续按计划文件小步推进。前端现代化当前采用 `docs/plans/0040-frontend-modernization-roadmap.md` 中的局部试点路线：先建立 modern asset pipeline，再迁移诊断页、设置页等低风险区域，主工作台后置评估。
 AI provider 当前只有 opt-in 设计文档，还没有运行时代码、设置 UI、API Key 存储或模型调用。
 
 ## 当前运行链路
@@ -29,6 +29,27 @@ GitHub Trending HTML + GitHub REST API
               ->
    desktop browser / WebView shell
 ```
+
+## 现代前端试点架构（计划中）
+
+前端现代化目标不是替换当前桌面运行时，而是在现有 Python runtime 和本地 HTTP API 之上增加可选的构建产物：
+
+```text
+Python Runtime
+  -> Local HTTP API
+  -> Static HTML Shell
+  -> Built frontend assets
+  -> React islands / migrated React workspace
+  -> Desktop browser / WebView shell
+```
+
+计划中的边界：
+
+- `frontend/` 是开发源码目录，用于 Vite、TypeScript 和局部 React island。
+- `src/gitsonar/runtime_ui/modern_dist/` 是随仓库或发布产物提供的构建输出，不要求用户机器安装 Node。
+- `src/gitsonar/runtime_ui/modern_assets.py` 负责 allowlisted modern assets 的发现、复制和 manifest 读取。
+- `runtime-data/assets/modern/` 是开发态或运行态复制后的静态资源目录。
+- modern assets 缺失时，旧 Vanilla JS UI 必须继续可用，除非对应阶段计划明确写出受控错误和回滚路径。
 
 ## 当前目录结构
 
@@ -69,6 +90,8 @@ src/gitsonar/
     __init__.py
     template.py
     assets.py
+    modern_assets.py       # planned by GS-P2-008
+    modern_dist/           # planned built assets, committed or packaged
     css/
     js/
 ```
@@ -186,6 +209,8 @@ GitHub 数据层，按职责拆分：
 
 - `template.py`：HTML 模板和 payload 注入。
 - `assets.py`：按固定顺序拼接 CSS / JS。
+- `modern_assets.py`：计划中的 modern asset manifest / allowlist / runtime copy 边界，尚未实现。
+- `modern_dist/`：计划中的构建产物目录，用户运行时不依赖 Node。
 - `css/`：样式分片。
 - `js/`：行为分片。
 - `__init__.py`：对外只暴露 `build_html(...)`。
@@ -287,6 +312,7 @@ runtime/http.py + runtime/shell.py + runtime_github/ + runtime_ui/
 - 桌面壳仍偏浏览器 app mode，WebView2 native bridge 还不是主通道。
 - Discovery、refresh 和 favorite update check 已桥接到通用 Job / Event runtime，但前端仍主要使用原轮询和局部 API 状态。
 - AI 仍是 prompt handoff，不是手动 artifact 缓存或 provider pipeline；opt-in provider 目前只有设计文档，没有运行时执行入口。
+- React / Vite 当前只是计划中的局部试点路线；在 `GS-P2-008` 完成前，仓库仍没有前端构建链或 modern asset 静态资源路由。
 
 ## 运行时数据
 

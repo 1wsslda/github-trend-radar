@@ -141,6 +141,24 @@ class RuntimeUILayoutSmokeTests(unittest.TestCase):
             with self.subTest(js=token):
                 self.assertIn(token, JS)
 
+    def test_display_time_helper_is_used_at_ui_display_and_export_boundaries(self):
+        for token in (
+            "function formatDisplayTime(value){",
+            "formatDisplayTime(new Date(timestamp * 1000))",
+            "formatDisplayTime(update.pushed_at) ||",
+            "formatDisplayTime(update.checked_at) ||",
+            "formatDisplayTime(detail.pushed_at) ||",
+            "formatDisplayTime(detail.updated_at) ||",
+            "formatDisplayTime(diagnostics.generated_at) ||",
+            "formatDisplayTime(new Date())",
+            "formatDisplayTime(target.pushed_at || repo.pushed_at)",
+        ):
+            with self.subTest(token=token):
+                self.assertIn(token, JS)
+
+        self.assertNotIn('new Date(timestamp * 1000).toLocaleString("zh-CN"', JS)
+        self.assertNotIn("new Date().toISOString()", JS)
+
     def test_discovery_polling_uses_stable_preview_signatures_and_live_status_hooks(self):
         for token in (
             "function discoveryResultSignature(results){",
@@ -269,6 +287,36 @@ class RuntimeUILayoutSmokeTests(unittest.TestCase):
         self.assertNotIn("animation: card-enter", CSS)
         self.assertIn("@keyframes card-selection-sheen", CSS)
         self.assertIn("animation:card-selection-sheen", CSS)
+
+    def test_runtime_ui_visual_polish_tokens_and_card_mount_contract_are_present(self):
+        for token in (
+            "--muted:#a89b84;",
+            "--muted-soft:#8f826d;",
+            "--shadow-soft:",
+            "--shadow:",
+            "--shadow-lift:",
+            "--lh-tight:1.2;",
+            "--lh-heading:1.08;",
+            "--lh-base:1.5;",
+            "--lh-copy:1.62;",
+            "--lh-relaxed:1.7;",
+        ):
+            with self.subTest(token=token):
+                self.assertIn(token, CSS)
+
+        for shadow_token in ("--shadow-soft:", "--shadow:", "--shadow-lift:"):
+            with self.subTest(shadow_token=shadow_token):
+                declaration = CSS.split(shadow_token, 1)[1].split(";", 1)[0]
+                self.assertIn(",", declaration)
+
+        self.assertIn("animation-delay:var(--mount-delay,0ms);", CSS)
+        self.assertNotIn(".card:nth-child(n+7)", CSS)
+        self.assertNotIn(".update-card:nth-child(n+7)", CSS)
+
+        selected_block = CSS.split(".card.selected,", 1)[1].split(".card-head", 1)[0]
+        self.assertIn("0 0 0 1px rgba(233,201,143,.22) inset", selected_block)
+        self.assertIn("box-shadow:var(--shadow-soft),", selected_block)
+        self.assertNotIn("0 24px 44px rgba(0,0,0,.32)", selected_block)
 
     def test_back_to_top_button_contract_replaces_runtime_nav_offset_contract(self):
         html = build_fixture_html()

@@ -27,6 +27,13 @@ CSS = r""".page{
   align-content:center;
   min-width:0;
 }
+.workspace-tagline{
+  margin:4px 0 0;
+  color:var(--muted);
+  font-size:.78rem;
+  letter-spacing:.08em;
+  line-height:var(--lh-base);
+}
 .workspace-title{
   margin:0;
   font-size:clamp(1.72rem,3.2vw,2.7rem);
@@ -47,10 +54,11 @@ CSS = r""".page{
   padding:12px 14px;
   border-radius:18px;
   background:rgba(13,11,9,.5);
+  border-top:2px solid rgba(233,201,143,.18);
 }
 .runtime-note{
   font-size:.9rem;
-  line-height:1.45;
+  line-height:var(--lh-base);
 }
 .workspace-nav,
 .workspace-bar{
@@ -164,15 +172,20 @@ CSS = r""".page{
   color:var(--text);
   font-size:clamp(1.02rem,1.45vw,1.24rem);
   font-weight:680;
-  line-height:1.05;
+  line-height:var(--lh-heading);
   white-space:nowrap;
 }
 .workspace-primary-count{
   color:color-mix(in srgb, var(--muted) 74%, var(--accent) 26%);
   font-family:var(--font-mono);
   font-size:.68rem;
-  line-height:1;
+  line-height:var(--lh-tight);
   opacity:.72;
+  transition:opacity .2s var(--ease-smooth),color .2s var(--ease-smooth);
+}
+.workspace-primary-link:hover .workspace-primary-count{
+  opacity:1;
+  color:var(--accent);
 }
 .nav-menu-panel{
   min-width:220px;
@@ -275,7 +288,7 @@ CSS = r""".page{
 .workspace-summary-line{
   color:var(--text-soft);
   font-size:.84rem;
-  line-height:1.25;
+  line-height:var(--lh-tight);
   white-space:nowrap;
 }
 .workspace-summary-line .metric-number{
@@ -285,7 +298,7 @@ CSS = r""".page{
   max-width:18ch;
   color:var(--muted);
   font-size:.76rem;
-  line-height:1.2;
+  line-height:var(--lh-tight);
   white-space:nowrap;
   overflow:hidden;
   text-overflow:ellipsis;
@@ -306,7 +319,7 @@ CSS = r""".page{
   border:1px solid rgba(232,214,184,.1);
   border-radius:20px;
   background:rgba(17,14,11,.56);
-  box-shadow:var(--shadow-soft);
+  box-shadow:var(--shadow);
 }
 .workspace-drawer-head{
   display:grid;
@@ -317,7 +330,7 @@ CSS = r""".page{
 .workspace-drawer-title{
   margin:0 0 6px;
   font-size:1.08rem;
-  line-height:1.06;
+  line-height:var(--lh-heading);
   letter-spacing:-.02em;
   font-weight:650;
 }
@@ -352,7 +365,7 @@ CSS = r""".page{
   min-height:26px;
   padding:0 10px;
   border-radius:999px;
-  border:1px solid rgba(232,214,184,.1);
+  border:1px solid transparent;
   background:rgba(15,13,10,.38);
   color:var(--text-soft);
   font-size:.8rem;
@@ -384,7 +397,7 @@ CSS = r""".page{
 }
 .workspace-empty-title{
   font-size:clamp(1.18rem,2vw,1.58rem);
-  line-height:1.1;
+  line-height:var(--lh-tight);
   letter-spacing:-.03em;
   font-weight:650;
 }
@@ -392,7 +405,7 @@ CSS = r""".page{
   max-width:72ch;
   color:var(--text-soft);
   font-size:.92rem;
-  line-height:1.64;
+  line-height:var(--lh-copy);
 }
 .workspace-empty-copy strong{
   color:var(--text);
@@ -418,12 +431,12 @@ CSS = r""".page{
 }
 .drawer-note{
   padding:14px 16px;
-  border:1px solid rgba(232,214,184,.1);
+  border:1px solid transparent;
   border-radius:16px;
   background:rgba(13,11,9,.34);
   color:var(--text-soft);
   font-size:.88rem;
-  line-height:1.62;
+  line-height:var(--lh-copy);
 }
 .discover-chip{
   min-width:0;
@@ -526,7 +539,7 @@ CSS = r""".page{
 .title{
   margin:2px 0 0;
   font-size:1rem;
-  line-height:1.26;
+  line-height:var(--lh-tight);
   display:-webkit-box;
   -webkit-line-clamp:2;
   -webkit-box-orient:vertical;
@@ -534,7 +547,7 @@ CSS = r""".page{
 }
 .desc{
   font-size:.87rem;
-  line-height:1.58;
+  line-height:var(--lh-copy);
   -webkit-line-clamp:3;
 }
 .meta-rank{
@@ -550,4 +563,69 @@ CSS = r""".page{
 .panel-body{
   gap:16px;
   padding:18px 20px 28px;
-}"""
+}
+.panel-close-btn{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  flex-shrink:0;
+  width:44px;
+  height:44px;
+  padding:0;
+  border-radius:12px;
+  border:1px solid transparent;
+  background:rgba(17,15,12,.38);
+  color:var(--muted);
+  cursor:pointer;
+  transition:
+    background .25s var(--ease-smooth),
+    border-color .25s var(--ease-smooth),
+    color .25s var(--ease-smooth),
+    transform .25s var(--ease-smooth);
+}
+.panel-close-btn:hover{
+  border-color:rgba(233,201,143,.18);
+  background:rgba(24,21,17,.56);
+  color:var(--text-soft);
+  transform:rotate(90deg);
+}
+.panel-close-btn svg{
+  display:block;
+  width:16px;
+  height:16px;
+}
+@media (forced-colors:active){
+  .workspace-header,
+  .workspace-content-shell,
+  .workspace-drawer,
+  .card,
+  .update-card,
+  .compare-card,
+  .panel,
+  .batch-dock,
+  .badge,
+  .state-chip,
+  .topic,
+  .reason-pill,
+  .meta-pill,
+  .repo-tag-chip,
+  .summary-strip-item,
+  .discover-chip,
+  .discover-meta-card,
+  .discover-cluster-node,
+  .discover-progress-strip,
+  .discover-feedback-card,
+  .discover-results-toolbar,
+  .discover-selection-bar,
+  .action-quiet,
+  .field-input,
+  .panel-close-btn,
+  .checkline{
+    border:1px solid ButtonText;
+  }
+  .card.selected,
+  .update-card.selected{
+    box-shadow:0 0 0 1px Highlight inset;
+  }
+}
+"""

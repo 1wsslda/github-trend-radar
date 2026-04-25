@@ -211,7 +211,8 @@ function refreshSelectionUI(){
 function renderRepoCards(repos, isChunk = false){
   if(!repos.length) return (isChunk ? "" : `<div class="empty">${emptyIcon}<span>当前面板没有匹配结果。</span></div>`);
   const urlArray = [...selectedUrls];
-  return repos.map(repo => {
+  return repos.map((repo, index) => {
+    const mountDelay = Math.min(index, 14) * 32;
     const selectedIdx = urlArray.indexOf(repo.url);
     const selected = selectedIdx !== -1;
     const descriptionText = repo.description || repo.description_raw || "暂无描述";
@@ -237,7 +238,7 @@ function renderRepoCards(repos, isChunk = false){
       metricPillMarkup("派生", `<span class="metric-number">${repo.forks || 0}</span>`),
       metricPillMarkup("语言", h(repo.language || "未知语言")),
     ].join("");
-    return `<article class="card selectable ${selected ? "selected" : ""}" data-select-url="${h(repo.url)}" tabindex="0">
+    return `<article class="card selectable ${selected ? "selected" : ""}" style="--mount-delay:${mountDelay}ms" data-select-url="${h(repo.url)}" tabindex="0">
       <div class="card-head">
         <div class="card-title-wrap">
           <div class="card-meta-row">
@@ -274,7 +275,8 @@ function renderRepoCards(repos, isChunk = false){
 function renderUpdateCards(items, isChunk = false){
   if(!items.length) return (isChunk ? "" : `<div class="empty">${emptyIcon}<span>收藏仓库最近还没有检测到新的变化。</span></div>`);
   const urlArray = [...selectedUrls];
-  return items.map(update => {
+  return items.map((update, index) => {
+    const mountDelay = Math.min(index, 14) * 32;
     const selectedIdx = urlArray.indexOf(update.url);
     const selected = selectedIdx !== -1;
     const changeBadges = (update.changes || []).map(change => `<span class="badge gain">${h(change)}</span>`).join("");
@@ -282,15 +284,17 @@ function renderUpdateCards(items, isChunk = false){
     const repo = repoByUrl(update.url) || synthesizeRepoFromUpdate(update);
     const isNewSinceRead = isUpdateNewSinceLastRead(update);
     const inboxBadgeMarkup = `${update.pinned ? '<span class="badge gain">置顶</span>' : ""}${String(update.read_at || "").trim() ? '<span class="badge source">已读</span>' : '<span class="badge gain">未读</span>'}${isNewSinceRead ? '<span class="badge gain">自上次查看以来</span>' : ""}`;
+    const pushedAt = formatDisplayTime(update.pushed_at) || "未知";
+    const checkedAt = formatDisplayTime(update.checked_at) || "最近检查时间未知";
     const importanceMarkup = update.importance_reason
       ? `<div class="reason-strip"><span class="reason-pill"><strong>重要性</strong> ${h(update.importance_reason)}</span></div>`
       : "";
     const metricMarkup = [
       metricPillMarkup("星标", `<span class="metric-number">${update.stars || 0}</span>`),
       metricPillMarkup("派生", `<span class="metric-number">${update.forks || 0}</span>`),
-      metricPillMarkup("最近推送", h(update.pushed_at || "未知")),
+      metricPillMarkup("最近推送", h(pushedAt)),
     ].join("");
-    return `<article class="update-card selectable ${selected ? "selected" : ""}" data-select-url="${h(update.url)}" tabindex="0">
+    return `<article class="update-card selectable ${selected ? "selected" : ""}" style="--mount-delay:${mountDelay}ms" data-select-url="${h(update.url)}" tabindex="0">
       <div class="card-head">
         <div class="card-title-wrap">
           <div class="card-meta-row">
@@ -304,7 +308,7 @@ function renderUpdateCards(items, isChunk = false){
           </div>
           <div class="card-topline">
             <a class="title" href="${h(update.url)}" target="_blank" rel="noopener" data-external-url="${h(update.url)}">${h(update.full_name)}</a>
-            <div class="meta-rank">${h(update.checked_at || "最近检查时间未知")}</div>
+            <div class="meta-rank">${h(checkedAt)}</div>
           </div>
         </div>
       </div>

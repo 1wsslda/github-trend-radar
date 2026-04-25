@@ -59,6 +59,8 @@ GitSonar 下一阶段最重要的目标不是“做更多 GitHub 榜单”，也
 | **PyInstaller 误报缓解 / 代码签名** | 中 | 发布阶段重要，但不是产品主线 |
 | **Gist 同步** | 低到中 | 只能做加密备份，不应把 secret gist 当真正私有存储 |
 
+截至 2026-04-25，React / Vite 的判断已经从“当前不启动完整重写”细化为“按阶段启动局部现代化路线”。具体路线记录在 `docs/plans/0040-frontend-modernization-roadmap.md`：先建立 modern asset pipeline，再用诊断页和设置页验证 React island，之后才评估详情抽屉、发现页和主工作台迁移。这个路线不改变 Windows-first、本地优先和无 Node 运行时依赖原则。
+
 ---
 
 ### 1.2 Gemini 内容里需要修正的地方
@@ -293,7 +295,7 @@ AI 建议
 | 阶段 | 目标 | 核心成果 | 不做什么 |
 |---|---|---|---|
 | **Phase 1** | 产品闭环增强 | 标签、笔记、保存发现视角、Update Inbox、诊断中心 | 不重写前端 |
-| **Phase 2** | 数据和 API 稳定 | 静态壳 + JSON API、SQLite、Job/Event 模型、SSE | 不急着上 React |
+| **Phase 2** | 数据和 API 稳定 | 静态壳 + JSON API、SQLite、Job/Event 模型、SSE、局部 React/Vite 试点路线 | 不做一次性 React 大重写 |
 | **Phase 3** | AI 内嵌 | Repo Insight、批量归类、更新摘要、AI Artifact | 不做复杂 Agent |
 | **Phase 4** | 语义发现 | 聚类分组、相似仓库、仓库地图、反馈学习 | 不先做 3D 炫技 |
 | **Phase 5** | 发布和同步 | 加密备份、多设备同步、代码签名、安装体验 | 不做中心化账号系统 |

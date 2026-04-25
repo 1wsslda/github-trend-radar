@@ -55,7 +55,7 @@ CSS = r""".tabs{
   background:transparent;
   color:var(--text-soft);
   cursor:pointer;
-  font-weight:560;
+  font-weight:500;
   transition:background .25s var(--ease-smooth),color .25s var(--ease-smooth),transform .25s var(--ease-smooth);
 }
 .tab:hover{
@@ -72,19 +72,27 @@ CSS = r""".tabs{
   font-size:.82rem;
 }
 
+@keyframes empty-enter{
+  from{opacity:0;transform:translateY(12px)}
+  to{opacity:1;transform:translateY(0)}
+}
+@keyframes card-mount{
+  from{opacity:0;transform:translateY(10px)}
+  to{opacity:1;transform:translateY(0)}
+}
 .empty{
   grid-column:1/-1;
   display:flex;
   flex-direction:column;
   align-items:center;
   justify-content:center;
-  gap:0;
+  gap:16px;
   min-height:300px;
   color:var(--muted);
   font-size:1.05rem;
   letter-spacing:0.02em;
+  animation:empty-enter .5s var(--ease-smooth) both;
 }
-.empty span { margin-top: -30px; opacity: 0.8; }
 .cards{
   display:grid;
   grid-template-columns:repeat(3,minmax(0,1fr));
@@ -104,6 +112,8 @@ CSS = r""".tabs{
   border:1px solid rgba(232,214,184,.1);
   background:linear-gradient(180deg, rgba(29,26,21,.95), rgba(21,19,15,.98));
   box-shadow:var(--shadow-soft);
+  animation:card-mount .38s var(--ease-smooth) both;
+  animation-delay:var(--mount-delay,0ms);
   transition:
     border-color .28s var(--ease-smooth),
     transform .25s var(--ease-smooth),
@@ -133,9 +143,9 @@ CSS = r""".tabs{
   background:linear-gradient(
     112deg,
     rgba(233,201,143,0) 24%,
-    rgba(241,216,170,.08) 42%,
-    rgba(241,216,170,.42) 50%,
-    rgba(233,201,143,.12) 58%,
+    rgba(241,216,170,.05) 42%,
+    rgba(241,216,170,.22) 50%,
+    rgba(233,201,143,.08) 58%,
     rgba(233,201,143,0) 76%
   );
   opacity:0;
@@ -149,10 +159,10 @@ CSS = r""".tabs{
     transform:translate3d(0, 0, 0) skewX(-18deg);
   }
   18%{
-    opacity:.16;
+    opacity:.1;
   }
   44%{
-    opacity:.52;
+    opacity:.28;
   }
   100%{
     opacity:0;
@@ -165,14 +175,14 @@ CSS = r""".tabs{
 }
 .card.selectable:focus-visible,
 .update-card.selectable:focus-visible{
-  outline:none;
-  box-shadow:0 0 0 3px rgba(227,198,145,.16);
+  outline:2px solid transparent;
+  box-shadow:0 0 0 3px rgba(227,198,145,.36);
 }
 .card.selectable:hover,
 .update-card.selectable:hover{
   transform:translateY(-2px);
   border-color:rgba(246,222,174,.18);
-  box-shadow:0 18px 36px rgba(0,0,0,.22);
+  box-shadow:var(--shadow-soft);
 }
 .card.selectable:active,
 .update-card.selectable:active{
@@ -182,13 +192,11 @@ CSS = r""".tabs{
 .card.selected,
 .update-card.selected{
   background:
-    radial-gradient(ellipse at top right, rgba(233,201,143,.14), transparent 62%),
+    radial-gradient(ellipse at top right, rgba(233,201,143,.08), transparent 62%),
     linear-gradient(180deg, rgba(39,31,20,.97), rgba(21,19,15,.98));
-  border-color:rgba(233,201,143,.42);
-  box-shadow:
-    0 0 0 1px rgba(233,201,143,.18) inset,
-    0 14px 34px rgba(66,48,19,.14),
-    0 24px 44px rgba(0,0,0,.32);
+  border-color:rgba(233,201,143,.26);
+  box-shadow:var(--shadow-soft),
+    0 0 0 1px rgba(233,201,143,.22) inset;
 }
 .card-head{
   display:flex;
@@ -242,7 +250,7 @@ CSS = r""".tabs{
   min-height:34px;
   padding:0 12px;
   border-radius:999px;
-  border:1px solid rgba(232,214,184,.1);
+  border:1px solid transparent;
   background:rgba(15,13,10,.3);
   color:var(--muted);
   cursor:pointer;
@@ -271,7 +279,7 @@ CSS = r""".tabs{
   min-height:24px;
   padding:0 8px;
   border-radius:999px;
-  border:1px solid rgba(232,214,184,.12);
+  border:1px solid transparent;
   background:rgba(13,11,8,.48);
   color:var(--muted);
   font-size:.72rem;
@@ -280,12 +288,12 @@ CSS = r""".tabs{
 }
 .badge.gain{
   color:var(--green);
-  border-color:rgba(127,208,160,.18);
+  border-color:transparent;
   background:rgba(127,208,160,.07);
 }
 .badge.source{
   color:var(--amber);
-  border-color:rgba(216,175,103,.18);
+  border-color:transparent;
   background:rgba(216,175,103,.06);
 }
 @keyframes badge-selection-enter {
@@ -309,9 +317,9 @@ CSS = r""".tabs{
   margin:6px 0 0;
   color:var(--text);
   font-size:1.12rem;
-  line-height:1.28;
+  line-height:var(--lh-tight);
   letter-spacing:-.02em;
-  font-weight:650;
+  font-weight:700;
   overflow-wrap:anywhere;
   word-break:normal;
   transition:color .25s var(--ease-smooth);
@@ -323,17 +331,16 @@ CSS = r""".tabs{
 }
 .desc-wrap{
   min-width:0;
-  --desc-lines:4;
-  --desc-line-height:1.68;
+  --desc-lines:3;
+  --desc-line-height:var(--lh-copy);
 }
 .desc{
   margin:0;
   color:var(--text-soft);
   font-size:.91rem;
   line-height:var(--desc-line-height);
-  min-height:calc(1em * var(--desc-line-height) * var(--desc-lines));
   display:-webkit-box;
-  -webkit-line-clamp:4;
+  -webkit-line-clamp:3;
   -webkit-box-orient:vertical;
   overflow:hidden;
 }
@@ -355,7 +362,7 @@ CSS = r""".tabs{
   min-height:32px;
   padding:0 10px;
   border-radius:999px;
-  border:1px solid rgba(232,214,184,.1);
+  border:1px solid transparent;
   background:rgba(14,12,10,.54);
   font-size:.82rem;
   color:var(--text-soft);
@@ -367,11 +374,13 @@ CSS = r""".tabs{
   text-transform:uppercase;
 }
 .empty-icon{
-  width:48px;
-  height:48px;
-  opacity:.42;
+  width:72px;
+  height:72px;
+  opacity:.36;
   color:var(--muted);
+  filter:drop-shadow(0 0 18px currentColor);
 }
+
 .notice{
   padding:16px 18px;
   border-radius:18px;
@@ -379,5 +388,5 @@ CSS = r""".tabs{
   background:rgba(18,16,13,.84);
   color:var(--text-soft);
   font-size:.9rem;
-  line-height:1.72;
+  line-height:var(--lh-relaxed);
 }"""

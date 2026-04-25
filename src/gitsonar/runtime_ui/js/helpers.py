@@ -11,6 +11,30 @@ JS = r"""function h(value){
   });
 }
 
+function formatDisplayTime(value){
+  function pad2(part){
+    return String(part).padStart(2, "0");
+  }
+  function formatLocalDate(date){
+    return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())} ${pad2(date.getHours())}:${pad2(date.getMinutes())}:${pad2(date.getSeconds())}`;
+  }
+  if(value === null || value === undefined) return "";
+  if(value instanceof Date){
+    return Number.isNaN(value.getTime()) ? String(value) : formatLocalDate(value);
+  }
+  const text = String(value).trim();
+  if(!text) return "";
+  const localMatch = /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2}):(\d{2})(?:\.\d+)?$/.exec(text);
+  if(localMatch){
+    return `${localMatch[1]}-${localMatch[2]}-${localMatch[3]} ${localMatch[4]}:${localMatch[5]}:${localMatch[6]}`;
+  }
+  if(/(?:Z|[+-]\d{2}:?\d{2})$/i.test(text)){
+    const parsed = new Date(text);
+    if(!Number.isNaN(parsed.getTime())) return formatLocalDate(parsed);
+  }
+  return text;
+}
+
 function sleep(ms){
   return new Promise(resolve => setTimeout(resolve, ms));
 }

@@ -21,6 +21,7 @@ HTML_BODY = """</style>
   <header class="workspace-header">
     <div class="workspace-brand">
       <h1 class="workspace-title">__APP_NAME__</h1>
+      <p class="workspace-tagline">GitHub 趋势 · 智能集成</p>
     </div>
     <div class="workspace-status">
       <div class="status-card">
@@ -288,7 +289,7 @@ HTML_BODY = """</style>
         <div class="panel-title">设置</div>
         <div class="sub">配置 GitHub Token、代理、刷新频率与条目上限。主窗口关闭会直接退出程序。</div>
       </div>
-      <button class="action-quiet" type="button" onclick="closeSettings()">关闭</button>
+      <button class="action-quiet icon-btn" type="button" onclick="closeSettings()" title="关闭"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
     </div>
     <div class="panel-body settings-grid">
       <div class="settings-form">
@@ -389,7 +390,7 @@ HTML_BODY = """</style>
         <div class="panel-title">仓库详情</div>
         <div class="sub" id="detail-title">加载中...</div>
       </div>
-      <button class="action-quiet" type="button" onclick="closeDetail()">关闭</button>
+      <button class="action-quiet icon-btn" type="button" onclick="closeDetail()" title="关闭"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
     </div>
     <div class="panel-body" id="detail-body"></div>
   </div>
@@ -402,7 +403,7 @@ HTML_BODY = """</style>
         <div class="panel-title">仓库对比</div>
         <div class="sub">把两个仓库按同一组维度并排展开，便于判断该先学谁、借鉴谁，以及如何融合成自己的版本。</div>
       </div>
-      <button class="action-quiet" type="button" onclick="closeCompare()">关闭</button>
+      <button class="action-quiet icon-btn" type="button" onclick="closeCompare()" title="关闭"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
     </div>
     <div class="panel-body" id="compare-body"></div>
   </div>

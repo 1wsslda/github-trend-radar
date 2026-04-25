@@ -16,6 +16,38 @@ Codex 选择当前 Auto Top 5 Batch 时，应按以下顺序判断：
 5. 保持本地优先与 Windows 桌面工作流的优先
 6. 不需要大重写的优先
 
+## Runtime UI visual polish 批次 - 2026-04-25
+
+Selected tasks:
+
+| Rank | Task ID | Status | Task | Plan | Branch | Commit / PR | Notes |
+|---:|---|---:|---|---|---|---|---|
+| 1 | `GS-P2-015` | `[x]` | Runtime UI visual polish | `docs/plans/0041-runtime-ui-visual-polish.md` | `codex/runtime-control-compat` | `-` | 已完成；按用户指定插入到 `GS-P2-008` 之前。只修改当前 `runtime_ui` CSS/JS 和测试，新增视觉 token、柔化 selected state、降低次级边框噪声，并用 `--mount-delay` 替代旧 `nth-child` 卡片挂载延迟。推荐 commit message：`style(ui): polish runtime visual system`。 |
+
+Skipped or blocked tasks:
+
+| Task | Reason |
+|---|---|
+| `GS-P2-008` Modern asset pipeline | 仍是下一项前端现代化可执行任务；本批只做 Vanilla runtime UI polish，不引入 React / Vite / Node runtime。 |
+| `GS-P2-009` ~ `GS-P2-014` | 必须等待 `GS-P2-008` 完成并有验证记录，不能跳过前序现代化阶段。 |
+| API / storage / AI / sync changes | 本批明确不改变 HTTP API、JSON state、schema、storage、Python runtime contract、AI provider、云 API 或同步边界。 |
+
+## 前端现代化总路线与文档同步批次 - 2026-04-25
+
+Selected tasks:
+
+| Rank | Task ID | Status | Task | Plan | Branch | Commit / PR | Notes |
+|---:|---|---:|---|---|---|---|---|
+| 1 | `GS-P2-007` | `[x]` | 前端现代化总路线与文档同步 | `docs/plans/0040-frontend-modernization-roadmap.md` | `codex/runtime-control-compat` | `-` | 已完成；将 React/Vite 从“当前不启动完整重写”更新为局部试点路线，并新增 `GS-P2-008` ~ `GS-P2-014` 阶段任务。推荐 commit message：`docs(frontend): add staged modernization roadmap`。 |
+
+Skipped or blocked tasks:
+
+| Task | Reason |
+|---|---|
+| `GS-P2-008` Modern asset pipeline | 后续实现任务，已放入下一轮候选；开始前必须创建或更新任务级计划。 |
+| `GS-P2-009` ~ `GS-P2-014` | 必须等待前序阶段完成并有验证记录，不能为了凑批次直接迁移 React 页面或主工作台。 |
+| 完整 React 大重写 | 本路线只允许局部试点和 feature flag 切换，不允许一次性替换主工作台。 |
+
 ## 详情抽屉 README 滚动卡顿修复批次 - 2026-04-25
 
 Selected tasks:
@@ -117,11 +149,20 @@ Skipped or blocked tasks:
 
 | 排名 | 任务 ID | 状态 | 任务 | Plan | Branch | Commit / PR | 备注 |
 |---:|---|---:|---|---|---|---|---|
-| 1 | `GS-P1-013` | `[x]` | 只读 API control-token 收紧评估与兼容迁移 | `docs/plans/0031-read-api-control-token-compat.md` | `codex/runtime-control-compat` | `fix(security): require control token for read APIs` | 已完成；无 token 直接读取返回 `403 invalid_control_token`，主界面请求继续携带 control header。 |
-| 2 | `GS-P1-014` | `[x]` | 刷新 / 发现 / 更新检查接入统一 Job/Event/SSE | `docs/plans/0032-unify-refresh-discovery-update-jobs.md` | `codex/runtime-control-compat` | `feat(runtime): bridge refresh and discovery to job events` | 已完成；focused 测试通过，现有 discovery job API 和 UI 轮询路径保持兼容。 |
-| 3 | `GS-P1-015` | `[x]` | Update Inbox 增强：自上次查看以来、摘要、重要性解释 | `docs/plans/0033-update-inbox-enhancements.md` | `codex/runtime-control-compat` | `feat(updates): add inbox summaries and importance reasons` | 已完成；基于现有 read/pin/dismiss/priority MVP 补充本地摘要、重要性解释和自上次查看以来提示。 |
-| 4 | `GS-P1-016` | `[x]` | SQLite 迁移第一阶段：JSON 导入 / 导出兼容与回滚骨架 | `docs/plans/0034-sqlite-migration-phase-1.md` | `codex/runtime-control-compat` | `feat(storage): add sqlite migration dry-run skeleton` | 已完成；新增迁移骨架和兼容验证，不默认切换事实存储。 |
-| 5 | `GS-P1-017` | `[x]` | AI provider opt-in 设计与 OpenAI-compatible pipeline | `docs/plans/0035-ai-provider-opt-in-design.md` | `codex/runtime-control-compat` | `docs(ai): design opt-in provider pipeline` | 已完成；已设计 provider、隐私预览、artifact 可追溯和手动启用边界，未调用云端。 |
+| 1 | `GS-P2-008` | `[ ]` | Modern asset pipeline | `docs/plans/0040-frontend-modernization-roadmap.md` | `-` | `-` | `GS-P2-015` 已插入并完成；下一项仍是 Modern asset pipeline。建立 Vite 构建、allowlisted modern assets、runtime copy 和缺失 fallback。开始前需创建或更新任务级计划。 |
+
+## 后续前端现代化顺序队列
+
+这些任务不是当前下一批可直接执行任务；只有前序任务完成并写入验证记录后，才进入 Selected tasks。
+
+| 顺序 | 任务 ID | 状态 | 任务 | 前置条件 | 备注 |
+|---:|---|---:|---|---|---|
+| 2 | `GS-P2-009` | `[ ]` | React 诊断页试点 | `GS-P2-008` 完成 | 先迁移诊断弹层，保留 Vanilla fallback。 |
+| 3 | `GS-P2-010` | `[ ]` | React 设置页试点 | `GS-P2-009` 完成 | 验证敏感字段、保存流程和 DPAPI 边界。 |
+| 4 | `GS-P2-011` | `[ ]` | 静态壳与 bootstrap 收敛 | 诊断和设置试点稳定 | 减少 HTML 大 payload，保留旧 `INITIAL` fallback。 |
+| 5 | `GS-P2-012` | `[ ]` | 详情抽屉迁移 | `GS-P2-011` 完成 | 不丢失标签 / 笔记编辑体验优化能力。 |
+| 6 | `GS-P2-013` | `[ ]` | 发现页迁移 | `GS-P2-012` 稳定 | 初期继续轮询，不强制切 SSE。 |
+| 7 | `GS-P2-014` | `[ ]` | 主工作台迁移评估与切换 | 前序 islands 稳定 + 浏览器级 smoke test | 必须用 feature flag 保留 legacy workspace。 |
 
 ## 已完成或阻塞的上一轮候选
 
@@ -138,7 +179,9 @@ Skipped or blocked tasks:
 | `GS-P2-003` | `[!]` | 阻塞：同步目标、密钥管理、冲突策略和显式 opt-in 决策未定。 |
 | `GS-P2-004` | `[x]` | 已新增本地 SHA256 release manifest。 |
 | `GS-P2-005` | `[!]` | 阻塞：证书、私钥保管、密码注入和时间戳服务决策未定。 |
-| `GS-P2-006` | `[x]` | 已完成前端现代化评估，当前不启动 React / Vite 重写。 |
+| `GS-P2-006` | `[x]` | 历史评估已完成；当时结论是不启动完整 React / Vite 重写，已由 `GS-P2-007` 细化为局部试点路线。 |
+| `GS-P2-007` | `[x]` | 已完成前端现代化总路线与文档同步，新增 `GS-P2-008` ~ `GS-P2-014` 阶段任务。 |
+| `GS-P2-015` | `[x]` | 已完成 Runtime UI visual polish；作为 `GS-P2-008` 前的纯 `runtime_ui` 视觉收敛任务，不改变 API、存储或现代化构建链。 |
 | `GS-P1-008` | `[x]` | discovery job 失败已安全化。 |
 | `GS-P1-009` | `[x]` | JSON body size limit 已完成。 |
 | `GS-P1-010` | `[x]` | `/api/repo-details` 已保护。 |

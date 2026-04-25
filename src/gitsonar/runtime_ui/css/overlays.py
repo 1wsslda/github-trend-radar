@@ -11,10 +11,13 @@ CSS = r""".toast{
   border:1px solid rgba(233,201,143,.18);
   background:rgba(20,17,13,.96);
   color:var(--text);
-  box-shadow:var(--shadow);
+  box-shadow:var(--shadow-lift);
   opacity:0;
   transform:translateY(16px);
-  transition:opacity .3s var(--ease-smooth),transform .3s var(--ease-smooth);
+  transition:
+    opacity .3s var(--ease-smooth),
+    transform .3s var(--ease-smooth),
+    bottom .25s var(--ease-smooth);
   pointer-events:none;
   z-index:70;
 }
@@ -38,7 +41,7 @@ CSS = r""".toast{
   border-radius:999px;
   background:rgba(20,17,13,.92);
   color:var(--text);
-  box-shadow:0 18px 36px rgba(0,0,0,.28);
+  box-shadow:var(--shadow);
   opacity:0;
   visibility:hidden;
   pointer-events:none;
@@ -81,9 +84,10 @@ body.has-batch-dock .workspace-back-to-top{
   padding:12px 14px;
   border:1px solid rgba(232,214,184,.14);
   border-radius:22px;
-  background:rgba(17,15,12,.74);
+  background:rgba(28,24,18,.88);
   backdrop-filter:blur(14px);
-  box-shadow:0 20px 44px rgba(0,0,0,.34);
+  border-top:1px solid rgba(233,201,143,.22);
+  box-shadow:var(--shadow-lift);
   opacity:0;
   visibility:hidden;
   transform:translate(-50%,18px);
@@ -125,12 +129,12 @@ body.has-batch-dock .workspace-back-to-top{
   font-size:10px;
   letter-spacing:.14em;
   text-transform:uppercase;
-  line-height:1;
+  line-height:var(--lh-tight);
 }
 .batch-dock-value{
   color:var(--text);
   font-size:.94rem;
-  line-height:1.2;
+  line-height:var(--lh-tight);
 }
 
 .overlay{
@@ -155,7 +159,7 @@ body.has-batch-dock .workspace-back-to-top{
   width:min(620px,100vw);
   background:linear-gradient(180deg, rgba(21,18,14,.98), rgba(15,13,10,1));
   border-left:1px solid rgba(232,214,184,.12);
-  box-shadow:-24px 0 52px rgba(0,0,0,.32);
+  box-shadow:var(--shadow-lift);
   display:flex;
   flex-direction:column;
   transform:translateX(100%);
@@ -180,7 +184,7 @@ body.has-batch-dock .workspace-back-to-top{
 .panel-title{
   margin:0 0 8px;
   font-size:1.5rem;
-  line-height:1.08;
+  line-height:var(--lh-heading);
   letter-spacing:-.03em;
   font-weight:650;
 }
@@ -235,12 +239,12 @@ body.has-batch-dock .workspace-back-to-top{
 .switch-title{
   font-size:.98rem;
   font-weight:620;
-  line-height:1.3;
+  line-height:var(--lh-base);
 }
 .switch-desc{
   color:var(--muted);
   font-size:.84rem;
-  line-height:1.55;
+  line-height:var(--lh-base);
 }
 .switch{
   position:relative;
@@ -312,7 +316,7 @@ body.has-batch-dock .workspace-back-to-top{
 .detail-item span{
   color:var(--text-soft);
   font-size:.92rem;
-  line-height:1.55;
+  line-height:var(--lh-base);
 }
 .topic{
   display:inline-flex;
@@ -321,7 +325,7 @@ body.has-batch-dock .workspace-back-to-top{
   padding:0 10px;
   border-radius:999px;
   background:rgba(233,201,143,.08);
-  border:1px solid rgba(233,201,143,.12);
+  border:1px solid transparent;
   color:var(--text-soft);
   font-size:.8rem;
 }
@@ -338,7 +342,7 @@ body.has-batch-dock .workspace-back-to-top{
   background:rgba(13,11,9,.38);
   color:var(--text-soft);
   font-size:.92rem;
-  line-height:1.72;
+  line-height:var(--lh-relaxed);
 }
 .detail-section,
 .readme-block{
@@ -367,7 +371,7 @@ body.has-batch-dock .workspace-back-to-top{
   font-family:var(--font-mono);
   font-size:10px;
   letter-spacing:.14em;
-  line-height:1.2;
+  line-height:var(--lh-tight);
   text-transform:uppercase;
 }
 .repo-tag-count{
@@ -387,12 +391,12 @@ body.has-batch-dock .workspace-back-to-top{
   min-height:30px;
   max-width:100%;
   padding:0 11px;
-  border:1px solid rgba(233,201,143,.12);
+  border:1px solid transparent;
   border-radius:999px;
   background:rgba(233,201,143,.07);
   color:var(--text-soft);
   font-size:.8rem;
-  line-height:1;
+  line-height:var(--lh-tight);
   white-space:nowrap;
   transition:
     background .22s var(--ease-smooth),
@@ -414,7 +418,7 @@ body.has-batch-dock .workspace-back-to-top{
 .repo-tag-empty{
   color:var(--muted);
   font-size:.84rem;
-  line-height:1.6;
+  line-height:var(--lh-copy);
 }
 .repo-tag-input{
   min-height:42px;
@@ -424,7 +428,7 @@ body.has-batch-dock .workspace-back-to-top{
   padding-top:14px;
   padding-bottom:14px;
   resize:vertical;
-  line-height:1.65;
+  line-height:var(--lh-copy);
 }
 .repo-note-save-status[data-state="saving"]{color:var(--accent)}
 .repo-note-save-status[data-state="saved"]{color:var(--green)}

@@ -352,6 +352,26 @@ class UIJSSmokeTests(unittest.TestCase):
         self.assertIn("target.readme_summary || target.readme_summary_raw", summary_body)
         self.assertNotIn("DETAIL_README_PREVIEW_CHARS", summary_body)
 
+    def test_card_renderers_emit_staggered_mount_delay_style(self):
+        repo_body = function_body(JS, "renderRepoCards")
+        update_body = function_body(JS, "renderUpdateCards")
+
+        for token in (
+            "repos.map((repo, index) => {",
+            "const mountDelay = Math.min(index, 14) * 32;",
+            'style="--mount-delay:${mountDelay}ms"',
+        ):
+            with self.subTest(renderer="repo", token=token):
+                self.assertIn(token, repo_body)
+
+        for token in (
+            "items.map((update, index) => {",
+            "const mountDelay = Math.min(index, 14) * 32;",
+            'style="--mount-delay:${mountDelay}ms"',
+        ):
+            with self.subTest(renderer="update", token=token):
+                self.assertIn(token, update_body)
+
 
 if __name__ == "__main__":
     unittest.main()

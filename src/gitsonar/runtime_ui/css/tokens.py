@@ -14,16 +14,23 @@ CSS = r""":root{
   --border-strong:rgba(246,222,174,.24);
   --text:#f2ebdf;
   --text-soft:#d8cdbd;
-  --muted:#9d907b;
-  --muted-soft:#7e725f;
+  --muted:#a89b84;
+  --muted-soft:#8f826d;
   --accent:#e3c691;
   --accent-strong:#f1d8aa;
   --accent-ink:#23180a;
   --green:#7fd0a0;
   --amber:#d7b171;
   --danger:#f1a498;
-  --shadow:0 16px 36px rgba(0,0,0,.22);
-  --shadow-soft:0 10px 26px rgba(0,0,0,.18);
+  --shadow-soft:0 1px 0 rgba(255,255,255,.025) inset, 0 10px 24px rgba(0,0,0,.16), 0 2px 8px rgba(0,0,0,.12);
+  --shadow:0 1px 0 rgba(255,255,255,.03) inset, 0 18px 38px rgba(0,0,0,.24), 0 4px 14px rgba(0,0,0,.16);
+  --shadow-lift:0 1px 0 rgba(255,255,255,.04) inset, 0 26px 56px rgba(0,0,0,.36), 0 8px 24px rgba(0,0,0,.22);
+  --lh-tight:1.2;
+  --lh-heading:1.08;
+  --lh-base:1.5;
+  --lh-copy:1.62;
+  --lh-relaxed:1.7;
+  --cluster-bar-end:rgba(127,208,160,.7);
 }
 *{box-sizing:border-box}
 html,body{height:100%}
@@ -36,7 +43,7 @@ body{
     linear-gradient(180deg,#100f0c 0%,#14120f 50%,#15130f 100%);
   font-family:var(--font-sans);
   font-size:15px;
-  line-height:1.7;
+  line-height:var(--lh-relaxed);
   text-rendering:optimizeLegibility;
   font-kerning:normal;
   -webkit-font-smoothing:antialiased;
@@ -45,12 +52,12 @@ body{
 button,input,select,textarea{font:inherit}
 a{color:inherit;text-decoration:none}
 :focus-visible{
-  outline:none;
-  box-shadow:0 0 0 3px rgba(227,198,145,.16);
+  outline:2px solid transparent;
+  box-shadow:0 0 0 3px rgba(227,198,145,.32);
 }
 ::selection{background:rgba(227,198,145,.22);color:var(--text)}
 
-::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar{width:8px;height:8px}
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{
   background:rgba(232,214,184,.14);
@@ -59,6 +66,15 @@ a{color:inherit;text-decoration:none}
 }
 ::-webkit-scrollbar-thumb:hover{background:rgba(232,214,184,.24)}
 ::-webkit-scrollbar-corner{background:transparent}
+/* slim scrollbar for horizontal-overflow containers */
+.workspace-subnav-row::-webkit-scrollbar,
+.batch-dock-actions::-webkit-scrollbar{height:4px}
+@media (forced-colors:active){
+  :focus-visible{outline:2px solid ButtonText;box-shadow:none}
+  .card,.update-card,.compare-card{border:1px solid ButtonText}
+  .badge,.state-chip,.topic,.reason-pill,.meta-pill,.repo-tag-chip,.summary-strip-item,.discover-chip,.discover-meta-card,.discover-cluster-node,.discover-progress-strip,.discover-feedback-card,.discover-results-toolbar,.discover-selection-bar,.action-quiet,.field-input,.panel-close-btn,.checkline{border:1px solid ButtonText}
+  .batch-dock,.workspace-drawer,.panel{border:1px solid ButtonText}
+}
 
 .page{
   position:relative;
@@ -136,7 +152,7 @@ body.overlay-open{
   max-width:58ch;
   color:var(--text-soft);
   font-size:1rem;
-  line-height:1.72;
+  line-height:var(--lh-relaxed);
 }
 .masthead-side{
   display:grid;
@@ -155,7 +171,7 @@ body.overlay-open{
 .runtime-note{
   color:var(--text);
   font-size:1rem;
-  line-height:1.55;
+  line-height:var(--lh-base);
 }
 .nav-actions{
   display:flex;
@@ -186,7 +202,7 @@ body.overlay-open{
   min-width:0;
   color:var(--text-soft);
   font-size:.88rem;
-  line-height:1.5;
+  line-height:var(--lh-base);
 }
 .status-divider{
   width:1px;
@@ -230,14 +246,14 @@ body.overlay-open{
 }
 .summary{
   font-size:1rem;
-  font-weight:620;
+  font-weight:600;
   letter-spacing:-.02em;
-  line-height:1.35;
+  line-height:var(--lh-base);
 }
 .sub{
   color:var(--muted);
   font-size:.84rem;
-  line-height:1.58;
+  line-height:var(--lh-copy);
 }
 .metric-number{
   font-family:var(--font-mono);

@@ -171,7 +171,7 @@ function normalizeUpdateEntry(payload){
 
   const checkedAt = String(raw.checked_at || "").trim();
   const timestamp = Number(raw.timestamp || 0);
-  const fallbackCheckedAt = checkedAt || (timestamp > 0 ? new Date(timestamp * 1000).toLocaleString("zh-CN", {hour12:false}) : "");
+  const fallbackCheckedAt = checkedAt || (timestamp > 0 ? formatDisplayTime(new Date(timestamp * 1000)) : "");
 
   return {
     id:String(raw.id || `${fullName}:${fallbackCheckedAt || url}`),

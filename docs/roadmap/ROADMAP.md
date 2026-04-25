@@ -25,7 +25,7 @@
 |---|---|---|---|
 | `P0` | 补齐“发现之后的管理”闭环并完成文档现实同步 | `GS-P0-001` ~ `GS-P0-012` | 当前 P0 MVP、诊断、Markdown 导出、安全加固和文档同步均已完成。 |
 | `P1` | 稳定 API、持久化、任务事件和 AI-ready 边界 | `GS-P1-001` ~ `GS-P1-019` | 当前 P1 队列已完成 OpenAI-compatible 翻译 API，并通过 `GS-P1-019` 将 AI 分析收回为 prompt handoff，不再维护手动 Insight JSON 缓存。 |
-| `P2` | 等边界稳定后推进差异化、发布和同步能力 | `GS-P2-001` ~ `GS-P2-006` | 聚类地图、本地翻译和发布 manifest 已完成；加密同步 / 备份、代码签名继续阻塞。 |
+| `P2` | 等边界稳定后推进差异化、发布、同步和前端现代化能力 | `GS-P2-001` ~ `GS-P2-014` | 聚类地图、本地翻译和发布 manifest 已完成；前端现代化总路线已建立，下一步从 `GS-P2-008` Modern asset pipeline 开始；加密同步 / 备份、代码签名继续阻塞。 |
 
 ## 已完成的当前能力
 
@@ -146,23 +146,68 @@ P1 执行规则：
 | `GS-P2-003` | 加密多设备同步 / 备份 | `[!]` | 阻塞于同步目标、密钥管理、冲突策略和 opt-in 决策。 |
 | `GS-P2-004` | 发布加固与 AV 误报缓解 | `[x]` | 已新增本地 SHA256 release manifest 脚本。 |
 | `GS-P2-005` | 代码签名 | `[!]` | 阻塞于证书、私钥保管、密码注入和时间戳服务决策。 |
-| `GS-P2-006` | 前端现代化路径评估 | `[x]` | 已完成评估，当前不启动 React / Vite 重写。 |
+| `GS-P2-006` | 前端现代化路径评估 | `[x]` | 历史评估任务已完成；结论代表当时不启动完整 React / Vite 重写，不再代表永久不迁移。 |
+| `GS-P2-007` | 前端现代化总路线与文档同步 | `[x]` | 已新增 `docs/plans/0040-frontend-modernization-roadmap.md`，明确局部 React/Vite 试点和主工作台后置切换路线。 |
+| `GS-P2-008` | Modern asset pipeline | `[ ]` | 下一步可安全执行；建立 Vite 构建、allowlisted modern assets、运行时复制和缺失 fallback。 |
+| `GS-P2-009` | React 诊断页试点 | `[ ]` | 依赖 `GS-P2-008`；先迁移最低风险诊断弹层，验证 React island。 |
+| `GS-P2-010` | React 设置页试点 | `[ ]` | 依赖 `GS-P2-009`；验证敏感字段、保存流程和 DPAPI 边界。 |
+| `GS-P2-011` | 静态壳与 bootstrap 收敛 | `[ ]` | 依赖设置和诊断试点稳定；减少 HTML 大 payload。 |
+| `GS-P2-012` | 详情抽屉迁移 | `[ ]` | 依赖 `GS-P2-011`；迁移标签、笔记、README 摘要和详情交互。 |
+| `GS-P2-013` | 发现页迁移 | `[ ]` | 依赖详情抽屉迁移稳定；迁移 Discovery View、进度、工具条和主题地图。 |
+| `GS-P2-014` | 主工作台迁移评估与切换 | `[ ]` | 依赖诊断、设置、详情和发现页稳定，并需要浏览器级 smoke test 与 feature flag。 |
 
 P2 执行规则：
 
 - 不要为视觉新奇牺牲研究效率。
 - 不要让云同步或 AI 成为强制依赖。
 - 不要把中心化账号体系作为默认方向。
+- 前端现代化必须按 `GS-P2-008` -> `GS-P2-014` 顺序推进；不能跳过低风险试点直接迁移主工作台。
+- 除 `GS-P2-007` 外，每个前端现代化实现任务开始前都必须有任务级计划、fallback / 回滚说明和验证记录。
+
+## 前端现代化路线
+
+`GS-P2-006` 已完成的是历史评估：当时不启动完整 React / Vite 重写。新的路线不是推翻本地优先和小步迭代原则，而是把前端现代化拆成可发布、可回滚、可单独验收的局部试点。
+
+目标形态：
+
+```text
+Python Runtime
+  -> Local HTTP API
+  -> Static HTML Shell
+  -> Built frontend assets
+  -> React islands / migrated React workspace
+  -> Desktop browser / WebView shell
+```
+
+默认迁移顺序：
+
+```text
+Modern asset pipeline
+  -> React 诊断页
+  -> React 设置页
+  -> Static Shell + Bootstrap 收敛
+  -> 详情抽屉
+  -> 发现页
+  -> 主工作台迁移评估与切换
+```
+
+约束：
+
+- 用户机器运行 GitSonar 不依赖 Node。
+- 构建产物必须随仓库或发布产物提供。
+- `/api/*` 继续要求 loopback + control token。
+- `/assets/modern/*` 只能暴露 allowlisted 只读构建产物。
+- 主工作台迁移必须后置，并通过 feature flag 保留 legacy workspace 回退路径。
 
 ## 默认顺序
 
-当前默认顺序中的 P1 队列已完成。下一轮应先重新读取 `TASKS.md` 与 `CURRENT_TOP10.md`，只选择仍未完成、未阻塞且安全的任务。
+当前默认顺序中的 P1 队列已完成。下一轮应先重新读取 `TASKS.md` 与 `CURRENT_TOP10.md`，只选择仍未完成、未阻塞且安全的任务。前端现代化方向默认只从 `GS-P2-008` 开始，不直接执行后续 React 页面迁移。
 
 ## 默认不做
 
 除非有单独计划文件明确说明，否则以下不是默认下一步：
 
-- 完整 React 重写。
+- 完整 React 大重写或直接迁移主工作台。
 - 立即切到 FastAPI。
 - 立即切到 SQLite。
 - AI Agent orchestration。

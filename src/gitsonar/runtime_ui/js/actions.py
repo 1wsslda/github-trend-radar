@@ -64,7 +64,7 @@ async function exportUserState(){
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `gitsonar-export-${new Date().toISOString().slice(0,10)}.json`;
+    link.download = `gitsonar-export-${analysisDateStamp()}.json`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);

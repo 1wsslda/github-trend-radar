@@ -108,7 +108,7 @@ function renderCompareCard(repo, detail){
         <div class="detail-grid">
           <div class="detail-item"><strong>许可证</strong><span>${h(detail.license || "未标注")}</span></div>
           <div class="detail-item"><strong>默认分支</strong><span>${h(detail.default_branch || "未知")}</span></div>
-          <div class="detail-item"><strong>最近推送</strong><span>${h(detail.pushed_at || "未知")}</span></div>
+          <div class="detail-item"><strong>最近推送</strong><span>${h(formatDisplayTime(detail.pushed_at) || "未知")}</span></div>
           <div class="detail-item"><strong>仓库主页</strong><span>${detail.homepage ? `<a class="link-inline" href="${h(detail.homepage)}" target="_blank" rel="noopener" data-external-url="${h(detail.homepage)}">${h(detail.homepage)}</a>` : "未填写"}</span></div>
         </div>
       </div>
@@ -314,7 +314,7 @@ async function openDiagnostics(){
     const diagnostics = data.diagnostics || {};
     const items = Array.isArray(diagnostics.items) ? diagnostics.items : [];
     document.getElementById("diagnostics-body").innerHTML = `
-      <div class="notice">诊断结果只在本机生成，不会上报到任何远端服务。生成时间：${h(diagnostics.generated_at || "未知")}</div>
+      <div class="notice">诊断结果只在本机生成，不会上报到任何远端服务。生成时间：${h(formatDisplayTime(diagnostics.generated_at) || "未知")}</div>
       ${items.map(item => `
         <div class="detail-section">
           <div class="section-label">${h(item.title || item.key || "诊断项")}</div>
@@ -467,8 +467,8 @@ function renderCurrentDetailPanel(){
       <div class="section-label">仓库概览</div>
       <div class="detail-grid">
         <div class="detail-item"><strong>仓库</strong><span>${h(detail.full_name || repo.full_name)}</span></div>
-        <div class="detail-item"><strong>最近推送</strong><span>${h(detail.pushed_at || "未知")}</span></div>
-        <div class="detail-item"><strong>最后更新</strong><span>${h(detail.updated_at || "未知")}</span></div>
+        <div class="detail-item"><strong>最近推送</strong><span>${h(formatDisplayTime(detail.pushed_at) || "未知")}</span></div>
+        <div class="detail-item"><strong>最后更新</strong><span>${h(formatDisplayTime(detail.updated_at) || "未知")}</span></div>
         <div class="detail-item"><strong>默认分支</strong><span>${h(detail.default_branch || "未知")}</span></div>
         <div class="detail-item"><strong>许可证</strong><span>${h(detail.license || "未标注")}</span></div>
         <div class="detail-item"><strong>主页</strong><span>${detail.homepage ? `<a class="link-inline" href="${h(detail.homepage)}" target="_blank" rel="noopener" data-external-url="${h(detail.homepage)}">${h(detail.homepage)}</a>` : "未填写"}</span></div>

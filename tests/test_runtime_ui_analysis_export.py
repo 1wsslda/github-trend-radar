@@ -118,6 +118,23 @@ def eval_js_function(source: str, signature: str, expression: str) -> object:
 
 
 class RuntimeUIAnalysisExportTests(unittest.TestCase):
+    def test_format_display_time_normalizes_ui_timestamps_without_mutating_unparseable_values(self):
+        self.assertEqual(
+            eval_js_function(JS, "formatDisplayTime(value)", 'formatDisplayTime("2026-04-23T10:11:12")'),
+            "2026-04-23 10:11:12",
+        )
+        self.assertEqual(eval_js_function(JS, "formatDisplayTime(value)", 'formatDisplayTime("")'), "")
+        self.assertEqual(
+            eval_js_function(JS, "formatDisplayTime(value)", 'formatDisplayTime("bad-time")'),
+            "bad-time",
+        )
+
+        zoned = eval_js_function(JS, "formatDisplayTime(value)", 'formatDisplayTime("2026-04-23T10:11:12Z")')
+        self.assertRegex(zoned, r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$")
+        self.assertNotIn("T", zoned)
+        self.assertNotIn("Z", zoned)
+        self.assertNotIn("/", zoned)
+
     def test_analysis_date_stamp_uses_local_calendar_date(self):
         body = function_body(JS, "analysisDateStamp")
         self.assertIn("now.getFullYear()", body)
@@ -140,6 +157,8 @@ class RuntimeUIAnalysisExportTests(unittest.TestCase):
         self.assertIn("repos.filter(Boolean)", body)
         self.assertIn('normalized.flatMap((repo, index) => [collectionRepoLine(repo, index), ""])', body)
         self.assertIn('String(prompt || "").replace(/\\r\\n?/g, "\\n")', body)
+        self.assertIn("formatDisplayTime(new Date())", body)
+        self.assertNotIn("toISOString()", body)
 
     def test_analyze_repo_collection_prefers_single_prompt_then_exports_markdown(self):
         body = function_body(JS, "analyzeRepoCollection")

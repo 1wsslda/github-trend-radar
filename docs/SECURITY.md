@@ -66,6 +66,21 @@ GitSonar 是一个本地运行的 Windows 桌面工具。
 
 主界面通过初始 HTML payload 中的 runtime control token 访问这些端点；缺少或错误 token 的直接 API 请求会返回 `403 invalid_control_token`。所有这些 payload 仍必须保持脱敏。
 
+## Modern 静态资源边界（计划中）
+
+`GS-P2-008` 之后会增加 `/assets/modern/<allowlisted-file>` 静态资源接口，用于提供 Vite 构建后的本地前端资源。该接口必须满足：
+
+- 只读，不接受写入、删除或目录枚举。
+- 只允许 manifest / allowlist 中的构建产物文件。
+- 拒绝 `..`、绝对路径、反斜杠混淆和 URL 编码后的路径穿越。
+- 不暴露本地绝对路径、traceback、settings、runtime data、Token 或代理配置。
+- 不作为 API 鉴权绕过路径；业务数据仍只能通过受 loopback + control token 保护的 `/api/*` 读取。
+- modern bundle 只能访问本地 loopback API，不应新增外部遥测、CDN、云 API 或用户数据外发。
+
+control token 仍由 HTML bootstrap 注入并仅用于本地 API 请求。modern 前端不得把 token 写入 URL、日志、持久化文件或任何外部请求。
+
+当前仓库尚未实现 `/assets/modern/*`；以上是后续实现的安全验收边界。
+
 ## GitHub Token
 
 GitHub Token 的作用主要是：

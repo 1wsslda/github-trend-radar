@@ -244,7 +244,7 @@ function compareRepoFactsBlock(title, repo, detail){
 语言：${repo.language || "未知语言"}
 总星标：${detail.stars || repo.stars || 0}
 Forks：${detail.forks || repo.forks || 0}
-最近推送：${detail.pushed_at || "未知"}
+最近推送：${formatDisplayTime(detail.pushed_at) || "未知"}
 来源：${repo.source_label || "未知来源"}
 简介：${detail.description || detail.description_raw || repo.description || repo.description_raw || "暂无描述"}
 README 摘要：${detail.readme_summary || detail.readme_summary_raw || "暂无"}`;
@@ -347,7 +347,7 @@ function buildAnalysisMarkdown(title, prompt, repos){
   const lines = [
     `# GitSonar \u5206\u6790\u5bfc\u51fa\uff1a${title}`,
     "",
-    `\u751f\u6210\u65f6\u95f4\uff1a${new Date().toISOString()}`,
+    `\u751f\u6210\u65f6\u95f4\uff1a${formatDisplayTime(new Date())}`,
     `\u4ed3\u5e93\u6570\u91cf\uff1a${normalized.length}`,
     "",
     "## \u4ed3\u5e93\u6e05\u5355",
@@ -374,7 +374,7 @@ function buildRepoMarkdownSummary(repo, detail = null){
     `- 星标：${target.stars || repo.stars || 0}`,
     `- Forks：${target.forks || repo.forks || 0}`,
     `- 来源：${repo.source_label || "GitHub"}`,
-    `- 最近推送：${target.pushed_at || repo.pushed_at || "未知"}`,
+    `- 最近推送：${formatDisplayTime(target.pushed_at || repo.pushed_at) || "未知"}`,
   ];
   if(target.latest_release_tag) lines.push(`- 最新版本：${target.latest_release_tag}`);
   if(tags.length) lines.push(`- 标签：${tags.join(" / ")}`);
