@@ -55,11 +55,16 @@ jobs:
           & $iscc packaging\GitSonar.iss
         shell: pwsh
 
+      - name: Write release manifest
+        run: powershell -ExecutionPolicy Bypass -File scripts\write_release_manifest.ps1
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
             artifacts/dist/GitSonar.exe
             artifacts/dist/installer/GitSonarSetup.exe
+            artifacts/dist/release-manifest.json
+            artifacts/dist/SHA256SUMS.txt
           generate_release_notes: true
           draft: false

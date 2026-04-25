@@ -6,6 +6,8 @@ This file follows a lightweight Keep a Changelog style.
 
 ## [Unreleased]
 
+## [v1.1.0] - 2026-04-25
+
 ### Added
 
 - Public repository management files:

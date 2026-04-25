@@ -1,6 +1,6 @@
 #define MyAppName "GitSonar"
 #define MyAppExeName "GitSonar.exe"
-#define MyAppVersion "1.0.0"
+#define MyAppVersion "1.1.0"
 
 [Setup]
 AppId={{B6C14561-0A25-4A2A-9C89-C2D6E9B3F6D0}
