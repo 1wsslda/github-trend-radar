@@ -151,10 +151,36 @@ async function legacyAnalyzeSelected(){
   await analyzeRepoCollection(repos, "已选仓库", `gitsonar-analysis-selected-${analysisDateStamp()}.md`);
 }
 
+const repoDetailsCache = new Map();
+const repoDetailsInFlight = new Map();
+
+function repoDetailsCacheKey(repo){
+  const owner = String(repo?.owner || "").trim();
+  const name = String(repo?.name || "").trim();
+  if(owner && name) return `${owner}/${name}`.toLowerCase();
+  const fullName = String(repo?.full_name || "").trim();
+  if(fullName.includes("/")) return fullName.toLowerCase();
+  return "";
+}
+
 async function fetchRepoDetails(repo){
-  const {resp, data} = await requestJson(`/api/repo-details?owner=${encodeURIComponent(repo.owner)}&name=${encodeURIComponent(repo.name)}`, {cache:"no-store"}, "仓库详情加载失败");
-  if(!resp.ok || !data.ok) throw new Error(data.error || "详情获取失败");
-  return data.details;
+  const cacheKey = repoDetailsCacheKey(repo);
+  if(!cacheKey) throw new Error("缺少仓库标识");
+  if(repoDetailsCache.has(cacheKey)) return repoDetailsCache.get(cacheKey);
+  if(repoDetailsInFlight.has(cacheKey)) return repoDetailsInFlight.get(cacheKey);
+
+  const [owner, name] = cacheKey.split("/");
+  const request = requestJson(`/api/repo-details?owner=${encodeURIComponent(owner)}&name=${encodeURIComponent(name)}`, {cache:"no-store"}, "仓库详情加载失败")
+    .then(({resp, data}) => {
+      if(!resp.ok || !data.ok) throw new Error(data.error || "详情获取失败");
+      repoDetailsCache.set(cacheKey, data.details);
+      return data.details;
+    })
+    .finally(() => {
+      repoDetailsInFlight.delete(cacheKey);
+    });
+  repoDetailsInFlight.set(cacheKey, request);
+  return request;
 }
 
 function promptIgnoreReason(){
@@ -187,26 +213,246 @@ async function persistRepoAnnotation(url, repo, {tags = null, note = null} = {})
   return data.annotation || {};
 }
 
+function normalizeRepoTagValue(value){
+  const compact = String(value || "").replace(/\s+/g, " ").trim();
+  return compact.length > 32 ? compact.slice(0, 32).trim() : compact;
+}
+
+function splitRepoTagInput(value){
+  return String(value || "")
+    .split(/[,，]/)
+    .map(normalizeRepoTagValue)
+    .filter(Boolean);
+}
+
+function normalizeRepoTagList(values){
+  const source = Array.isArray(values) ? values : [values];
+  const tags = [];
+  const seen = new Set();
+  source.forEach(value => {
+    splitRepoTagInput(value).forEach(tag => {
+      const key = tag.toLocaleLowerCase();
+      if(!key || seen.has(key) || tags.length >= MAX_REPO_TAGS) return;
+      seen.add(key);
+      tags.push(tag);
+    });
+  });
+  return tags;
+}
+
+function sameRepoTagList(left, right){
+  const a = normalizeRepoTagList(left);
+  const b = normalizeRepoTagList(right);
+  return a.length === b.length && a.every((tag, index) => tag === b[index]);
+}
+
+function detailRepoForUrl(url){
+  if(currentDetailUrl === url && currentDetailRepo) return currentDetailRepo;
+  return repoByUrl(url);
+}
+
+function recommendedRepoTags(repo, detail = null){
+  const target = detail && typeof detail === "object" ? detail : {};
+  const currentTags = repoTagsForUrl(repo?.url || "");
+  const topics = [
+    ...(Array.isArray(repo?.topics) ? repo.topics : []),
+    ...(Array.isArray(target.topics) ? target.topics : []),
+  ];
+  const text = [
+    repo?.full_name,
+    repo?.name,
+    repo?.description,
+    repo?.description_raw,
+    repo?.cluster_label,
+    target.description,
+    target.description_raw,
+    target.readme_summary,
+    target.readme_summary_raw,
+  ].filter(Boolean).join(" ");
+  const candidates = [];
+  const seen = new Set();
+  const add = value => {
+    normalizeRepoTagList([value]).forEach(tag => {
+      const key = tag.toLocaleLowerCase();
+      if(!key || seen.has(key)) return;
+      seen.add(key);
+      candidates.push(tag);
+    });
+  };
+
+  currentTags.forEach(add);
+  add(target.language || repo?.language || "");
+  topics.forEach(add);
+  add(repo?.cluster_label || target.cluster_label || "");
+
+  [
+    [/(\bai\b|\bllm\b|\bagent\b|\brag\b|\bprompt\b|\bopenai\b|人工智能|大模型)/i, "AI"],
+    [/(\bcli\b|command line|terminal|shell|命令行)/i, "CLI"],
+    [/(desktop|windows|win32|webview|electron|桌面)/i, "桌面"],
+    [/(frontend|react|vue|svelte|\bui\b|css|前端)/i, "前端"],
+    [/(backend|server|fastapi|\bapi\b|http|后端)/i, "后端"],
+    [/(database|sqlite|postgres|mysql|vector|数据|数据库)/i, "数据"],
+    [/(test|testing|pytest|unit test|测试)/i, "测试"],
+    [/(automation|workflow|bot|\brpa\b|自动化|工作流)/i, "自动化"],
+    [/(security|auth|token|encrypt|安全|加密)/i, "安全"],
+    [/(monitor|logging|metrics|observability|可观测|日志)/i, "可观测"],
+    [/(learning|tutorial|example|awesome|学习|教程)/i, "学习"],
+    [/(tooling|devtool|developer tool|工具)/i, "开发工具"],
+  ].forEach(([pattern, tag]) => {
+    if(pattern.test(text)) add(tag);
+  });
+
+  if(!candidates.length){
+    ["待评估", "学习", "工具", "关注"].forEach(add);
+  }
+  return candidates.slice(0, 18);
+}
+
+function refreshRepoAnnotationSurfaces(url, options){
+  options = options || {};
+  const refreshDetail = options.refreshDetail !== false;
+  if(document.getElementById("cards")){
+    refreshVisibleCards();
+    refreshSelectionSummary();
+    syncCardSelectionState();
+  }
+  if(refreshDetail && currentDetailUrl === url && currentDetailRepo && currentDetailData){
+    renderCurrentDetailPanel();
+  }
+}
+
+async function saveRepoTagsFromDetail(url, tags, options){
+  options = options || {};
+  const repo = detailRepoForUrl(url);
+  if(!repo){
+    toast("未找到仓库信息");
+    return false;
+  }
+  const nextTags = normalizeRepoTagList(tags);
+  if(sameRepoTagList(nextTags, repoTagsForUrl(url))){
+    if(options.focusInput) document.getElementById("detail-tag-input")?.focus();
+    return true;
+  }
+  try{
+    await persistRepoAnnotation(url, repo, {tags:nextTags});
+    refreshRepoAnnotationSurfaces(url, {refreshDetail:options.refreshDetail !== false});
+    if(options.focusInput) document.getElementById("detail-tag-input")?.focus();
+    toast(nextTags.length ? "标签已保存" : "标签已清空");
+    return true;
+  }catch(error){
+    toast(error.message || "标签保存失败");
+    return false;
+  }
+}
+
+async function toggleRepoTagFromDetail(url, tag){
+  const clean = normalizeRepoTagList([tag])[0] || "";
+  if(!clean) return;
+  const currentTags = repoTagsForUrl(url);
+  const exists = currentTags.some(item => item.toLocaleLowerCase() === clean.toLocaleLowerCase());
+  if(exists){
+    await saveRepoTagsFromDetail(url, currentTags.filter(item => item.toLocaleLowerCase() !== clean.toLocaleLowerCase()));
+    return;
+  }
+  if(currentTags.length >= MAX_REPO_TAGS){
+    toast(`最多保留 ${MAX_REPO_TAGS} 个标签`);
+    return;
+  }
+  await saveRepoTagsFromDetail(url, [...currentTags, clean]);
+}
+
+async function removeRepoTagFromDetail(url, tag){
+  const clean = normalizeRepoTagList([tag])[0] || "";
+  if(!clean) return;
+  await saveRepoTagsFromDetail(
+    url,
+    repoTagsForUrl(url).filter(item => item.toLocaleLowerCase() !== clean.toLocaleLowerCase()),
+  );
+}
+
+async function handleRepoTagInputKeydown(event, url){
+  if(event.key !== "Enter") return;
+  event.preventDefault();
+  const input = event.currentTarget;
+  const additions = normalizeRepoTagList(input?.value || "");
+  if(!additions.length) return;
+  const nextTags = normalizeRepoTagList([...repoTagsForUrl(url), ...additions]);
+  if(repoTagsForUrl(url).length >= MAX_REPO_TAGS && nextTags.length >= MAX_REPO_TAGS){
+    toast(`最多保留 ${MAX_REPO_TAGS} 个标签`);
+  }
+  if(input) input.value = "";
+  await saveRepoTagsFromDetail(url, nextTags, {focusInput:true});
+}
+
+function setDetailNoteSaveStatus(state, message = ""){
+  const node = document.getElementById("detail-note-save-status");
+  if(!node) return;
+  const clean = String(state || "idle").trim() || "idle";
+  node.dataset.state = clean;
+  node.textContent = message || ({saving:"保存中", saved:"已保存", failed:"保存失败", dirty:"待保存"}[clean] || "");
+}
+
+function markDetailRepoNoteDirty(url){
+  if(currentDetailUrl !== url) return;
+  const input = document.getElementById("detail-note-input");
+  const nextNote = String(input?.value || "").trim();
+  setDetailNoteSaveStatus(nextNote === repoNoteForUrl(url) ? "saved" : "dirty");
+}
+
+async function saveDetailRepoNote(url){
+  if(currentDetailUrl !== url) return false;
+  const repo = detailRepoForUrl(url);
+  const input = document.getElementById("detail-note-input");
+  if(!repo || !input){
+    toast("未找到仓库信息");
+    return false;
+  }
+  const nextNote = String(input.value || "").trim();
+  if(nextNote === repoNoteForUrl(url)){
+    input.value = nextNote;
+    setDetailNoteSaveStatus("saved", "已保存");
+    return true;
+  }
+  setDetailNoteSaveStatus("saving", "保存中");
+  try{
+    await persistRepoAnnotation(url, repo, {note:nextNote});
+    input.value = nextNote;
+    setDetailNoteSaveStatus("saved", "已保存");
+    return true;
+  }catch(error){
+    setDetailNoteSaveStatus("failed", "保存失败");
+    toast(error.message || "笔记保存失败");
+    return false;
+  }
+}
+
+async function focusDetailOrganizer(url, target = "tags"){
+  const repo = repoByUrl(url);
+  if(!repo){
+    toast("未找到仓库信息");
+    return false;
+  }
+  if((currentDetailUrl !== url || !isOverlayVisible("detail-modal")) && repo.owner && repo.name){
+    await openDetail(repo.owner, repo.name, repo.full_name || `${repo.owner}/${repo.name}`);
+  }
+  if(currentDetailUrl !== url) return false;
+  const node = document.getElementById(target === "note" ? "detail-note-input" : "detail-tag-input");
+  if(!node) return false;
+  node.focus();
+  if(target === "note" && typeof node.setSelectionRange === "function"){
+    node.setSelectionRange(node.value.length, node.value.length);
+  }
+  return true;
+}
+
 async function editRepoTags(url){
   const repo = repoByUrl(url);
   if(!repo){
     toast("未找到仓库信息");
     return;
   }
-  const current = repoTagsForUrl(url).join(", ");
-  const next = window.prompt("编辑标签（用逗号分隔）：", current);
-  if(next === null) return;
-  const tags = String(next || "")
-    .split(",")
-    .map(item => String(item || "").trim())
-    .filter(Boolean);
-  try{
-    await persistRepoAnnotation(url, repo, {tags});
-    render();
-    if(typeof renderCurrentDetailPanel === "function" && currentDetailUrl === url) renderCurrentDetailPanel();
-    toast(tags.length ? "标签已保存" : "标签已清空");
-  }catch(error){
-    toast(error.message || "标签保存失败");
+  if(!(await focusDetailOrganizer(url, "tags"))){
+    toast("请打开仓库详情后编辑标签");
   }
 }
 
@@ -216,15 +462,8 @@ async function editRepoNote(url){
     toast("未找到仓库信息");
     return;
   }
-  const next = window.prompt("编辑笔记：", repoNoteForUrl(url));
-  if(next === null) return;
-  try{
-    await persistRepoAnnotation(url, repo, {note:String(next || "").trim()});
-    render();
-    if(typeof renderCurrentDetailPanel === "function" && currentDetailUrl === url) renderCurrentDetailPanel();
-    toast(String(next || "").trim() ? "笔记已保存" : "笔记已清空");
-  }catch(error){
-    toast(error.message || "笔记保存失败");
+  if(!(await focusDetailOrganizer(url, "note"))){
+    toast("请打开仓库详情后编辑笔记");
   }
 }
 

@@ -26,14 +26,16 @@
 
 | 优先级 | 总数 | `[ ]` | `[~]` | `[!]` | `[x]` | `[-]` |
 |---|---:|---:|---:|---:|---:|---:|
-| `P0` | 12 | 0 | 0 | 0 | 12 | 0 |
-| `P1` | 19 | 0 | 0 | 0 | 19 | 0 |
+| `P0` | 13 | 0 | 0 | 0 | 13 | 0 |
+| `P1` | 20 | 0 | 0 | 0 | 20 | 0 |
 | `P2` | 6 | 0 | 0 | 2 | 4 | 0 |
 
 ## 当前执行批次
 
 | 优先级 | 状态 | 任务 ID | 任务 | Plan | Branch | Commit / PR | 备注 |
 |---|---:|---|---|---|---|---|---|
+| `P0` | `[x]` | `GS-P0-013` | 标签与笔记编辑体验优化 | `docs/plans/0038-tags-notes-editor-ux.md` | `codex/runtime-control-compat` | `-` | 已完成；详情抽屉改为“本地整理”编辑区，标签 chip / 推荐标签 / 输入添加和笔记失焦自动保存均复用 `/api/repo-annotations`。推荐 commit message：`feat(ui): improve tags and notes editor`。 |
+| `P1` | `[x]` | `GS-P1-020` | 整页性能审计与滚动卡顿修复 | `docs/plans/0038-ui-performance-audit-and-jank-fixes.md` | `codex/runtime-control-compat` | `-` | 已完成；优化菜单 scroll/resize、弹层滚动、详情请求缓存、列表测量和卡片渲染成本。推荐 commit message：`perf(ui): reduce scroll jank across overlays and lists`。 |
 | `P1` | `[x]` | `GS-P1-019` | 移除 AI Insight JSON 手动保存工作流 | `docs/plans/0037-remove-ai-insight-json-workflow.md` | `codex/runtime-control-compat` | `-` | 已完成；删除详情页手动 Insight JSON 面板、本地 legacy insight 缓存和旧 API，保留 ChatGPT / Gemini / 复制 Prompt / Markdown 摘要导出。推荐 commit message：`refactor(ai): remove manual insight json workflow`。 |
 | `P1` | `[x]` | `GS-P1-018` | 移除旧本机翻译路径并改为 OpenAI-compatible 翻译 API | `docs/plans/0036-openai-compatible-translation-api.md` | `codex/runtime-control-compat` | `feat(translation): use openai-compatible translation api` | 已完成；默认保留 Google Translate，新增显式 opt-in 的 OpenAI-compatible 翻译 API，API Key 本地 DPAPI 加密保存，不实现内嵌 AI provider。 |
 | `P1` | `[x]` | `GS-P1-017` | AI provider opt-in 设计与 OpenAI-compatible pipeline | `docs/plans/0035-ai-provider-opt-in-design.md` | `codex/runtime-control-compat` | `docs(ai): design opt-in provider pipeline` | 已完成；已定义 provider 分层、隐私预览、artifact 可追溯、Key/Token 边界和后续实施切片，未实现 provider。 |
@@ -49,11 +51,12 @@
 
 | 排名 | 优先级 | 状态 | 任务 ID | 任务 | Plan | Branch | Commit / PR | 备注 |
 |---:|---|---:|---|---|---|---|---|---|
-| 1 | `P1` | `[x]` | `GS-P1-013` | 只读 API control-token 收紧评估与兼容迁移 | `docs/plans/0031-read-api-control-token-compat.md` | `codex/runtime-control-compat` | `fix(security): require control token for read APIs` | 已完成；无 token 直接读取返回 `403 invalid_control_token`，主界面请求继续携带 control header。 |
-| 2 | `P1` | `[x]` | `GS-P1-014` | 刷新 / 发现 / 更新检查接入统一 Job/Event/SSE | `docs/plans/0032-unify-refresh-discovery-update-jobs.md` | `codex/runtime-control-compat` | `feat(runtime): bridge refresh and discovery to job events` | 已完成；focused 测试通过，现有 discovery job API 和 UI 轮询路径保持兼容。 |
-| 3 | `P1` | `[x]` | `GS-P1-015` | Update Inbox 增强：自上次查看以来、摘要、重要性解释 | `docs/plans/0033-update-inbox-enhancements.md` | `codex/runtime-control-compat` | `feat(updates): add inbox summaries and importance reasons` | 已完成；在现有 read/pin/dismiss/priority MVP 上补充本地摘要、重要性解释和自上次查看以来提示。 |
-| 4 | `P1` | `[x]` | `GS-P1-016` | SQLite 迁移第一阶段：JSON 导入 / 导出兼容与回滚骨架 | `docs/plans/0034-sqlite-migration-phase-1.md` | `codex/runtime-control-compat` | `feat(storage): add sqlite migration dry-run skeleton` | 已完成；新增迁移骨架和兼容验证，不默认切换事实存储。 |
-| 5 | `P1` | `[x]` | `GS-P1-017` | AI provider opt-in 设计与 OpenAI-compatible pipeline | `docs/plans/0035-ai-provider-opt-in-design.md` | `codex/runtime-control-compat` | `docs(ai): design opt-in provider pipeline` | 已完成；已设计 provider、隐私预览、artifact 可追溯和手动启用边界，未调用云端。 |
+| 1 | `P1` | `[x]` | `GS-P1-020` | 整页性能审计与滚动卡顿修复 | `docs/plans/0038-ui-performance-audit-and-jank-fixes.md` | `codex/runtime-control-compat` | `-` | 已完成；只在当前 Vanilla JS/CSS 前端中做滚动、弹层、详情请求和列表渲染性能优化，不改 API 或存储。 |
+| 2 | `P1` | `[x]` | `GS-P1-013` | 只读 API control-token 收紧评估与兼容迁移 | `docs/plans/0031-read-api-control-token-compat.md` | `codex/runtime-control-compat` | `fix(security): require control token for read APIs` | 已完成；无 token 直接读取返回 `403 invalid_control_token`，主界面请求继续携带 control header。 |
+| 3 | `P1` | `[x]` | `GS-P1-014` | 刷新 / 发现 / 更新检查接入统一 Job/Event/SSE | `docs/plans/0032-unify-refresh-discovery-update-jobs.md` | `codex/runtime-control-compat` | `feat(runtime): bridge refresh and discovery to job events` | 已完成；focused 测试通过，现有 discovery job API 和 UI 轮询路径保持兼容。 |
+| 4 | `P1` | `[x]` | `GS-P1-015` | Update Inbox 增强：自上次查看以来、摘要、重要性解释 | `docs/plans/0033-update-inbox-enhancements.md` | `codex/runtime-control-compat` | `feat(updates): add inbox summaries and importance reasons` | 已完成；在现有 read/pin/dismiss/priority MVP 上补充本地摘要、重要性解释和自上次查看以来提示。 |
+| 5 | `P1` | `[x]` | `GS-P1-016` | SQLite 迁移第一阶段：JSON 导入 / 导出兼容与回滚骨架 | `docs/plans/0034-sqlite-migration-phase-1.md` | `codex/runtime-control-compat` | `feat(storage): add sqlite migration dry-run skeleton` | 已完成；新增迁移骨架和兼容验证，不默认切换事实存储。 |
+| 6 | `P1` | `[x]` | `GS-P1-017` | AI provider opt-in 设计与 OpenAI-compatible pipeline | `docs/plans/0035-ai-provider-opt-in-design.md` | `codex/runtime-control-compat` | `docs(ai): design opt-in provider pipeline` | 已完成；已设计 provider、隐私预览、artifact 可追溯和手动启用边界，未调用云端。 |
 
 ## 阻塞或暂不进入下一批的任务
 
@@ -71,6 +74,7 @@
 | `P0` | `[x]` | `GS-P0-002` | 任务追踪体系与 Auto Top 5 Batch Sprint | `docs/plans/0002-task-tracking-system.md` | `-` | `-` | 已建立任务、计划、进度和 Sprint 队列规则。 |
 | `P0` | `[x]` | `GS-P0-003` | 网络 / 运行诊断 MVP | `docs/plans/0003-network-diagnostics-mvp.md` | `-` | `-` | 已新增本地诊断面板和 `/api/diagnostics`。 |
 | `P0` | `[x]` | `GS-P0-004` | 标签与笔记 MVP | `docs/plans/0004-tags-notes-mvp.md` | `-` | `-` | 已支持本地标签、笔记、搜索命中和导入 / 导出兼容。 |
+| `P0` | `[x]` | `GS-P0-013` | 标签与笔记编辑体验优化 | `docs/plans/0038-tags-notes-editor-ux.md` | `codex/runtime-control-compat` | `-` | 已将详情抽屉标签 / 笔记编辑从浏览器 prompt 改成本地整理编辑区，后端 API 和数据模型不变。推荐 commit message：`feat(ui): improve tags and notes editor`。 |
 | `P0` | `[x]` | `GS-P0-005` | 保存发现视图 MVP | `docs/plans/0005-saved-discovery-views-mvp.md` | `-` | `-` | 已支持保存、载入、重跑和删除发现视图。 |
 | `P0` | `[x]` | `GS-P0-006` | Update Inbox MVP | `docs/plans/0006-update-inbox-mvp.md` | `-` | `-` | 已支持已读、置顶、忽略和优先级排序。 |
 | `P0` | `[x]` | `GS-P0-007` | 推荐 / 排名原因 | `docs/plans/0007-why-recommended.md` | `-` | `-` | 已在发现卡片和详情中展示原因。 |
@@ -81,6 +85,7 @@
 
 | 优先级 | 状态 | 任务 ID | 任务 | Plan | Branch | Commit / PR | 备注 |
 |---|---:|---|---|---|---|---|---|
+| `P1` | `[x]` | `GS-P1-020` | 整页性能审计与滚动卡顿修复 | `docs/plans/0038-ui-performance-audit-and-jank-fixes.md` | `codex/runtime-control-compat` | `-` | 已完成；菜单无打开项时不进入重定位，内部滚动容器跳过 document scroll 重算，详情请求有内存缓存和 in-flight 去重，列表测量与卡片/弹层绘制成本已降低。推荐 commit message：`perf(ui): reduce scroll jank across overlays and lists`。 |
 | `P1` | `[x]` | `GS-P1-001` | AI Insight schema MVP | `docs/plans/0010-ai-insight-schema-mvp.md` | `-` | `-` | 历史任务已完成；运行时手动 JSON 保存工作流已被 `GS-P1-019` 取代。 |
 | `P1` | `[x]` | `GS-P1-002` | JSON API boundary MVP | `docs/plans/0011-json-api-boundary-mvp.md` | `-` | `-` | 已新增 bootstrap、repos、updates、discovery views 只读边界。 |
 | `P1` | `[x]` | `GS-P1-003` | SQLite 迁移设计 | `docs/plans/0012-sqlite-migration-design.md` | `-` | `-` | 已完成迁移与回滚设计，未实施存储切换。 |

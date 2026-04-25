@@ -3,6 +3,9 @@ from __future__ import annotations
 
 JS = r"""const emptyIcon = '<div style="display:flex; flex-direction:column; align-items:center; gap:24px; padding:64px 20px;"><div style="position:relative; width:80px; height:80px; border-radius:999px; background:radial-gradient(circle at center, rgba(233,201,143,0.08) 0%, transparent 70%); display:flex; align-items:center; justify-content:center;"><svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="rgba(233,201,143,0.24)" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M16 16s-1.5-2-4-2-4 2-4 2"></path><line x1="9" y1="9" x2="9.01" y2="9"></line><line x1="15" y1="9" x2="15.01" y2="9"></line></svg></div></div>';
 let lastSelectionSyncUrls = new Set(selectedUrls);
+let expandableDescriptionsFrame = 0;
+let pendingExpandableDescriptionsScope = null;
+let pendingExpandableDescriptionsForce = false;
 
 function selectedBadgeMarkup(index){
   return `<span class="badge badge-selection">#${index + 1} 已选</span>`;
@@ -112,8 +115,11 @@ function setDescExpanded(wrap, expanded){
   if(host) host.classList.toggle("desc-host-open", nextExpanded);
 }
 
-function syncExpandableDescriptions(scope = document){
-  scope.querySelectorAll(".desc-wrap").forEach(wrap => {
+function syncExpandableDescriptions(scope = document, options = null){
+  const root = scope || document;
+  options = options || {};
+  const force = !!options.force;
+  root.querySelectorAll(".desc-wrap").forEach(wrap => {
     const desc = wrap.querySelector(".desc");
     if(!desc) return;
     if(!wrap.dataset.descExpandableBound){
@@ -125,9 +131,25 @@ function syncExpandableDescriptions(scope = document){
         setDescExpanded(wrap, false);
       });
     }
+    if(wrap.dataset.descMeasured === "true" && !force) return;
     setDescExpanded(wrap, false);
     const expandable = desc.scrollHeight > desc.clientHeight + 1;
     wrap.classList.toggle("is-expandable", expandable);
+    wrap.dataset.descMeasured = "true";
+  });
+}
+
+function queueExpandableDescriptionsSync(scope = document, options = {}){
+  pendingExpandableDescriptionsScope = pendingExpandableDescriptionsScope ? document : (scope || document);
+  pendingExpandableDescriptionsForce = pendingExpandableDescriptionsForce || !!options.force;
+  if(expandableDescriptionsFrame) return;
+  expandableDescriptionsFrame = requestAnimationFrame(() => {
+    const nextScope = pendingExpandableDescriptionsScope || document;
+    const force = pendingExpandableDescriptionsForce;
+    expandableDescriptionsFrame = 0;
+    pendingExpandableDescriptionsScope = null;
+    pendingExpandableDescriptionsForce = false;
+    syncExpandableDescriptions(nextScope, {force});
   });
 }
 
@@ -319,7 +341,7 @@ function refreshVisibleCards(){
 
   const container = document.getElementById("cards");
   container.innerHTML = isDiscoverPanel && !data.length ? "" : renderFn(data.slice(0, window.__lazyIndex));
-  requestAnimationFrame(() => syncExpandableDescriptions(container));
+  queueExpandableDescriptionsSync(container);
   if(window.__lazyObserver){
     window.__lazyObserver.disconnect();
   }
@@ -336,7 +358,7 @@ function refreshVisibleCards(){
 
         if(nextChunk.length) {
           container.insertAdjacentHTML("beforeend", window.__lazyRenderFn(nextChunk, true));
-          requestAnimationFrame(() => syncExpandableDescriptions(container));
+          queueExpandableDescriptionsSync(container);
         }
         if(window.__lazyData.length > window.__lazyIndex) {
           container.insertAdjacentHTML("beforeend", '<div id="lazy-sentinel" style="height:40px;"></div>');

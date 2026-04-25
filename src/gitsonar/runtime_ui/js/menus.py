@@ -138,10 +138,16 @@ function positionMenu(root){
 }
 
 function positionOpenMenusNow(){
+  if(!hasOpenMenus()) return;
   document.querySelectorAll("[data-menu-id].open").forEach(positionMenu);
 }
 
+function hasOpenMenus(){
+  return !!document.querySelector("[data-menu-id].open");
+}
+
 function repositionOpenMenus(){
+  if(!hasOpenMenus()) return;
   if(menuRepositionFrame) return;
   menuRepositionFrame = requestAnimationFrame(() => {
     menuRepositionFrame = 0;
@@ -150,7 +156,7 @@ function repositionOpenMenus(){
 }
 
 function shouldSkipMenuScrollReposition(target){
-  return target instanceof Element && !!target.closest(".menu-panel,.select-menu");
+  return target instanceof Element && !!target.closest(".panel-body,.overlay,.menu-panel,.select-menu,.workspace-drawer,.batch-dock-actions,.workspace-primary-nav,.workspace-subnav-row");
 }
 
 function closeMenus(exceptId = ""){

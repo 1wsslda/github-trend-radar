@@ -169,6 +169,61 @@ class UIJSSmokeTests(unittest.TestCase):
         self.assertIn('panel.style.maxHeight = `${fittedHeight}px`;', body)
         self.assertIn('panel.style.overflowY = naturalHeight > fittedHeight ? "auto" : "";', body)
 
+    def test_menu_repositioning_noops_when_no_menu_is_open(self):
+        self.assertIn("function hasOpenMenus(){", JS)
+        body = function_body(JS, "repositionOpenMenus")
+
+        self.assertIn("if(!hasOpenMenus()) return;", body)
+        self.assertIn("if(menuRepositionFrame) return;", body)
+        self.assertLess(
+            body.index("if(!hasOpenMenus()) return;"),
+            body.index("requestAnimationFrame"),
+        )
+
+    def test_internal_scroll_containers_do_not_reposition_menus(self):
+        body = function_body(JS, "shouldSkipMenuScrollReposition")
+        for token in (
+            ".panel-body",
+            ".overlay",
+            ".menu-panel",
+            ".select-menu",
+            ".workspace-drawer",
+            ".batch-dock-actions",
+            ".workspace-primary-nav",
+            ".workspace-subnav-row",
+        ):
+            with self.subTest(token=token):
+                self.assertIn(token, body)
+        self.assertIn("target.closest", body)
+
+    def test_resize_batches_description_measurement_with_animation_frame(self):
+        self.assertIn("function queueExpandableDescriptionsSync(scope = document, options = {}){", JS)
+        self.assertIn("queueExpandableDescriptionsSync(document, {force:true});", JS)
+        self.assertNotIn("syncExpandableDescriptions();\n  queueBackToTopButtonSync();", JS)
+
+    def test_expandable_descriptions_skip_previously_measured_cards_until_forced(self):
+        body = function_body(JS, "syncExpandableDescriptions")
+
+        self.assertIn("const force = !!options.force;", body)
+        self.assertIn('wrap.dataset.descMeasured === "true" && !force', body)
+        self.assertIn('wrap.dataset.descMeasured = "true";', body)
+
+    def test_repo_detail_fetch_uses_memory_cache_and_in_flight_deduplication(self):
+        self.assertIn("const repoDetailsCache = new Map();", JS)
+        self.assertIn("const repoDetailsInFlight = new Map();", JS)
+        self.assertIn("function repoDetailsCacheKey(repo){", JS)
+        body = function_body(JS, "fetchRepoDetails")
+
+        for token in (
+            "const cacheKey = repoDetailsCacheKey(repo);",
+            "if(repoDetailsCache.has(cacheKey)) return repoDetailsCache.get(cacheKey);",
+            "if(repoDetailsInFlight.has(cacheKey)) return repoDetailsInFlight.get(cacheKey);",
+            "repoDetailsCache.set(cacheKey, data.details);",
+            "repoDetailsInFlight.delete(cacheKey);",
+        ):
+            with self.subTest(token=token):
+                self.assertIn(token, body)
+
     def test_prompt_profile_state_is_removed_from_runtime(self):
         self.assertNotIn("function setPromptProfile(", JS)
         self.assertNotIn("syncPromptProfileUI()", JS)
@@ -216,6 +271,37 @@ class UIJSSmokeTests(unittest.TestCase):
         self.assertIn("function buildComparePrompt(", JS)
         self.assertIn('"/api/chatgpt/open"', JS)
         self.assertIn('"/api/analysis/export-markdown"', JS)
+
+    def test_tag_and_note_edit_actions_do_not_use_browser_prompt(self):
+        tag_body = function_body(JS, "editRepoTags")
+        note_body = function_body(JS, "editRepoNote")
+
+        self.assertNotIn("window.prompt", tag_body)
+        self.assertNotIn("window.prompt", note_body)
+        self.assertIn("focusDetailOrganizer", tag_body)
+        self.assertIn("focusDetailOrganizer", note_body)
+
+    def test_note_autosave_uses_repo_annotations_without_rerendering_detail(self):
+        body = function_body(JS, "saveDetailRepoNote")
+
+        self.assertIn("persistRepoAnnotation", body)
+        self.assertIn("{note:nextNote}", body)
+        self.assertIn('setDetailNoteSaveStatus("saving"', body)
+        self.assertIn('setDetailNoteSaveStatus("saved"', body)
+        self.assertIn('setDetailNoteSaveStatus("failed"', body)
+        self.assertNotIn("renderCurrentDetailPanel", body)
+        self.assertNotIn("render();", body)
+
+    def test_tag_editor_enforces_limit_and_refreshes_visible_cards(self):
+        normalize_body = function_body(JS, "normalizeRepoTagList")
+        save_body = function_body(JS, "saveRepoTagsFromDetail")
+
+        self.assertIn("MAX_REPO_TAGS", normalize_body)
+        self.assertIn("tags.length >= MAX_REPO_TAGS", normalize_body)
+        self.assertIn("persistRepoAnnotation", save_body)
+        self.assertIn("{tags:nextTags}", save_body)
+        self.assertIn("refreshRepoAnnotationSurfaces", save_body)
+        self.assertIn("refreshVisibleCards();", function_body(JS, "refreshRepoAnnotationSurfaces"))
 
 
 if __name__ == "__main__":

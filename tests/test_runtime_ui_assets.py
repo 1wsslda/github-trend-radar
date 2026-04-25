@@ -247,6 +247,29 @@ class RuntimeUILayoutSmokeTests(unittest.TestCase):
             with self.subTest(css=token):
                 self.assertIn(token, CSS)
 
+    def test_scroll_and_overlay_performance_css_contracts_are_present(self):
+        for token in (
+            ".panel-body{",
+            "overscroll-behavior:contain;",
+            "contain:layout paint;",
+            ".detail-section,",
+            ".readme-block{",
+            "content-visibility:auto;",
+            "contain-intrinsic-size:260px;",
+            ".card,",
+            ".update-card,",
+            ".compare-card{",
+            "contain-intrinsic-size:360px 280px;",
+            "backdrop-filter:none;",
+        ):
+            with self.subTest(token=token):
+                self.assertIn(token, CSS)
+
+        self.assertNotIn("@keyframes card-enter", CSS)
+        self.assertNotIn("animation: card-enter", CSS)
+        self.assertIn("@keyframes card-selection-sheen", CSS)
+        self.assertIn("animation:card-selection-sheen", CSS)
+
     def test_back_to_top_button_contract_replaces_runtime_nav_offset_contract(self):
         html = build_fixture_html()
 
@@ -332,6 +355,36 @@ class RuntimeUILayoutSmokeTests(unittest.TestCase):
         ):
             with self.subTest(retained=retained):
                 self.assertIn(retained, JS)
+
+    def test_tags_and_notes_editor_contract_is_in_detail_drawer(self):
+        for token in (
+            "本地整理",
+            "repo-organizer",
+            "repo-tag-editor",
+            "repo-tag-chip",
+            "repo-tag-suggestions",
+            'id="detail-tag-input"',
+            'id="detail-note-input"',
+            'id="detail-note-save-status"',
+            "保存中",
+            "已保存",
+            "保存失败",
+        ):
+            with self.subTest(token=token):
+                self.assertIn(token, JS if token == "本地整理" or token.startswith("id=") or token in {"保存中", "已保存", "保存失败"} else CSS)
+
+        for token in (
+            "function recommendedRepoTags(",
+            "function normalizeRepoTagList(",
+            "function toggleRepoTagFromDetail(",
+            "function handleRepoTagInputKeydown(",
+            "function saveDetailRepoNote(",
+            "function setDetailNoteSaveStatus(",
+        ):
+            with self.subTest(token=token):
+                self.assertIn(token, JS)
+
+        self.assertIn('"/api/repo-annotations"', JS)
 
 
 if __name__ == "__main__":

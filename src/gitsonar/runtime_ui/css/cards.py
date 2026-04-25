@@ -94,6 +94,8 @@ CSS = r""".tabs{
 .card,
 .update-card,
 .compare-card{
+  content-visibility:auto;
+  contain-intrinsic-size:360px 280px;
   display:flex;
   flex-direction:column;
   gap:16px;

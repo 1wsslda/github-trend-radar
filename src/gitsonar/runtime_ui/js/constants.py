@@ -51,6 +51,7 @@ const DISCOVERY_RANKING_DESCRIPTIONS = {
 };
 const DISCOVERY_AUTO_EXPAND_NOTE_ON = "会基于首轮命中的仓库名、主题词和 README 补充相关词，覆盖更广，但会更慢。";
 const DISCOVERY_AUTO_EXPAND_NOTE_OFF = "只按你输入的关键词直接搜索，返回更快、更可控，但可能漏掉相近项目。";
+const MAX_REPO_TAGS = 12;
 let snapshot = INITIAL.snapshot || {};
 let userState = INITIAL.userState || {};
 let discoveryState = INITIAL.discoveryState || {};

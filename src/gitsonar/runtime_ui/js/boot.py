@@ -179,7 +179,7 @@ document.addEventListener("click", event => {
 
 window.addEventListener("resize", () => {
   repositionOpenMenus();
-  syncExpandableDescriptions();
+  queueExpandableDescriptionsSync(document, {force:true});
   queueBackToTopButtonSync();
 });
 

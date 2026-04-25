@@ -340,6 +340,49 @@ let currentDetailUrl = "";
 let currentDetailRepo = null;
 let currentDetailData = null;
 
+function renderRepoTagChip(url, tag, selected = false){
+  const clean = String(tag || "").trim();
+  if(!clean) return "";
+  const action = selected ? "removeRepoTagFromDetail" : "toggleRepoTagFromDetail";
+  return `<button class="repo-tag-chip${selected ? " selected" : ""}" type="button" aria-pressed="${selected ? "true" : "false"}" onclick='${action}(${JSON.stringify(url)}, ${JSON.stringify(clean)})'>${h(clean)}</button>`;
+}
+
+function renderRepoOrganizer(repo, detail, tags, note){
+  const selectedKeys = new Set(tags.map(tag => String(tag || "").toLocaleLowerCase()));
+  const suggestions = recommendedRepoTags(repo, detail);
+  const selectedMarkup = tags.length
+    ? tags.map(tag => renderRepoTagChip(repo.url, tag, true)).join("")
+    : `<span class="repo-tag-empty">暂无标签</span>`;
+  const suggestionMarkup = suggestions.length
+    ? suggestions.map(tag => {
+      const selected = selectedKeys.has(String(tag || "").toLocaleLowerCase());
+      return renderRepoTagChip(repo.url, tag, selected);
+    }).join("")
+    : `<span class="repo-tag-empty">暂无推荐</span>`;
+  return `<div class="detail-section repo-organizer" data-repo-organizer-url="${h(repo.url)}">
+      <div class="section-label">本地整理</div>
+      <div class="repo-tag-editor">
+        <div class="repo-organizer-row">
+          <div class="repo-organizer-caption">标签</div>
+          <div class="repo-tag-count">${tags.length}/${MAX_REPO_TAGS}</div>
+        </div>
+        <div class="repo-tag-list">${selectedMarkup}</div>
+        <div class="repo-tag-suggestions">
+          <div class="repo-organizer-caption">推荐标签</div>
+          <div class="repo-tag-list">${suggestionMarkup}</div>
+        </div>
+        <input id="detail-tag-input" class="field-input repo-tag-input" type="text" autocomplete="off" placeholder="添加标签" onkeydown='handleRepoTagInputKeydown(event, ${JSON.stringify(repo.url)})'>
+      </div>
+      <div class="repo-note-editor">
+        <div class="repo-organizer-row">
+          <label class="repo-organizer-caption" for="detail-note-input">笔记</label>
+          <span id="detail-note-save-status" class="repo-note-save-status" data-state="saved" aria-live="polite">已保存</span>
+        </div>
+        <textarea id="detail-note-input" class="field-input repo-note-input" placeholder="记录判断、用途或后续动作" oninput='markDetailRepoNoteDirty(${JSON.stringify(repo.url)})' onblur='saveDetailRepoNote(${JSON.stringify(repo.url)})'>${h(note || "")}</textarea>
+      </div>
+    </div>`;
+}
+
 function renderCurrentDetailPanel(){
   if(!currentDetailRepo || !currentDetailData){
     document.getElementById("detail-body").innerHTML = `<div class="empty">${emptyIcon}<span>详情尚未加载完成。</span></div>`;
@@ -380,15 +423,7 @@ function renderCurrentDetailPanel(){
         <div class="detail-item"><strong>主页</strong><span>${detail.homepage ? `<a class="link-inline" href="${h(detail.homepage)}" target="_blank" rel="noopener" data-external-url="${h(detail.homepage)}">${h(detail.homepage)}</a>` : "未填写"}</span></div>
       </div>
     </div>
-    <div class="detail-section">
-      <div class="section-label">本地标签与笔记</div>
-      ${tags.length ? `<div class="reason-strip">${tags.map(tag => `<span class="reason-pill">${h(tag)}</span>`).join("")}</div>` : `<div class="sub">还没有本地标签。</div>`}
-      <div class="readme-block">${h(note || "还没有本地笔记。")}</div>
-      <div class="panel-actions">
-        <button class="action-quiet compact" type="button" onclick='editRepoTags(${JSON.stringify(repo.url)})'>编辑标签</button>
-        <button class="action-quiet compact" type="button" onclick='editRepoNote(${JSON.stringify(repo.url)})'>编辑笔记</button>
-      </div>
-    </div>
+    ${renderRepoOrganizer(repo, detail, tags, note)}
     <div class="detail-section">
       <div class="section-label">README 摘要</div>
       <div class="readme-block">${h(detail.readme_summary || detail.readme_summary_raw || "暂无 README 摘要")}</div>

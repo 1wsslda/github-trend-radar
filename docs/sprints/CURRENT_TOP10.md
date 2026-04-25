@@ -16,6 +16,37 @@ Codex 选择当前 Auto Top 5 Batch 时，应按以下顺序判断：
 5. 保持本地优先与 Windows 桌面工作流的优先
 6. 不需要大重写的优先
 
+## 标签与笔记编辑体验优化批次 - 2026-04-25
+
+Selected tasks:
+
+| Rank | Task ID | Status | Task | Plan | Branch | Commit / PR | Notes |
+|---:|---|---:|---|---|---|---|---|
+| 1 | `GS-P0-013` | `[x]` | 标签与笔记编辑体验优化 | `docs/plans/0038-tags-notes-editor-ux.md` | `codex/runtime-control-compat` | `-` | 已完成；详情抽屉改为“本地整理”编辑区，标签 chip / 推荐标签 / 输入添加和笔记失焦自动保存均复用 `/api/repo-annotations`。推荐 commit message：`feat(ui): improve tags and notes editor`。 |
+
+Skipped or blocked tasks:
+
+| Task | Reason |
+|---|---|
+| 其他 `window.prompt()` 流程 | 本批只处理标签 / 笔记编辑；忽略原因和保存发现视图命名保持现状。 |
+| React / SQLite / AI provider | 本批不改变前端技术栈、持久化事实来源、后端 API 或隐私边界。 |
+
+## UI 性能审计与滚动卡顿修复批次 - 2026-04-25
+
+Selected tasks:
+
+| Rank | Task ID | Status | Task | Plan | Branch | Commit / PR | Notes |
+|---:|---|---:|---|---|---|---|---|
+| 1 | `GS-P1-020` | `[x]` | 整页性能审计与滚动卡顿修复 | `docs/plans/0038-ui-performance-audit-and-jank-fixes.md` | `codex/runtime-control-compat` | `-` | 已完成；优化详情 / 对比 / 诊断弹层、主列表、更新页、发现页、控制抽屉和菜单滚动卡顿。推荐 commit message：`perf(ui): reduce scroll jank across overlays and lists`。 |
+
+Skipped or blocked tasks:
+
+| Task | Reason |
+|---|---|
+| React / Vite rewrite | 本批只在当前 Vanilla JS/CSS 前端内做小步性能优化。 |
+| FastAPI / SQLite migration | 本批不改变 HTTP API、运行时服务或持久化事实来源。 |
+| AI provider / cloud telemetry | 本批不新增 AI、云 API、同步、性能上报或用户数据外发。 |
+
 ## OpenAI-compatible 翻译 API 批次 - 2026-04-25
 
 Selected tasks:
