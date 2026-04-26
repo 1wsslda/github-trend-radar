@@ -3,7 +3,7 @@
 本文件记录当前自动排序后的候选任务队列。
 文件名 `CURRENT_TOP10.md` 因历史兼容保留；Auto Top 5 Batch Sprint 每批只选择优先级最高、未完成、未阻塞的最多 5 个可安全执行任务。
 
-最后刷新：`2026-04-25`
+最后刷新：`2026-04-26`
 
 ## 选择规则
 
@@ -15,6 +15,23 @@ Codex 选择当前 Auto Top 5 Batch 时，应按以下顺序判断：
 4. 能解锁后续工作的优先
 5. 保持本地优先与 Windows 桌面工作流的优先
 6. 不需要大重写的优先
+
+## 学习型 AI 项目分析提示词优化批次 - 2026-04-26
+
+Selected tasks:
+
+| Rank | Task ID | Status | Task | Plan | Branch | Commit / PR | Notes |
+|---:|---|---:|---|---|---|---|---|
+| 1 | `GS-P1-022` | `[x]` | 优化学习型 AI 项目分析提示词 | `docs/plans/0042-learning-prompt-handoff-hardening.md` | `codex/runtime-control-compat` | `-` | 已完成；只强化单仓库、批量仓库和双仓库对比 prompt handoff 文案，不新增 AI provider、云 API、状态字段或数据外发。推荐 commit message：`feat(ai): harden learning prompt handoff`。 |
+
+Skipped or blocked tasks:
+
+| Task | Reason |
+|---|---|
+| `GS-P2-008` Modern asset pipeline | 用户本轮明确要求先优化 AI 项目分析提示词；现代化构建链保持下一项可执行任务。 |
+| `GS-P2-009` ~ `GS-P2-014` | 必须等待 `GS-P2-008` 完成并有验证记录。 |
+| AI provider / cloud API / artifact cache | 本批只改 prompt handoff 内容，不新增模型调用、云 API、状态字段或用户数据外发。 |
+| `最新prompt.md` | 保持未跟踪文件不处理。 |
 
 ## Runtime UI visual polish 批次 - 2026-04-25
 

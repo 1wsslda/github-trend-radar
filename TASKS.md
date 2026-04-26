@@ -2,7 +2,7 @@
 
 `TASKS.md` 是仓库级任务状态的事实来源。请配合 `docs/roadmap/ROADMAP.md`、`PLANS.md`、`docs/plans/*.md`、`docs/sprints/CURRENT_TOP10.md` 和 `docs/progress/PROGRESS.md` 一起使用。
 
-最后刷新：`2026-04-25`
+最后刷新：`2026-04-26`
 
 ## 状态说明
 
@@ -27,13 +27,14 @@
 | 优先级 | 总数 | `[ ]` | `[~]` | `[!]` | `[x]` | `[-]` |
 |---|---:|---:|---:|---:|---:|---:|
 | `P0` | 13 | 0 | 0 | 0 | 13 | 0 |
-| `P1` | 21 | 0 | 0 | 0 | 21 | 0 |
+| `P1` | 22 | 0 | 0 | 0 | 22 | 0 |
 | `P2` | 15 | 7 | 0 | 2 | 6 | 0 |
 
 ## 当前执行批次
 
 | 优先级 | 状态 | 任务 ID | 任务 | Plan | Branch | Commit / PR | 备注 |
 |---|---:|---|---|---|---|---|---|
+| `P1` | `[x]` | `GS-P1-022` | 优化学习型 AI 项目分析提示词 | `docs/plans/0042-learning-prompt-handoff-hardening.md` | `codex/runtime-control-compat` | `-` | 已完成；单仓库、批量和对比 prompt handoff 已强化核验状态、证据规则、可信度标签、MVP、源码阅读顺序和可选 7 天计划约束，不新增 AI provider、云 API、状态字段或数据外发。推荐 commit message：`feat(ai): harden learning prompt handoff`。 |
 | `P2` | `[x]` | `GS-P2-015` | Runtime UI visual polish | `docs/plans/0041-runtime-ui-visual-polish.md` | `codex/runtime-control-compat` | `-` | 已完成；在当前 Vanilla `runtime_ui` 中统一 muted/shadow/line-height tokens，降低次级 UI 边框噪声，柔化多选卡片态，并用 renderer `--mount-delay` 替代旧 `nth-child` 挂载延迟。推荐 commit message：`style(ui): polish runtime visual system`。 |
 | `P1` | `[x]` | `GS-P1-021` | 详情抽屉 README 滚动卡顿修复 | `docs/plans/0039-detail-drawer-readme-jank.md` | `codex/runtime-control-compat` | `-` | 已完成；长 README 摘要默认只渲染前 `12000` 字，提供“展开全文 / 收起预览”，复制 Markdown 摘要继续使用完整详情内容。推荐 commit message：`perf(ui): reduce detail drawer readme scroll jank`。 |
 | `P2` | `[x]` | `GS-P2-007` | 前端现代化总路线与文档同步 | `docs/plans/0040-frontend-modernization-roadmap.md` | `codex/runtime-control-compat` | `-` | 已完成；把 React/Vite 从“当前不启动完整重写”更新为局部试点路线，后续按 `GS-P2-008` -> `GS-P2-014` 顺序推进。推荐 commit message：`docs(frontend): add staged modernization roadmap`。 |
@@ -54,15 +55,16 @@
 
 | 排名 | 优先级 | 状态 | 任务 ID | 任务 | Plan | Branch | Commit / PR | 备注 |
 |---:|---|---:|---|---|---|---|---|---|
-| 1 | `P2` | `[x]` | `GS-P2-015` | Runtime UI visual polish | `docs/plans/0041-runtime-ui-visual-polish.md` | `codex/runtime-control-compat` | `-` | 已按用户指定插入到 `GS-P2-008` 之前并完成；纯 `runtime_ui` 视觉 / 交互 polish，不改 API、存储、业务逻辑或现代化构建链。 |
-| 2 | `P2` | `[ ]` | `GS-P2-008` | Modern asset pipeline | `docs/plans/0040-frontend-modernization-roadmap.md` | `-` | `-` | 下一项前端现代化可执行任务；开始前需创建或更新任务级计划，建立 Vite 构建、allowlisted modern assets 和缺失 fallback。 |
-| 3 | `P1` | `[x]` | `GS-P1-021` | 详情抽屉 README 滚动卡顿修复 | `docs/plans/0039-detail-drawer-readme-jank.md` | `codex/runtime-control-compat` | `-` | 已完成；默认预览长 README，展开状态仅前端会话保存，不改 API、缓存、JSON state 或导入导出。 |
-| 4 | `P1` | `[x]` | `GS-P1-020` | 整页性能审计与滚动卡顿修复 | `docs/plans/0038-ui-performance-audit-and-jank-fixes.md` | `codex/runtime-control-compat` | `-` | 已完成；只在当前 Vanilla JS/CSS 前端中做滚动、弹层、详情请求和列表渲染性能优化，不改 API 或存储。 |
-| 5 | `P1` | `[x]` | `GS-P1-013` | 只读 API control-token 收紧评估与兼容迁移 | `docs/plans/0031-read-api-control-token-compat.md` | `codex/runtime-control-compat` | `fix(security): require control token for read APIs` | 已完成；无 token 直接读取返回 `403 invalid_control_token`，主界面请求继续携带 control header。 |
-| 6 | `P1` | `[x]` | `GS-P1-014` | 刷新 / 发现 / 更新检查接入统一 Job/Event/SSE | `docs/plans/0032-unify-refresh-discovery-update-jobs.md` | `codex/runtime-control-compat` | `feat(runtime): bridge refresh and discovery to job events` | 已完成；focused 测试通过，现有 discovery job API 和 UI 轮询路径保持兼容。 |
-| 7 | `P1` | `[x]` | `GS-P1-015` | Update Inbox 增强：自上次查看以来、摘要、重要性解释 | `docs/plans/0033-update-inbox-enhancements.md` | `codex/runtime-control-compat` | `feat(updates): add inbox summaries and importance reasons` | 已完成；在现有 read/pin/dismiss/priority MVP 上补充本地摘要、重要性解释和自上次查看以来提示。 |
-| 8 | `P1` | `[x]` | `GS-P1-016` | SQLite 迁移第一阶段：JSON 导入 / 导出兼容与回滚骨架 | `docs/plans/0034-sqlite-migration-phase-1.md` | `codex/runtime-control-compat` | `feat(storage): add sqlite migration dry-run skeleton` | 已完成；新增迁移骨架和兼容验证，不默认切换事实存储。 |
-| 9 | `P1` | `[x]` | `GS-P1-017` | AI provider opt-in 设计与 OpenAI-compatible pipeline | `docs/plans/0035-ai-provider-opt-in-design.md` | `codex/runtime-control-compat` | `docs(ai): design opt-in provider pipeline` | 已完成；已设计 provider、隐私预览、artifact 可追溯和手动启用边界，未调用云端。 |
+| 1 | `P1` | `[x]` | `GS-P1-022` | 优化学习型 AI 项目分析提示词 | `docs/plans/0042-learning-prompt-handoff-hardening.md` | `codex/runtime-control-compat` | `-` | 已完成；只修改 prompt handoff 文案和测试，保持 ChatGPT / Gemini / copy-only 入口、HTTP API、状态与隐私边界不变。 |
+| 2 | `P2` | `[x]` | `GS-P2-015` | Runtime UI visual polish | `docs/plans/0041-runtime-ui-visual-polish.md` | `codex/runtime-control-compat` | `-` | 已按用户指定插入到 `GS-P2-008` 之前并完成；纯 `runtime_ui` 视觉 / 交互 polish，不改 API、存储、业务逻辑或现代化构建链。 |
+| 3 | `P2` | `[ ]` | `GS-P2-008` | Modern asset pipeline | `docs/plans/0040-frontend-modernization-roadmap.md` | `-` | `-` | 下一项前端现代化可执行任务；开始前需创建或更新任务级计划，建立 Vite 构建、allowlisted modern assets 和缺失 fallback。 |
+| 4 | `P1` | `[x]` | `GS-P1-021` | 详情抽屉 README 滚动卡顿修复 | `docs/plans/0039-detail-drawer-readme-jank.md` | `codex/runtime-control-compat` | `-` | 已完成；默认预览长 README，展开状态仅前端会话保存，不改 API、缓存、JSON state 或导入导出。 |
+| 5 | `P1` | `[x]` | `GS-P1-020` | 整页性能审计与滚动卡顿修复 | `docs/plans/0038-ui-performance-audit-and-jank-fixes.md` | `codex/runtime-control-compat` | `-` | 已完成；只在当前 Vanilla JS/CSS 前端中做滚动、弹层、详情请求和列表渲染性能优化，不改 API 或存储。 |
+| 6 | `P1` | `[x]` | `GS-P1-013` | 只读 API control-token 收紧评估与兼容迁移 | `docs/plans/0031-read-api-control-token-compat.md` | `codex/runtime-control-compat` | `fix(security): require control token for read APIs` | 已完成；无 token 直接读取返回 `403 invalid_control_token`，主界面请求继续携带 control header。 |
+| 7 | `P1` | `[x]` | `GS-P1-014` | 刷新 / 发现 / 更新检查接入统一 Job/Event/SSE | `docs/plans/0032-unify-refresh-discovery-update-jobs.md` | `codex/runtime-control-compat` | `feat(runtime): bridge refresh and discovery to job events` | 已完成；focused 测试通过，现有 discovery job API 和 UI 轮询路径保持兼容。 |
+| 8 | `P1` | `[x]` | `GS-P1-015` | Update Inbox 增强：自上次查看以来、摘要、重要性解释 | `docs/plans/0033-update-inbox-enhancements.md` | `codex/runtime-control-compat` | `feat(updates): add inbox summaries and importance reasons` | 已完成；在现有 read/pin/dismiss/priority MVP 上补充本地摘要、重要性解释和自上次查看以来提示。 |
+| 9 | `P1` | `[x]` | `GS-P1-016` | SQLite 迁移第一阶段：JSON 导入 / 导出兼容与回滚骨架 | `docs/plans/0034-sqlite-migration-phase-1.md` | `codex/runtime-control-compat` | `feat(storage): add sqlite migration dry-run skeleton` | 已完成；新增迁移骨架和兼容验证，不默认切换事实存储。 |
+| 10 | `P1` | `[x]` | `GS-P1-017` | AI provider opt-in 设计与 OpenAI-compatible pipeline | `docs/plans/0035-ai-provider-opt-in-design.md` | `codex/runtime-control-compat` | `docs(ai): design opt-in provider pipeline` | 已完成；已设计 provider、隐私预览、artifact 可追溯和手动启用边界，未调用云端。 |
 
 ## 阻塞或暂不进入下一批的任务
 
